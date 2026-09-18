@@ -1,0 +1,8 @@
+#!/bin/sh
+# Constitution IX, as PREVENTION. See scripts/hygiene.py for why both this and
+# the CI job exist: once a commit reaches a public repository, rewriting history
+# does not remove it. This hook is the last point at which that is still true.
+#
+# Installed by scripts/install-hooks.sh (sets core.hooksPath, which is LOCAL
+# config and therefore does not survive a fresh clone -- run the installer).
+exec python3 scripts/hygiene.py --staged

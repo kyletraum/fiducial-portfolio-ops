@@ -1,0 +1,33 @@
+name: hygiene
+
+# Every push, on every branch. A real balance in an unmerged branch of a public
+# repository is still published, and cannot be un-published by force-pushing.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  no-personal-data:
+    name: Constitution IX
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Scan the pushed range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.sha }}"
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            echo "new branch - scanning every tracked file"
+            python3 scripts/hygiene.py --all
+            exit $?
+          else
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          fi
+          echo "scanning $RANGE"
+          python3 scripts/hygiene.py --range "$RANGE"

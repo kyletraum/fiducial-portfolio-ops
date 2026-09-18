@@ -1,0 +1,66 @@
+# ---------------------------------------------------------------------------
+# Constitution IX: the repository contains no personal data, ever.
+# This file is the first line of that. It lands in commit one, not later.
+# ---------------------------------------------------------------------------
+
+# Secrets and environment ---------------------------------------------------
+# Vite loads .env, .env.local, .env.[mode] and .env.[mode].local; only the
+# *.local pair is git-ignored by convention, and .env.production is a
+# commit-by-habit file in that ecosystem. Ignore all of them, allow the example.
+.env
+.env.*
+!.env.example
+*.local
+appsettings.*.local.json
+secrets.json
+
+# Aspire publish output -----------------------------------------------------
+# Ignored AS A DIRECTORY, not as a file. `aspire publish` writes a .env that
+# ACCUMULATES: EnvFile.Load reads whatever is already there and SaveKeysOnly
+# preserves every non-empty value, so a password typed in once to make
+# `docker compose up` work is rewritten into every later publish.
+# The committed override lives in deploy/, NOT here.
+aspire-output/
+publish/
+
+# Test artifacts ------------------------------------------------------------
+# A Playwright trace carries every API response body, the rendered DOM and the
+# session cookie in one zip. The hygiene job is a text scan over the diff and
+# cannot see inside an archive, so these never reach git in the first place.
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+*.zip
+*.trace.zip
+
+# Database ------------------------------------------------------------------
+*.dump
+*.sql.gz
+*.bak
+pgdata/
+
+# .NET ----------------------------------------------------------------------
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+.vs/
+*.user
+*.suo
+TestResults/
+coverage*.json
+coverage*.xml
+*.coverage
+
+# Node ----------------------------------------------------------------------
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+
+# OS / editor ---------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
