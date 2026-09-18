@@ -1,5 +1,29 @@
 # Implementation Plan: Self-Hosted Portfolio Platform
 
+> ## ⚠ FROZEN REFERENCE — read this before the document
+>
+> **This document is not being built.** `001-portfolio-platform/slice-01.md` is
+> the only live unit of work. This file is consulted, not executed, and it is
+> **corrected only when a slice is commissioned against it** — so a paragraph
+> below carries no guarantee beyond what this banner says about it.
+>
+> Three review rounds contradicted specific claims here. They are named by line
+> so you do not have to guess which paragraph is the wrong one:
+>
+> - **`:119` — WRONG.** *Service discovery supplies the SPA's API address.* It never does, in either mode. The browser calls a **relative path**; under `aspire run` the Vite dev server proxies `/api` using `SERVER_HTTP`/`SERVER_HTTPS` injected into the Vite **process**, and at publish the assets are folded into the API container. Service discovery feeds the proxy, not the client. [`SOURCE@microsoft/aspire@b477bdd`, `aspire-ts-cs-starter`]
+> - **`:125` — WRONG.** *Two simultaneous stacks by launch profile.* `aspire run` stops any running instance unconditionally, keyed on the **AppHost file path alone** — the launch profile is not part of the key. Simultaneity needs two directories. Launch profiles still work for *selection*. [`SOURCE@…RunCommand.cs:358-370`, `AppHostSocketManager.cs:89-98`]
+> - **`:213` — WRONG.** *The Worker owns migrations as a long-running service.* It must **terminate**: `WaitForCompletion` requires it, and that is what emits `service_completed_successfully`. A one-shot Migrator is right. [`SOURCE@microsoft/aspire@b477bdd`]
+> - **`:122` — TRUE IN RUN MODE ONLY.** *The API and worker wait for Postgres to be healthy.* The Compose publisher's `service_healthy` branch is **commented out**; everything but `WaitForCompletion` falls through to `service_started`. [`SOURCE@…DockerComposeServiceResource.cs:208-230`]
+> - **`:173` — OVERCLAIMED.** *`IProjectionModel`'s Validate/Run split makes Constitution II a type-system property.* It does not. A heterogeneous registry erases to `Run(object)`, and defaulting happens *inside* `Validate`, which no signature can see. The refusal tests are the enforcement.
+> - **`:80` vs `:168` — CONTRADICTORY.** `Projections` references *nothing*, and `Validate` *resolves* inputs. Resolution is data access. Both cannot hold.
+> - **`:290` — CORRECTED.** The Compose risk row: `WithComposeServiceCustomization` **does not exist**. The API is `PublishAsDockerComposeService`, and no `ASPIRECOMPUTE002` `NoWarn` is needed.
+>
+> Anything *not* listed above is **unreviewed, not verified**. Where a claim
+> about an external system carries a strength marker (`EXECUTED`,
+> `SOURCE@<ref>`, `DOCS@<date>`, `INFERRED` — see `../review/process.md`), that
+> marker is the claim's real weight. An unmarked external claim has not been
+> checked.
+
 **Spec:** `spec.md` · **Principles:** `../constitution.md`
 
 This document says **how** the system is built. Rationale for the choices lives

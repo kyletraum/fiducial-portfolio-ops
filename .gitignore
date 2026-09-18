@@ -9,7 +9,11 @@
 # commit-by-habit file in that ecosystem. Ignore all of them, allow the example.
 .env
 .env.*
-!.env.example
+!deploy/.env.example
+# NOTE: `.env` is written KEYS-ONLY by `aspire publish` and never receives a
+# generated secret; it does preserve values typed in by hand. The file that
+# carries RESOLVED secrets is `.env.<environment>`, written by the deploy step.
+# Both are ignored. The committed key list is deploy/.env.example.
 *.local
 appsettings.*.local.json
 secrets.json

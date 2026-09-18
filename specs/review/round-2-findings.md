@@ -802,3 +802,62 @@ artifact that actually decides what gets built, was reviewed by nobody until thi
 seat. That is `C-375` one level up again, and it is the argument for making an
 adversarial pass over the disposition a standing part of the method rather than
 something commissioned once.
+
+---
+
+# THE LAST FIVE — `C-375`'s remaining population, verified 2026-09-18
+
+`ADV-20` observed that `C-375` is a **class**, and its population is *every
+round-1 prescription still sitting in the live build document* — not just the two
+already caught. Ten sit in `slice-01.md`. Round 2 re-examined four, `ADV` closed
+`S-25b`, and five had never been checked by anyone. One seat took them, with a
+`microsoft/aspire` clone at `b477bdd` and `raw.githubusercontent.com` reads of
+`dotnet/aspnetcore` and `microsoft/OpenAPI.NET` at pinned refs. No .NET SDK and no
+Docker daemon were available, and nothing is marked `EXECUTED` that was not run.
+
+**Two more were wrong. The hit rate on unverified round-1 prescriptions is now
+four of seven.**
+
+| | | |
+|---|---|---|
+| **`S-14`** | **PARTLY WRONG** | Three of four limbs. "Sorted keys" is already done upstream (`Components.Schemas` is `OrderBy`'d ordinally; `paths` is registration-ordered and deterministic). "Invariant culture" is already satisfied — but only on the build-time path, so the limb was never about culture, it was about *which generator you use*. "LF via `.gitattributes`" is the wrong target and counterproductive: `Writer.NewLine` is `"\n"` unconditionally, and `.gitattributes` would **hide** a CRLF from `git diff` while an in-process compare still failed. Only the failure-message limb survives, and the command it needed — `dotnet build -p:OpenApiDocumentsDirectory=<dir>` — was the missing piece. |
+| **`S-25a`** | **VERIFIED** | All three limbs exact. One understatement corrected: `ConfigureComposeFile` and `WithProperties` also exist, and the per-service callback runs *after* the network assignment — so the internal/front split **is** expressible in committed C#. |
+| **`S-25c`** | **PARTLY WRONG** | Premise verified; the prescribed wording **breaks step 5 of its own document**. `DistributedApplicationTestingBuilder` ships in `Aspire.Hosting.Testing`, which matches the banned prefix, and step 5 requires it. Both official templates reference it directly. An unexceptioned invariant fails the moment the integration-test project exists — and would then be quietly rewritten to exclude it. |
+| **`S-33`** | **WRONG** | Names the wrong file *and* prescribes work the publisher already does. `aspire publish` writes a keys-only `.env` — that **is** the example file, under the name Compose reads. The file carrying resolved secrets is `.env.<environment>`, written by *deploy*. "Never a populated `.env`" pointed at the one variant that is never populated. And a root `.env.example` is read by nothing and, in the publish directory, is un-committed by the rule protecting the `.env`. |
+| **`S-34`** | **PARTLY WRONG — and its GATE resolves YES without a spike** | All four overrides are expressible in the app model: `Service` carries `Healthcheck`, `DependsOn` with `Condition`, `Restart`, `Ports` and `Deploy`; the callback runs after the network assignment so it can overwrite `service_started`; the constraint is `IComputeResource`, which both `ContainerResource` and `ProjectResource` satisfy. **But the gate was pointed at the wrong limb.** The *fallback* is what fails: Compose keys `ports` on `{ip, target, published, protocol}`, so an override adding `127.0.0.1:` **appends** rather than replaces — both bindings, a bind conflict, DoD 3 silently unmet — and no override file can delete a service, so `.WithDashboard(false)` has no file route. Also: one limb of the original, **resource limits**, had been silently dropped with no disposition; restored as an explicit DEFER. |
+
+## Two corrections to this document's own earlier findings
+
+**`ADV-6`/`R2-M4`'s accumulator reasoning was wrong about which file holds the
+secret.** "A rotated password keeps its stale value across every later `aspire
+publish`" is true only of values a human typed into `.env` by hand — and `.env`
+never receives a generated secret in the first place (`value: null`,
+`includeValues: false`). The secret-bearing `.env.<environment>` is written by
+*deploy* with `Create` + `includeValues: true`, **rebuilt from scratch each run**,
+so a rotation does propagate. **The git-ignore fix stands; the reasoning behind it
+did not.** Corrected in `deployment.md`'s banner and in `.gitignore`.
+
+**`S-14` sat in a three-way contradiction nothing had caught**, because it is not
+a platform claim and falls in the seam between the cut and the step: the middle
+cut removes drift-gate determinism work, the step-3 preface repeats the cut, line
+241 prescribed exactly that work, and DoD 6 stated it as a pass/fail gate. The cut
+stands and DoD 6 is reworded.
+
+## What this says about the method
+
+Four of seven unverified round-1 prescriptions were wrong, and **none of the four
+was catchable by reading the documents** — each fell out in minutes from a clone
+already on disk. The two failures found here have the same shape as the two that
+created `C-375`: *the defect is real, and the remedy names an artifact that either
+does not do the job or breaks something else in the same document.*
+
+`D-031` §1 already binds review output to `D-029`'s markers. What this round adds
+is narrower and worth stating: **a prescription that names a file, a package, a
+method or a flag is a claim about that artifact, and the cheapest possible check
+is to look at the artifact.** Three of the four failures would have been caught by
+one `grep` against a clone.
+
+`S-34`'s gate is the other lesson. It was written to be answered by a **spike** —
+running the thing — and it was answerable by reading four small model classes and
+one ordering in the publisher. A gate that could have been closed by reading is a
+gate that cost the schedule a day for nothing.

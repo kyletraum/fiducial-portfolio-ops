@@ -1,5 +1,27 @@
 # Data Model
 
+> ## ⚠ FROZEN REFERENCE — read this before the document
+>
+> **This document is not being built.** `001-portfolio-platform/slice-01.md` is
+> the only live unit of work. This file is consulted, not executed, and it is
+> **corrected only when a slice is commissioned against it** — so a paragraph
+> below carries no guarantee beyond what this banner says about it.
+>
+> Three review rounds contradicted specific claims here. They are named by line
+> so you do not have to guess which paragraph is the wrong one:
+>
+> - **`:121` vs `:122-123` — SELF-CONTRADICTORY.** The unique index would reject the restatement the very next paragraph describes. It needs a `superseded_at IS NULL` predicate, and the pointer must be **inverted**: `superseded_at` plus a *backward* `supersedes` FK, written `UPDATE` **then** `INSERT`. Reversing the order trips the index. [`EXECUTED 2026-09-18`, PG 16.13]
+> - **`:111`, `:124` — IMPOSSIBLE.** The `closed_on` `CHECK` references another table. `ERROR: cannot use subquery in check constraint`. Use a trigger.
+> - **`:280` — DIVERGES FROM THE LIVE SLICE.** `v_balance_daily` forbids gap-fill; `slice-01.md`'s `v_net_worth_daily` carries forward *within an active window*, under Constitution Amendment 3. Two views, two rules, deliberately.
+> - **Missing.** No `account_source` table, though the live slice builds one as migration 2.
+> - **`:119` — CUT.** `is_estimate` is struck: a second, semantically undefined channel for the weakness `source_strength` already carries.
+>
+> Anything *not* listed above is **unreviewed, not verified**. Where a claim
+> about an external system carries a strength marker (`EXECUTED`,
+> `SOURCE@<ref>`, `DOCS@<date>`, `INFERRED` — see `../review/process.md`), that
+> marker is the claim's real weight. An unmarked external claim has not been
+> checked.
+
 PostgreSQL. Two schemas:
 
 - **`app`** - the physical model. Written by ingestion, read by the API.

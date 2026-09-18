@@ -96,13 +96,22 @@ describing work that is actually being done.
 
 ## Status, and how to read the rest
 
-**`slice-01.md` is live.** Everything else in `001-portfolio-platform/` is a
-**frozen reference**: it describes work that may never be commissioned, it is
-consulted rather than executed, and **it contains specific claims that three
-review rounds contradicted**. Each of those documents carries a banner naming
-which of its claims are wrong and where. A reference document is corrected only
-when a slice is commissioned against it - so treat a paragraph without a banner
-as unreviewed rather than as verified.
+There are **three kinds of document here** and the difference matters:
+
+| | | |
+|---|---|---|
+| **LIVE — build this** | `001-portfolio-platform/slice-01.md` | the only unit of work. ~135 hours. |
+| **LIVE, with known defects** | `constitution.md`, `spec.md`, `traceability.md` | governing documents. The last two carry a **KNOWN DEFECTS** note naming what the review found and was not repaired; `constitution.md` is current and carries three amendments. |
+| **FROZEN REFERENCE** | the other nine in `001-portfolio-platform/` | describe work that may never be commissioned. Consulted, not executed. |
+
+Each of the nine frozen documents opens with a banner naming, **by line**, the
+claims three review rounds contradicted - so you do not have to guess which
+paragraph is the wrong one. A frozen document is corrected **only when a slice is
+commissioned against it**; until then the banner is the correction.
+
+**Treat a paragraph the banner does not mention as unreviewed, not as verified.**
+The banners name what was found wrong, which is not the same as certifying
+everything else.
 
 Version numbers throughout were originally written as *confirm at scaffold time*
 because the session that drafted them had no .NET SDK and could not reach the

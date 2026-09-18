@@ -191,3 +191,53 @@ than by editing it, to admit exactly one exception:
 
 The banner, the flag and the gate are what keep it from being a "roughly" column.
 Principle II is untouched: a `null` still means unverified and still refuses.
+
+---
+
+### Amendment 3 — 2026-09-18 — Principle III admits carry-forward inside an active window
+
+**Decision:** `D-030` Amendment 1 (the cut that kept this one piece of paperwork).
+**Findings:** `M-1`, and `R2-B2`, reached independently by five review seats.
+**Rationale:** Principle III as written — *"never forward-fills, never carries the
+last balance forward, and never interpolates across a gap it did not observe"* —
+forbids the only user-visible output the first slice builds, and `slice-01.md`
+asserted for a time that this section already permitted it. It did not. A
+principle quietly weakened to let a feature land has not been amended; it has
+been broken, so it is amended here instead.
+
+**The problem Principle III did not anticipate.** Accounts do not report on the
+same days. A per-date sum over only the rows that exist sums a *different subset*
+every day, so a net-worth line moves for reasons that are purely reporting
+artefacts. That is not a chart of your money; it is a chart of who happened to
+sync. Refusing to draw anything is not the answer either, because the gap is
+invisible in a refusal.
+
+**The amendment.** Principle III is amended to admit exactly one case:
+
+> A balance may be **carried forward within an account's own active window** —
+> after its first observation and before its series ends — provided every carried
+> point is **marked as carried** and the row states how stale it is. Fill **past
+> the end of a series** remains forbidden absolutely: when an account stops
+> reporting, its series stops, and no later point may be invented for it.
+
+**Three conditions, all binding, none optional.**
+
+1. **A carried point is marked.** The view carries `accounts_carried` and
+   `max_staleness_days` per row, and `accounts_unverified` beside them. A carried
+   value that looks identical to an observed one has broken this amendment, not
+   satisfied it.
+2. **The window has a stated end.** "Active window" is not "up to today" — an
+   account that silently stopped reporting must not be forward-filled forever,
+   which would be Principle III's forbidden case wearing this amendment as a
+   disguise. The staleness cutoff is named in `slice-01.md` step 2 and is part of
+   this amendment, not an implementation detail.
+3. **A day with nothing verified is UNVERIFIED, never zero.** PostgreSQL's
+   `sum()` ignores NULLs, so a day where every in-window account is missing
+   returns NULL, and a naive implementation shows a confident zero or an empty
+   point. Principle II governs that case and is untouched here.
+
+**What this does not do.** It does not permit gap-filling in `v_balance_daily`,
+which stays non-filled by design — two views, two rules, so a report and a
+dashboard can legitimately differ *and say why*. It does not weaken Principle II.
+And it does not license interpolation: carry-forward repeats the last *observed*
+value, it never invents an intermediate one.
