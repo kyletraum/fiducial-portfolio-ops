@@ -65,11 +65,17 @@ with a reason. Never wildcard it.
 
 ## Where the specification lives
 
-The constitution, the system specification, the architecture plan, the data model,
-the threat model and the first slice's build plan were written and adversarially
-reviewed before any code existed — three review rounds, including one that reviewed
-the reviews. They live in the planning repository that commissioned this one and
-will be ported here.
+In [`specs/`](specs/). The constitution, the system specification, the
+architecture plan, the data model, the threat model and the first slice's build
+plan were written and adversarially reviewed **before any code existed** — three
+rounds, the last of which reviewed the reviews and found a prescription that
+silently cancelled itself.
+
+Start with [`specs/constitution.md`](specs/constitution.md), then
+[`specs/001-portfolio-platform/slice-01.md`](specs/001-portfolio-platform/slice-01.md),
+which is the only document describing work actually in progress. The rest are a
+frozen reference and each carries a banner naming the claims the reviews
+contradicted.
 
 ## Licence
 
