@@ -409,6 +409,50 @@ commit one.
 8. `LICENSE` present; no personal data anywhere in the repo.
 9. The eight live findings are fixed **or** explicitly recorded as not-fixed with a reason.
 
+## The gate's two prerequisites — start these on day one
+
+Both are `D-030` Amendment 1 items and both are prerequisites of step 1, not
+deliverables of the assessment. That ordering is the whole point: at week 20, on
+the fourth consecutive evening of push-wait-red, the decision to continue gets
+made by exhaustion unless a number was written down while things were still
+interesting.
+
+### 1. `LOG.md` — one line per session, written as you go
+
+`/LOG.md`. Date, step, hours, one clause. **Hours are the only input the
+assessment needs that cannot be reconstructed afterwards** — a figure recalled
+months later is a recalled figure, and this project's parent system forbids those
+as a source. Everything else is in git.
+
+### 2. The abandon threshold — written now, applied then
+
+**The gate judges TECHNIQUE, not usefulness** (Kyle, 2026-09-18). This matters
+for what the threshold can say. Slice 01 runs on generated data, so the chart at
+the end is a chart of invented money and **cannot** answer *"is a chart of my own
+money worth this?"* — that question is not on the table and the assessment must
+not pretend to answer it. What the slice can answer is whether this stack is
+worth more evenings. So:
+
+> **The default at the gate is STOP.** A second slice requires a new decision
+> file, written and dated, not a continuation.
+>
+> The default is overridden only if the assessment can name, in writing:
+>
+> - **three techniques this taught that Kyle did not already have** — named
+>   specifically, with the commit that demonstrates each. "Learned Aspire" does
+>   not count; "learned that the AppHost is not the production runtime, and here
+>   is the generated compose file that proves it" does.
+> - **and** that actual cost did not exceed **200 hours** (`LOG.md`). Beyond
+>   that, the practice-per-hour rate has fallen far enough that a different
+>   project teaches more.
+>
+> **Two things are explicitly NOT reasons to continue:** that the slice works,
+> and that the next slice is obvious. Both will be true and neither is evidence
+> about the thing being decided.
+
+Write both files before step 1. They take twenty minutes and they are the only
+part of this plan designed to survive your own enthusiasm.
+
 ## Then stop
 
 **The gate is real** (`D-030` §2). Momentum after a working slice points straight

@@ -1,5 +1,25 @@
 # API Contract
 
+> ## ⚠ FROZEN REFERENCE — read this before the document
+>
+> **This document is not being built.** `001-portfolio-platform/slice-01.md` is
+> the only live unit of work. This file is consulted, not executed, and it is
+> **corrected only when a slice is commissioned against it** — so a paragraph
+> below carries no guarantee beyond what this banner says about it.
+>
+> Three review rounds contradicted specific claims here. They are named by line
+> so you do not have to guess which paragraph is the wrong one:
+>
+> - **Missing write paths.** There is no account-creation endpoint and no `POST /accounts/{id}/balances` — the one write the live slice actually builds. There is also no `/transfers` resource and no constants write path, so two constitutional states (V's conditional money, II's unresolved input) are reachable **only through `/dev/seed`**, i.e. only in DEV.
+> - **Missing.** No idempotency or correction semantics on a balance write, and no breaking-change detection: regenerating the document and diffing catches *drift*, not *breakage*.
+> - **CSV export is unguarded.** It is the one place provider-authored text leaves the escaping boundary; a `merchant_name` of `=HYPERLINK(...)` executes on open.
+>
+> Anything *not* listed above is **unreviewed, not verified**. Where a claim
+> about an external system carries a strength marker (`EXECUTED`,
+> `SOURCE@<ref>`, `DOCS@<date>`, `INFERRED` — see `../review/process.md`), that
+> marker is the claim's real weight. An unmarked external claim has not been
+> checked.
+
 The API is the product boundary (Constitution XI). Everything the UI can do is
 an HTTP call any other client could make.
 

@@ -1,5 +1,24 @@
 # Research and Decisions
 
+> ## ⚠ FROZEN REFERENCE — read this before the document
+>
+> **This document is not being built.** `001-portfolio-platform/slice-01.md` is
+> the only live unit of work. This file is consulted, not executed, and it is
+> **corrected only when a slice is commissioned against it** — so a paragraph
+> below carries no guarantee beyond what this banner says about it.
+>
+> Three review rounds contradicted specific claims here. They are named by line
+> so you do not have to guess which paragraph is the wrong one:
+>
+> - **D5 — TRUE OF INTENT, FALSE AS BUILT.** *"The guarantee is a database privilege, not query parsing — parsers can be fooled, `GRANT` cannot."* The argument is right and the DDL that would make it true was never written. As specified: the reporting role keeps `PUBLIC`'s `CONNECT`/`TEMPORARY`/`EXECUTE` defaults; the statement timeout is `PGC_USERSET` and self-disarming; and **the row cap has no database mechanism at all** — PostgreSQL has no row-limit GUC, so it is the application-side string wrapper D5 rejects as unsound. See `security.md`'s banner.
+> - **The charting question is answered.** `slice-01.md` takes **Recharts**: `accessibilityLayer` defaults true, keyboard traversal of data points, an announced value, `connectNulls` false, `prefers-reduced-motion` honoured. ECharts renders to canvas by default — invisible to axe and to any DOM assertion — with `aria` opt-in and its generated label truncated to 10 data points. [`SOURCE@recharts@3.10.1`, `SOURCE@echarts@6.1.0`]
+>
+> Anything *not* listed above is **unreviewed, not verified**. Where a claim
+> about an external system carries a strength marker (`EXECUTED`,
+> `SOURCE@<ref>`, `DOCS@<date>`, `INFERRED` — see `../review/process.md`), that
+> marker is the claim's real weight. An unmarked external claim has not been
+> checked.
+
 Why the platform is built the way `plan.md` describes, and what was considered
 and rejected. Each entry records the decision, the reasoning, and the
 alternatives - so a future reader can reopen a decision on its merits rather

@@ -1,5 +1,26 @@
 # CI/CD
 
+> ## ⚠ FROZEN REFERENCE — read this before the document
+>
+> **This document is not being built.** `001-portfolio-platform/slice-01.md` is
+> the only live unit of work. This file is consulted, not executed, and it is
+> **corrected only when a slice is commissioned against it** — so a paragraph
+> below carries no guarantee beyond what this banner says about it.
+>
+> Three review rounds contradicted specific claims here. They are named by line
+> so you do not have to guess which paragraph is the wrong one:
+>
+> - **`:51` — UNMEASURABLE.** Coverage floors are attached to the unit-test job, but three of the five name assemblies unit tests never load. No collector or cross-job merge is named either.
+> - **`:170` — CANNOT WORK SOLO.** *Required review before merge.* A PR author cannot approve their own PR, and on a **personal** repository the owner is an admin, so the rule is silently bypassed by default rather than enforced. Keep required status checks, linear history and no force-push; drop required approvals. [`DOCS@2026-09-18` github/docs]
+> - **`:149` — PROTECTS THE OPTIONAL TARGET.** Image signature verification exists only in the Azure deploy pipeline. The **primary** target is a self-hoster running `docker compose up`, which verifies nothing. Publish the verify command in the release notes.
+> - **Not prevention.** Push protection matches provider *secret* patterns — not balances, not institution names, which is what Constitution IX is about. And a force-push does not remove a pushed commit. The pattern set must also run as a pre-commit hook.
+>
+> Anything *not* listed above is **unreviewed, not verified**. Where a claim
+> about an external system carries a strength marker (`EXECUTED`,
+> `SOURCE@<ref>`, `DOCS@<date>`, `INFERRED` — see `../review/process.md`), that
+> marker is the claim's real weight. An unmarked external claim has not been
+> checked.
+
 GitHub Actions. Described as pipelines and their guarantees rather than as YAML,
 so the intent survives the syntax changing.
 

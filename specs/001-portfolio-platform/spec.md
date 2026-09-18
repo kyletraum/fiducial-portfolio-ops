@@ -1,5 +1,19 @@
 # Feature Specification: Self-Hosted Portfolio Platform
 
+> ### ⚠ KNOWN DEFECTS, NOT FIXED — 2026-09-18
+>
+> This document is **live**, not frozen, but the review found defects in it whose
+> repair was **cut** by `D-030` Amendment 1 as pre-step-1 paperwork. They are
+> named here rather than silently carried:
+>
+> - **FR-4.3 is unsatisfiable by the only thing being built.** It requires every externally-sourced row to carry an originating sync run, with **no exemption** — and slice 01 is entirely hand-entered. A manual row has no sync run and never will. The clause it needs: *for hand-entered rows, the actor and entry time in place of a run id*.
+> - **Three behaviours the slice builds have no FR at all:** series continuation (carry-forward, `accounts_carried`, `max_staleness_days`), restatement and supersession — the most load-bearing data rule in the slice, listed only as an edge case — and the accessibility floor, which currently lives only in `slice-01.md` and therefore dies with it.
+> - **Authentication has no FR**, only a bare pointer at `security.md`, which cannot be marked satisfied or unsatisfied.
+> - **A `[NEEDS CLARIFICATION]` marker on manual accounts is stale** — `D-030` answered it: manual entry *is* the first release.
+>
+> Nothing above blocks `slice-01.md`. Fixing them is `DEFER`red, not `CUT` — the
+> trigger is the slice that first depends on the affected requirement.
+
 **Feature Branch:** `001-portfolio-platform`
 **Status:** Draft
 **Input:** Build the capabilities of a file-based portfolio planning system into

@@ -1,5 +1,27 @@
 # Security
 
+> ## ⚠ FROZEN REFERENCE — read this before the document
+>
+> **This document is not being built.** `001-portfolio-platform/slice-01.md` is
+> the only live unit of work. This file is consulted, not executed, and it is
+> **corrected only when a slice is commissioned against it** — so a paragraph
+> below carries no guarantee beyond what this banner says about it.
+>
+> Three review rounds contradicted specific claims here. They are named by line
+> so you do not have to guess which paragraph is the wrong one:
+>
+> - **`:109` — WRONG.** *The reporting role holds `SELECT` on `reporting` and nothing else anywhere.* A fresh PostgreSQL role holds `CONNECT` and `TEMPORARY` on databases and `EXECUTE` on every function **by `PUBLIC` default**. No `REVOKE` is written anywhere in this document. `CREATE TEMP TABLE … AS SELECT` is a write on the read-only connection, and temp *tables* are exempt from `temp_file_limit`. [`SOURCE@postgres acldefault()`]
+> - **`:112` — NOT A BOUNDARY.** *A statement timeout bounds user SQL.* `statement_timeout` is `PGC_USERSET`; the user's own SQL may `SET statement_timeout = 0`, and `GRANT SET ON PARAMETER` is documented as meaningless for it. Npgsql splits `CommandText` on semicolons, so the disarm and the query are one command. Enforce client-side with `NpgsqlCommand.CommandTimeout`.
+> - **`:71` — VIOLATES FR-3.1.** *user-secrets as an `ISecretStore` implementation.* Microsoft's own documentation: Secret Manager *"doesn't encrypt the stored secrets"*. Constitution VII says secrets never rest in plaintext.
+> - **`:85` — ANSWERS THE WRONG THREAT.** *A stolen database volume yields nothing without the KEK; a stolen laptop is the primary threat.* A Compose `file:` secret is a **plaintext file on the same disk as the volume**. Envelope encryption defeats volume exfiltration; full-disk encryption is the answer to the named threat. The scheme also defines **no table** for its data keys, so KEK rotation cannot record which KEK wrapped which key.
+> - **Missing.** Query strings are logged verbatim by ASP.NET Core and an OAuth code has no distinguishing shape, so the shape-based redaction test passes while the credential sits in the log. Redact by **parameter name** on the callback route.
+>
+> Anything *not* listed above is **unreviewed, not verified**. Where a claim
+> about an external system carries a strength marker (`EXECUTED`,
+> `SOURCE@<ref>`, `DOCS@<date>`, `INFERRED` — see `../review/process.md`), that
+> marker is the claim's real weight. An unmarked external claim has not been
+> checked.
+
 The system holds a complete picture of one person's finances and credentials to
 the institutions behind it. That combination is worth more to an attacker than
 either half.

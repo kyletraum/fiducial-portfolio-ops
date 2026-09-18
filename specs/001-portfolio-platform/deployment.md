@@ -1,5 +1,25 @@
 # Deployment
 
+> ## ⚠ FROZEN REFERENCE — read this before the document
+>
+> **This document is not being built.** `001-portfolio-platform/slice-01.md` is
+> the only live unit of work. This file is consulted, not executed, and it is
+> **corrected only when a slice is commissioned against it** — so a paragraph
+> below carries no guarantee beyond what this banner says about it.
+>
+> Three review rounds contradicted specific claims here. They are named by line
+> so you do not have to guess which paragraph is the wrong one:
+>
+> - **`:58-63` — WRONG.** *Both launch profiles run simultaneously.* See `plan.md:101`.
+> - **`:90` — BACKWARDS.** The generated `.env` is described as regenerated. It is an **accumulator**: `EnvFile.Load` reads whatever is already at the output path and `SaveKeysOnly` *preserves every non-empty value it finds*. A password typed in once to make `docker compose up` work is rewritten into every later publish. Git-ignore the **directory**, not the file. [`SOURCE@…EnvFile.cs:147-177`]
+> - **The published topology is not the one described here.** One flat network; external endpoints written as a bare `host:container` string with **no host IP**, so Docker binds every interface; health-based `depends_on` silently degraded to `service_started`; and an **Aspire dashboard service** emitted with `restart: always` that no table below lists. Base images *can* be digest-pinned via `WithImageSHA256`; only project images need a release-pipeline rewrite.
+>
+> Anything *not* listed above is **unreviewed, not verified**. Where a claim
+> about an external system carries a strength marker (`EXECUTED`,
+> `SOURCE@<ref>`, `DOCS@<date>`, `INFERRED` — see `../review/process.md`), that
+> marker is the claim's real weight. An unmarked external claim has not been
+> checked.
+
 Three targets, one app model.
 
 | Target | What runs | Purpose |

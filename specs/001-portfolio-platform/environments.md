@@ -1,5 +1,25 @@
 # Environments
 
+> ## ⚠ FROZEN REFERENCE — read this before the document
+>
+> **This document is not being built.** `001-portfolio-platform/slice-01.md` is
+> the only live unit of work. This file is consulted, not executed, and it is
+> **corrected only when a slice is commissioned against it** — so a paragraph
+> below carries no guarantee beyond what this banner says about it.
+>
+> Three review rounds contradicted specific claims here. They are named by line
+> so you do not have to guess which paragraph is the wrong one:
+>
+> - **`:23`, `:36-43` — WRONG.** *Two stacks run side by side via launch profiles.* See `plan.md:101`. Simultaneity needs two directories; Compose also scopes volumes and networks by **project name**, which nothing here sets.
+> - **`:80-85` — FALSE TWICE.** *Three guards, each independently sufficient.* Guards 1 and 2 read the **same injected environment value** — one mis-set variable defeats both, so they are one guard with two spellings. Guard 3 rests on revoking `DROP`, which PostgreSQL does not have: *"The right to modify or destroy an object is inherent in being the object's owner, and cannot be granted or revoked in itself."* [`SOURCE@postgres@REL_16_STABLE ddl.sgml`]
+> - **Naming.** `portfolio` and `portfolio_dev` make the DEV assertion a substring test waiting to be written backwards — `portfolio_dev` contains `portfolio`. Use `portfolio_prd`.
+>
+> Anything *not* listed above is **unreviewed, not verified**. Where a claim
+> about an external system carries a strength marker (`EXECUTED`,
+> `SOURCE@<ref>`, `DOCS@<date>`, `INFERRED` — see `../review/process.md`), that
+> marker is the claim's real weight. An unmarked external claim has not been
+> checked.
+
 Two environments run **simultaneously** on one machine (FR-10.1):
 
 | | PRD | DEV |

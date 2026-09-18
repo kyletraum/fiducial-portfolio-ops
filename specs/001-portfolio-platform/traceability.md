@@ -1,5 +1,17 @@
 # Traceability
 
+> ### ⚠ KNOWN DEFECTS, NOT FIXED — 2026-09-18
+>
+> This document is **live**, not frozen, but the review found defects in it whose
+> repair was **cut** by `D-030` Amendment 1 as pre-step-1 paperwork. They are
+> named here rather than silently carried:
+>
+> - **The Constitution coverage table stops at XI.** Amendment 1 added principles XII and XIII the same day this file was last retargeted, and Amendment 3 has since amended III. Three rows are therefore incomplete or false: I does not mention the working-assumption state, III names a `closed_on` `CHECK` that cannot be built, and XII/XIII have no rows.
+> - **Its claim that every requirement has a home does not hold** — see `spec.md`'s note above for three behaviours with no FR behind them.
+>
+> Nothing above blocks `slice-01.md`. Fixing them is `DEFER`red, not `CUT` — the
+> trigger is the slice that first depends on the affected requirement.
+
 Every requirement as originally stated, mapped to where the specification
 satisfies it. No requirement without a home; no spec section without a
 requirement behind it.

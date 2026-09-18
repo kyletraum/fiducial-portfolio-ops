@@ -1,5 +1,28 @@
 # Testing
 
+> ## ⚠ FROZEN REFERENCE — read this before the document
+>
+> **This document is not being built.** `001-portfolio-platform/slice-01.md` is
+> the only live unit of work. This file is consulted, not executed, and it is
+> **corrected only when a slice is commissioned against it** — so a paragraph
+> below carries no guarantee beyond what this banner says about it.
+>
+> Three review rounds contradicted specific claims here. They are named by line
+> so you do not have to guess which paragraph is the wrong one:
+>
+> - **`:118` — WRONG LAYER.** The DEV-assertion test is placed at integration, but it is a pure function of two injected values — and testing it there means manufacturing a PRD-named database inside the test environment, which is the one thing Constitution X exists to prevent.
+> - **`:148-151` vs `:77-79` — STATED TWICE.** The client conformance properties are asserted at the contract layer while three of the same behaviours sit at the frontend unit layer. A contract test cannot assert how a component renders.
+> - **`:143` — TAUTOLOGICAL.** *"The generated client compiles against the document."* It is emitted **from** the document. The test that catches something is `tsc --noEmit` over the frontend's own call sites.
+> - **`:36-39`, `:188-196` — CUT.** The ~800/~150/~30/~10 test counts and the five coverage floors are struck as unsourced numbers that get quoted back as commitments. The pyramid *shape* and the order-of-magnitude argument stay.
+> - **`:179` — CUT.** E2E journey 10 (reset and reseed DEV) is struck: order-dependent against a shared seeded stack, which `:213` forbids outright.
+> - **Missing.** No coverage collector, fixture-sharing strategy, parallelism policy or quarantine lane is named anywhere — and "zero tolerance for flake" without one becomes "re-run the job".
+>
+> Anything *not* listed above is **unreviewed, not verified**. Where a claim
+> about an external system carries a strength marker (`EXECUTED`,
+> `SOURCE@<ref>`, `DOCS@<date>`, `INFERRED` — see `../review/process.md`), that
+> marker is the claim's real weight. An unmarked external claim has not been
+> checked.
+
 The test suite is a deliverable, not scaffolding. This project is partly a
 training artifact, so each layer states not only *what* it tests but *why it
 lives at that layer rather than one above it* - which is the part usually left
