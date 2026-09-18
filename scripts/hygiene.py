@@ -83,16 +83,56 @@ RULES: list[tuple[str, str, str]] = [
     ),
     (
         "institution-name",
-        r"(?i)\b(?:chase|jpmorgan|wells\s*fargo|bank\s*of\s*america|citibank|citigroup|"
-        r"capital\s*one|us\s*bank|pnc\s*bank|truist|td\s*bank|ally\s*bank|discover\s*bank|"
-        r"amex|american\s*express|fidelity|vanguard|schwab|charles\s*schwab|etrade|e\*trade|"
-        r"merrill|morgan\s*stanley|robinhood|betterment|wealthfront|sofi|marcus|"
-        r"navy\s*federal|usaa|synchrony|barclays|hsbc|santander|regions\s*bank|"
-        r"fifth\s*third|keybank|huntington\s*bank|m&t\s*bank|citizens\s*bank|"
-        r"first\s*republic|forbright|monarch\s*money|plaid|empower|personal\s*capital)\b",
+        # Unambiguous names, plus AMBIGUOUS ones that require a qualifier.
+        # "fidelity", "discover", "chase", "ally", "regions", "citizens", "marcus"
+        # and "empower" are ordinary English words before they are banks, and a
+        # rule that fires on the English word is a rule people learn to ignore.
+        r"(?i)\b(?:"
+        r"wells\s*fargo|bank\s*of\s*america|jpmorgan|citibank|citigroup|capital\s*one|"
+        r"us\s*bank|pnc\s*bank|truist|td\s*bank|american\s*express|vanguard|"
+        r"charles\s*schwab|schwab|e\*?trade|merrill(?:\s*lynch)?|morgan\s*stanley|"
+        r"robinhood|betterment|wealthfront|sofi|navy\s*federal|usaa|synchrony|"
+        r"barclays|hsbc|santander|fifth\s*third|keybank|huntington\s*ban(?:k|corp)|"
+        r"m&t\s*bank|first\s*republic|forbright|personal\s*capital|amex|"
+        # aggregators and data providers: legitimate to NAME in a spec as an
+        # integration target (advisory in prose), never legitimate in a fixture
+        r"plaid|monarch\s*money|yodlee|mx\.com|finicity|teller\.io|"
+        # ambiguous -- qualifier required
+        r"fidelity\s*(?:investments|brokerage|nb)|discover\s*(?:bank|card)|"
+        r"chase\s*(?:bank|sapphire)|ally\s*(?:bank|financial|invest)|"
+        r"regions\s*bank|citizens\s*bank|marcus\s*by\s*goldman|empower\s*retirement"
+        r")\b",
         "names a real financial institution (generated data invents names)",
     ),
 ]
+
+# The institution rule is an ERROR in files that carry DATA, and a WARNING in
+# prose. A specification naming its integration targets -- "pull from an MCP
+# server, like Monarch", "an API source, like Plaid" -- is the legitimate case
+# and is not the thing Constitution IX protects against; naming an institution
+# in a seed, a fixture or a test snapshot is. Suppressing the rule entirely in
+# prose would be a wildcard; demoting it to a warning keeps the signal visible
+# while letting a spec say what it integrates with.
+PROSE_SUFFIXES = (".md", ".markdown", ".txt", ".rst", ".adoc")
+PROSE_ADVISORY_RULES = {"institution-name"}
+
+
+def _is_plausible_account_number(match: str) -> bool:
+    """Reject numeric literals that happen to be long.
+
+    A real account number carries entropy. `1000000000` in
+    `generate_series(1,1000000000)`, `100000000` as a row cap, and a run of
+    repeated digits in a placeholder do not -- two or fewer distinct digits
+    means it is a round literal, not an identifier. Suppressing these is what
+    keeps the rule credible; a control that fires on every SQL example is a
+    control people learn to pass with --no-verify.
+    """
+    digits = "".join(ch for ch in match if ch.isdigit())
+    return len(set(digits)) > 2
+
+
+# Per-rule second opinion, applied only when the regex already matched.
+VALIDATORS = {"account-number": _is_plausible_account_number}
 
 # Paths that must never be committed at all.
 FORBIDDEN_PATHS = [
@@ -148,6 +188,7 @@ def content_of(path: str, mode: str) -> str | None:
 
 def scan(mode: str, rev_range: str | None) -> int:
     findings: list[str] = []
+    warnings: list[str] = []
     allowed = {p for p, _ in ALLOWLIST}
 
     for path in changed_files(mode, rev_range):
@@ -165,13 +206,27 @@ def scan(mode: str, rev_range: str | None) -> int:
             if len(line) > 2000 or BENIGN_LINE.search(line):
                 continue
             for name, pattern, why in RULES:
-                if re.search(pattern, line):
+                m = re.search(pattern, line)
+                if m:
+                    validator = VALIDATORS.get(name)
+                    if validator and not validator(m.group(0)):
+                        continue
                     snippet = line.strip()[:90]
-                    findings.append(f"{path}:{lineno}: [{name}] {why}\n      {snippet}")
+                    entry = f"{path}:{lineno}: [{name}] {why}\n      {snippet}"
+                    if name in PROSE_ADVISORY_RULES and path.lower().endswith(PROSE_SUFFIXES):
+                        warnings.append(entry)
+                    else:
+                        findings.append(entry)
                     break
 
+    if warnings:
+        print("hygiene: advisory (prose naming an institution - not blocking):", file=sys.stderr)
+        for w in warnings:
+            print(f"  {w}", file=sys.stderr)
+        print("", file=sys.stderr)
+
     if not findings:
-        print("hygiene: clean")
+        print(f"hygiene: clean ({len(warnings)} advisory)" if warnings else "hygiene: clean")
         return 0
 
     print("\nCONSTITUTION IX: refusing this change.\n", file=sys.stderr)
