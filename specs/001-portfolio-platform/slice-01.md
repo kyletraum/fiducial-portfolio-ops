@@ -147,11 +147,30 @@ for telemetry and health.
 Verify: `aspire run` brings everything up, the dashboard shows all resources, the
 React shell reaches `/health` through whatever Spike B established.
 
-**Architecture test now, not later** — one test asserting no project outside
-`AppHost` references `Aspire.Hosting.*`, and that `Domain` references nothing
-outside the shared framework. `S-25c` applies: `Aspire.*` **client** integrations
-are permitted in the `Api` and `Worker` composition roots; the invariant names the
-`Aspire.Hosting.*` prefix, not the brand.
+**Architecture test now, not later.** The invariant, corrected — the obvious
+wording breaks step 5 of this same document:
+
+> **No project outside `AppHost` may reference `Aspire.Hosting.*`, with one named
+> exception: the integration-test project may reference `Aspire.Hosting.Testing`
+> and the `AppHost` project itself.** `Domain` references nothing outside the
+> shared framework.
+
+`S-25c`'s premise is right and verified: `Aspire.*` **client** integrations belong
+in the `Api` and `Worker` composition roots — `AddNpgsqlDbContext<T>` is an
+ordinary `IHostApplicationBuilder` extension wiring health checks, tracing,
+metrics and `EnableRetryOnFailure`, none of it from `ServiceDefaults`
+[`SOURCE@microsoft/aspire@b477bdd`]. But `DistributedApplicationTestingBuilder`
+ships in **`Aspire.Hosting.Testing`**, which *matches the prefix*, and step 5
+requires that type. Both official templates reference it directly, and the
+starter's test project also carries a `ProjectReference` to the AppHost. **An
+unexceptioned invariant fails the moment the integration-test project exists** —
+and would then be quietly rewritten to exclude that project, at which point it no
+longer says what this document says it says.
+
+Assert over **direct** `PackageReference`/`ProjectReference`, not the transitive
+closure, or the AppHost project reference defeats it anyway. The prefix is
+otherwise a clean discriminator: of 39 client integrations under `src/Components`,
+none is named `Aspire.Hosting.*`.
 
 ### 2. Data (~8–12h)
 
@@ -238,9 +257,44 @@ GET  /api/v1/system/health
 Explicit request and response DTOs in **both** directions (`S-27`) — never
 model-bind an entity, or a request can set `source_strength` and forge provenance.
 
-OpenAPI generated and committed. Canonicalise it (`S-14`): sorted keys, invariant
-culture, LF via `.gitattributes`, and a failure message that prints the
-regeneration command. Generate the TypeScript client from it.
+OpenAPI generated and committed. Generate the TypeScript client from it.
+
+**`S-14` is corrected — three of its four limbs were wrong, and the real fix is
+one sentence.** Do not write a canonicalisation script; **pin the generation
+method**:
+
+> Generate **only** via the build-time tool, with `OpenApiDocumentsDirectory` set
+> explicitly (it defaults to `obj/`, so committing the document requires it).
+> Never curl the runtime `/openapi/v1.json`. On failure, print
+> `dotnet build -p:OpenApiDocumentsDirectory=<dir>`.
+
+Why each original limb fell [`SOURCE@dotnet/aspnetcore@release/10.0`,
+`SOURCE@microsoft/OpenAPI.NET@v2.12.2`]:
+
+- **"sorted keys" — already done upstream.** `GetOpenApiDocumentAsync`
+  re-materialises `Components.Schemas` with `OrderBy(kvp => kvp.Key)` under
+  `StringComparer.Ordinal`; `paths` is built in route-registration order and is
+  deterministic for fixed source. A general key-sorter would have to run on *both*
+  sides at compare time — at which point the committed document is no longer what
+  the generator emits.
+- **"invariant culture" — already satisfied, but only on one path.** The
+  build-time tool wraps the stream in an `InvariantStreamWriter` whose
+  `FormatProvider` is hardcoded to `InvariantCulture`. The runtime endpoint has no
+  such guarantee. So this limb was never about culture — it was about *which
+  generator you use*, which is what the rule above now says.
+- **"LF via `.gitattributes`" — wrong target, and counterproductive.**
+  `OpenApiWriterBase` sets `Writer.NewLine = "\n"` unconditionally, so the output
+  is LF on Windows too. And `.gitattributes` normalises *git's* view, not the bytes
+  a test compares: if a CRLF ever did appear, `eol=lf` would hide it from
+  `git diff` while an in-process byte comparison still failed.
+- **"a failure message that prints the command" — sound**, and the command above
+  is the part that was missing.
+
+**A contradiction this document carried, now resolved.** The middle cut removes
+"drift-gate **determinism** work" and the step-3 preface repeats it — while this
+line prescribed exactly that work and DoD 6 stated it as a pass/fail gate. **The
+cut stands:** generation and the committed document stay, the drift check is
+advisory, and DoD 6 is worded accordingly.
 
 ### 4. Web (~8–12h)
 
@@ -383,13 +437,65 @@ So, in order of preference:
    deploy/docker-compose.override.yaml up`, and put that command in the README so
    nobody runs the generated file alone and quietly loses the loopback binding.
 
-**Which of the four overrides the callback can actually express is a GATE on this
-step, not an assumption** (`D-029`): only the port rewrite is confirmed at source.
-The `pg_isready` healthcheck and the `depends_on` conditions are `INFERRED` to be
-reachable through the same callback and have not been verified — establish that
-first, and route whatever it cannot reach to the committed file.
+**THE GATE IS ANSWERED — YES, all four, and no spike was needed**
+[`SOURCE@microsoft/aspire@b477bdd`]. `Service` carries `Healthcheck?`,
+`Dictionary<string, ServiceDependency> DependsOn` (with `Condition`), `Restart`,
+`Ports` and `Deploy`. The callback runs **after** `BuildComposeServiceAsync` and
+**after** the network assignment, so it can overwrite the `service_started` entry
+the publisher wrote. Its constraint is `where T : IComputeResource`, which both
+`ContainerResource` and `ProjectResource` implement, so it attaches to Postgres as
+well as to the API. The vendor's own test drives `Restart`, `Networks`, `Labels`,
+`ShmSize` and `ContainerName` through it. **The `pg_isready` and `depends_on`
+limbs move from `INFERRED` to `SOURCE@`.** (`Healthcheck` requires `Interval`,
+`Timeout` and `StartPeriod`.)
 
-Ship `.env.example`, never a populated `.env` (`S-33`).
+Two further hooks nothing had named, which shrink the override file's job further:
+**`ConfigureComposeFile(Action<ComposeFile>)`** (whole file, including `networks:`)
+and **`WithProperties(e => e.DefaultNetworkName = …)`**. The internal/front network
+split `deployment.md` describes **is** expressible in committed C#.
+
+**The gate was pointed at the wrong limb — the FALLBACK is what cannot do the
+job.**
+
+- **`ports` does not merge, it appends.** The Compose spec keys it on
+  `{ip, target, published, protocol}`, so a generated `"8080:8080"` and an
+  override `"127.0.0.1:8080:8080"` are *different* entries: you get **both**
+  bindings, a bind conflict, and DoD 3 silently unmet. Removing the generated one
+  needs `ports: !override [...]` or `!reset []` (Compose ≥ 2.24.4)
+  [`DOCS@2026-09-18` compose-spec].
+- **No override file can delete a service**, so `.WithDashboard(false)` has no
+  file route at all.
+- What the file *can* do cleanly: `restart` (scalar, replaced), `healthcheck`
+  (merged) and `depends_on` (merged).
+
+**So do all four in the app model.** The committed file is for what the app model
+genuinely cannot express, and two of these four are not in that set.
+
+**One limb of `S-34` was silently dropped, and is restored here as an explicit
+DEFER: resource limits.** The original names four things; this slice covers three.
+Trigger: the first slice that runs an ingest batch — *"without limits a mis-sized
+ingest batch takes the host down"*. For then: `mem_limit` is not in Aspire's
+`Service` model; the route is `Service.Deploy` → `deploy.resources.limits`.
+
+**`S-33` is corrected — it named the wrong file, and described as a task
+something the publisher already does** [`SOURCE@microsoft/aspire@b477bdd`]:
+
+> Commit **`deploy/.env.example`** — outside the publish output directory, for the
+> same reason the override file lives there. **Never commit `.env` or
+> `.env.<environment>`.**
+
+- **`aspire publish` already writes a keys-only `.env`**: `Add(key, value: null,
+  …)` then `Save(includeValues: false)`, producing a commented, enumerated key
+  list. *That* is the example file, under the name Compose actually reads. The
+  original finding's "no document enumerates the required keys" is discharged by
+  the generator, not by a document.
+- **The file holding resolved secrets is `.env.<environment>`**, written by the
+  *deploy* step with `Create` + `onlyIfMissing: false` + `includeValues: true`.
+  "Never a populated `.env`" pointed at the one variant that is never populated,
+  and said nothing about the one that is.
+- **A root `.env.example` is read by nothing**, needs a copy step this slice does
+  not give, and — if placed in the publish output directory — is un-committed by
+  the very rule that protects the `.env`.
 
 **`M-26`:** a `LICENSE` in the first commit, and a line saying the project is not
 affiliated with any financial institution. One file, and the repo is public from
@@ -404,7 +510,9 @@ commit one.
 3. `docker compose up` from the published artifact does the same, with the API on loopback and the database port unpublished.
 4. Four tests, all green in CI on a pull request.
 5. The architecture test passes.
-6. OpenAPI drift check passes; the TypeScript client compiles.
+6. The committed OpenAPI document regenerates identically from the build-time
+   tool, and the TypeScript client compiles. (The drift *check* is advisory per
+   the middle cut — this item is about the document, not a gate.)
 7. The chart has a tabular equivalent and is keyboard-reachable.
 8. `LICENSE` present; no personal data anywhere in the repo.
 9. The eight live findings are fixed **or** explicitly recorded as not-fixed with a reason.
