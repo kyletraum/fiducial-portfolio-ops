@@ -35,7 +35,7 @@ value that means "nothing is wrong".
 
 ## What the spike settled that was not already settled
 
-### 1. The staleness cutoff has no ruled value — this spike assumes 45 days
+### 1. The staleness cutoff has no ruled value — recommended 90 days (see `07`)
 
 Constitution Amendment 3, condition 2, says the cutoff "is named in
 `slice-01.md` step 2 and is part of this amendment, not an implementation
@@ -43,13 +43,35 @@ detail". **It is not named there.** `slice-01.md` step 2 covers the index, the
 write order, `account_source`, currency, the `closed_on` guard and rounding; no
 cutoff. `R2-B7` asked for one and the request was not carried into the step.
 
-The spike uses **45 days**, stored in `app_setting.balance_staleness_days` — a
-one-row table, not a literal in the view body, because the amendment says this
-is not an implementation detail and a value you have to read a view definition
-to discover is one.
+It is stored in `app_setting.balance_staleness_days` — a one-row table, not a
+literal in the view body, because the amendment says this is not an
+implementation detail, and a value you have to read a view definition to
+discover is one.
 
-**This is the spike's assumption, not a ruling.** It needs one before step 2's
-migration, and the value is the kind of thing that belongs in a decision file.
+**The fixture in `02-fixture.sql` uses 45**, chosen so the expiry boundary falls
+inside the fixture's own date range and `4.5` can assert either side of it.
+That is a test fixture, not the recommendation.
+
+**The recommendation is 90 days**, measured in `07-cadence-models.sql` against
+the stated cadence ("monthly, realistically every six weeks" — Kyle,
+2026-09-20). Two findings drove it:
+
+- **45 sits on the median gap.** The stated cadence generates a median gap of
+  46 days, so a 45-day cutoff expires roughly half of all perfectly normal
+  intervals.
+- **Batch entry makes staleness CORRELATED, and `06` could not see it.** If
+  balances are entered in one sitting, every account shares an `as_of_date`, so
+  they all expire on the same day and `sum()` returns NULL for the whole chart
+  rather than for one account. Measured: at 45 days, **12.4% of days have no
+  number at all**; at 90 days, 0%.
+
+90 days is above the stated distribution's p90 (74 days), never blanks the
+chart under any of the three entry patterns modelled, and caps the carried-dead
+-account lie at one quarter. It also has a story a human can hold: *if you have
+not touched an account in a quarter, it stops counting.*
+
+**Still not a ruling** — it belongs in a decision file. The cadence model behind
+it is an assumption and is stated as one in `07`.
 
 ### 2. What happens past the cutoff — the rule `R2-B7` asked for, written down
 
@@ -132,8 +154,9 @@ is for. For reference, the 201-row fixture view returns in ~2.3 ms.
 
 ## Open, and blocking step 2
 
-1. **The staleness cutoff value.** 45 days is the spike's assumption. Amendment 3
-   makes the number part of the amendment, so it wants a ruling and a decision
-   file, not a constant chosen by whoever wrote the migration.
+1. **The staleness cutoff value.** 90 days is the measured recommendation
+   (`07`); 45 is the test fixture. Amendment 3 makes the number part of the
+   amendment, so it wants a ruling and a decision file, not a constant chosen
+   by whoever wrote the migration.
 2. **`slice-01.md` step 2 does not name it**, which is the documentary half of
    the same gap.
