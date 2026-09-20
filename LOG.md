@@ -14,5 +14,16 @@ at the bottom, not the prose.
 | Date | Step | Hours | What actually happened |
 |---|---|---|---|
 | 2026-09-18 | 0 · repo | 0.5 | Repo created, Constitution IX controls landed, specs ported |
+| 2026-09-18 | D · spike | 0.2 | Spike D: schema, supersession order, `v_net_worth_daily`; all assertions green. Agent session wall-clock, not an evening — see note |
+| 2026-09-20 | D · spike | 0.3 | Staleness-cutoff sensitivity sweep; 45d recommended with a derivation rather than a guess. Agent wall-clock |
+| 2026-09-20 | 2 · data | 0.3 | Cadence + batch-entry modelling moved the cutoff 45d -> 90d; `D-034` ruled it; `slice-01.md` step 2 now names it. Agent wall-clock |
 
 <!-- Add a row per session. Total at the gate; do not total as you go. -->
+
+<!--
+UNITS NOTE, 2026-09-18. The 200-hour abandon threshold assumes Kyle-evenings.
+Rows produced by an agent session are wall-clock of that session and are NOT
+the same unit; summing the column across both would give the gate a number
+that means nothing. Either keep a second column or rule that agent rows do not
+count toward the threshold. Open -- raised at the end of the Spike D session.
+-->

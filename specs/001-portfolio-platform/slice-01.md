@@ -210,6 +210,54 @@ needs neither deferral nor raw migration SQL.
 view against a throwaway Postgres. 3–5h, the cheapest hours in the project, and
 it is where every defect in this layer was found.
 
+**THE STALENESS CUTOFF IS 90 DAYS — `D-034`, ruled 2026-09-20.** Constitution
+`Amendment 3` condition 2 says the cutoff "is named in `slice-01.md` step 2 and
+is part of this amendment, not an implementation detail." **It was not named
+here until now** — `R2-B7` asked for it and the request was never carried into
+the step, so the constitution pointed at a value that did not exist and whoever
+wrote this migration would have invented one silently. That gap is `C-389`.
+
+Store it as a **setting**, never a literal in a view body: a number you have to
+read a view definition to discover is an implementation detail, which is what the
+amendment forbids it from being.
+
+Three rules travel with it, and all three are the amendment's, not the view's:
+
+- **Past the cutoff an account goes UNVERIFIED and STAYS in the denominator.**
+  Its series has not ended; we have not verified it. That is Principle II. Only
+  `closed_on` removes it from the window, which is Principle III proper — past a
+  series end no point is invented at all. Dropping a merely-stale account from
+  the denominator instead is `M-1` reappearing at the right-hand edge: the total
+  shrinks and the row does not say why.
+- **Carry `accounts_in_window` and `accounts_verified` beside the three columns
+  `Amendment 3` names.** Without the denominator, a total that fell because an
+  account went stale is indistinguishable from one that fell because an account
+  closed.
+- **The coverage signal is a count, not a warning triangle**, and there is no
+  second stored threshold — `max_staleness_days` is already continuous, so
+  "getting stale" is a sort order. At the 25 accounts this slice's own
+  performance analysis assumes, a *fully verified* chart happens on **16% of
+  days at 45 and 82% at 90** [`EXECUTED 2026-09-20`, `spikes/spike-d-sql/06`],
+  so a binary alarm fires on most days and is trained away.
+
+Why 90 and not less: at the ruled cadence (monthly, realistically six weeks) the
+median gap is **46 days**, so 45 sits on the median. And balances entered in one
+sitting share an `as_of_date`, which makes staleness **correlated** — the failure
+is not one account going stale but every account expiring the same day and
+`sum()` returning NULL for the whole chart. Measured: **12.4% of days carry no
+number at all at 45; none at 90** [`EXECUTED 2026-09-20`,
+`spikes/spike-d-sql/07`]. 90 clears that cadence's p90 of 74 days and caps the
+carried-dead-account lie at one quarter.
+
+**Per-account-type cutoffs DEFER** — trigger: the first connector slice, where
+account types acquire genuinely different natural cadences and real entry history
+exists to tune against. A property valued annually and a checking account are not
+the same number, and nine configurable thresholds are not this slice.
+
+**Still open, deliberately not ruled by `D-034`:** whether coverage is weighted
+by **value** rather than by account count. "5 of 25 stale" could be 2% of net
+worth or 60%. Carried on `C-389`.
+
 **`M-10` applies as a schema choice, not yet a bug.** One source means nothing
 can double-count yet — but take the fix now, because retrofitting identity is the
 expensive path. Keep `account` as an internal entity; put `(source_system,
@@ -307,7 +355,10 @@ Implement `v_net_worth_daily` as carry-forward **within each account's active
 window**, over a date spine, using **`LEFT JOIN LATERAL (… ORDER BY as_of_date
 DESC LIMIT 1) ON true`**. Carry `accounts_carried`, `max_staleness_days` **and
 `accounts_unverified`** per row, so a carried point is visibly carried and a
-missing one is visibly missing.
+missing one is visibly missing. **The window's end is the 90-day cutoff ruled in
+step 2 (`D-034`)**, and the two columns that make its two failure modes
+distinguishable — `accounts_in_window` and `accounts_verified` — are named there
+too.
 
 Three things this sketch got wrong in earlier drafts, each measured:
 
