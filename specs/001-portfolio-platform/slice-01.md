@@ -578,8 +578,10 @@ interesting.
 
 ### 1. `LOG.md` — one line per session, written as you go
 
-`/LOG.md`. Date, step, hours, one clause. **Hours are the only input the
-assessment needs that cannot be reconstructed afterwards** — a figure recalled
+`/LOG.md`. Date, step, hours, one clause, in **two** hour columns — `Kyle h`,
+which the threshold counts, and `Agent h`, which is recorded and does not gate
+(Kyle, 2026-09-20). **Hours are the only input the assessment needs that cannot
+be reconstructed afterwards** — a figure recalled
 months later is a recalled figure, and this project's parent system forbids those
 as a source. Everything else is in git.
 
@@ -601,9 +603,21 @@ worth more evenings. So:
 >   specifically, with the commit that demonstrates each. "Learned Aspire" does
 >   not count; "learned that the AppHost is not the production runtime, and here
 >   is the generated compose file that proves it" does.
-> - **and** that actual cost did not exceed **200 hours** (`LOG.md`). Beyond
->   that, the practice-per-hour rate has fallen far enough that a different
->   project teaches more.
+> - **and** that actual cost did not exceed **200 hours of Kyle's own time**
+>   (`LOG.md`, the `Kyle h` column). Beyond that, the practice-per-hour rate has
+>   fallen far enough that a different project teaches more.
+>   **Agent-session hours do NOT count toward the threshold** (Kyle,
+>   2026-09-20). They are still recorded in `LOG.md`'s `Agent h` column, because
+>   a cost nobody wrote down cannot be argued about later — they are simply not
+>   the number this limb reads.
+>
+>   **What that ruling does, stated because it is not obvious:** this limb no
+>   longer bounds what the *project* costs, only what *Kyle* spends. If most of
+>   the work is done by agent sessions the threshold cannot trip however long
+>   the slice runs, and the gate then rests entirely on the three-techniques
+>   limb above. That is coherent — the threshold was always about whether the
+>   evenings were well spent — but the assessment must not read an untripped
+>   threshold as evidence that the slice was cheap.
 >
 > **Two things are explicitly NOT reasons to continue:** that the slice works,
 > and that the next slice is obvious. Both will be true and neither is evidence
