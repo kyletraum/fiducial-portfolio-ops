@@ -15,6 +15,7 @@ at the bottom, not the prose.
 |---|---|---|---|
 | 2026-09-18 | 0 · repo | 0.5 | Repo created, Constitution IX controls landed, specs ported |
 | 2026-09-18 | D · spike | 0.2 | Spike D: schema, supersession order, `v_net_worth_daily`; all assertions green. Agent session wall-clock, not an evening — see note |
+| 2026-09-20 | D · spike | 0.3 | Staleness-cutoff sensitivity sweep; 45d recommended with a derivation rather than a guess. Agent wall-clock |
 
 <!-- Add a row per session. Total at the gate; do not total as you go. -->
 
