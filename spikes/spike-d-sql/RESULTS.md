@@ -35,7 +35,7 @@ value that means "nothing is wrong".
 
 ## What the spike settled that was not already settled
 
-### 1. The staleness cutoff has no ruled value — recommended 90 days (see `07`)
+### 1. The staleness cutoff — RULED at 90 days by `D-034` (2026-09-20)
 
 Constitution Amendment 3, condition 2, says the cutoff "is named in
 `slice-01.md` step 2 and is part of this amendment, not an implementation
@@ -52,7 +52,8 @@ discover is one.
 inside the fixture's own date range and `4.5` can assert either side of it.
 That is a test fixture, not the recommendation.
 
-**The recommendation is 90 days**, measured in `07-cadence-models.sql` against
+**It is 90 days**, ruled by `D-034` in the planning repo on 2026-09-20 after the
+measurement in `07-cadence-models.sql` against
 the stated cadence ("monthly, realistically every six weeks" — Kyle,
 2026-09-20). Two findings drove it:
 
@@ -70,8 +71,15 @@ chart under any of the three entry patterns modelled, and caps the carried-dead
 -account lie at one quarter. It also has a story a human can hold: *if you have
 not touched an account in a quarter, it stops counting.*
 
-**Still not a ruling** — it belongs in a decision file. The cadence model behind
-it is an assumption and is stated as one in `07`.
+`D-034` also carries the three rules that travel with the number — a stale
+account stays in the denominator, `accounts_in_window` and `accounts_verified`
+ride beside `Amendment 3`'s three columns, and the coverage signal is a count
+rather than a binary alarm. `slice-01.md` step 2 now names the cutoff, which is
+where `Amendment 3` condition 2 says it lives.
+
+The cadence model behind the number is an assumption and is stated as one in
+`07`. The slice has never run, so no real entry history exists yet; the first one
+supersedes this, which is what `D-034`'s `review_by` is for.
 
 ### 2. What happens past the cutoff — the rule `R2-B7` asked for, written down
 
@@ -152,11 +160,12 @@ this slice's cadence and the `LATERAL` form at an ~11x margin, both
 `EXECUTED 2026-09-18`. Re-deriving a settled measurement is not what the spike
 is for. For reference, the 201-row fixture view returns in ~2.3 ms.
 
-## Open, and blocking step 2
+## Open after `D-034`
 
-1. **The staleness cutoff value.** 90 days is the measured recommendation
-   (`07`); 45 is the test fixture. Amendment 3 makes the number part of the
-   amendment, so it wants a ruling and a decision file, not a constant chosen
-   by whoever wrote the migration.
-2. **`slice-01.md` step 2 does not name it**, which is the documentary half of
-   the same gap.
+1. **Whether coverage is weighted by VALUE rather than by account count.**
+   "5 of 25 stale" could be 2% of net worth or 60%, and the count is the weaker
+   measure. `D-034` deliberately does not rule it; it is carried on `C-389`.
+2. **Nothing else.** The cutoff is ruled (`D-034`, 90 days) and `slice-01.md`
+   step 2 now names it, closing both halves of the gap this spike found. The
+   fixture here stays at **45** so the expiry boundary falls inside its own date
+   range and `4.5` can assert either side of it — a test value, not the ruling.
