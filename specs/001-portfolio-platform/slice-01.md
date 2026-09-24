@@ -462,6 +462,25 @@ operability with a visible focus ring, AA contrast, and a **tabular equivalent f
 the chart** — nearly free, since the data is already in hand, and it is the
 expensive thing to retrofit after a component library is chosen.
 
+> **BUILT, 2026-09-24.** Recharts 3.10.1 and TanStack Query, over the generated client.
+> Driven in headless Edge [`EXECUTED 2026-09-24`]:
+>
+> - **The balance and the chart:** a balance recorded through the form moved the accounts
+>   table and the newest net-worth point (DoD 2). Recording it again for the same date
+>   restated it.
+> - **Refusals:** a 422 showed an alert, and the field's own message linked by
+>   `aria-describedby` and marked `aria-invalid`.
+> - **Keyboard:** every control is reachable by Tab, with a visible focus ring. The chart
+>   takes focus through `accessibilityLayer`.
+> - **axe:** zero WCAG 2.2 AA violations in both light and dark schemes, with the tabular
+>   equivalent expanded.
+>
+> **Found in the build: with `dot={false}`, a lone value between two unverified days draws
+> nothing.** It is a line of zero length, so the first balance entered after a gap, which
+> is the moment DoD 2 checks, was invisible on the chart. Dots now mark every segment's
+> ends. Money is shown from the API's decimal strings; the chart converts to numbers only
+> to plot.
+
 ### 5. Tests (~18–28h)
 
 > **The E2E runs locally, not in CI** (middle cut) — it keeps DoD 7's keyboard and

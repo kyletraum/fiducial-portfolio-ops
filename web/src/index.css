@@ -1,55 +1,151 @@
+/* M-24, the minimal version: AA contrast in both schemes, a visible focus ring, real tables.
+   Contrast (WCAG 2.2): text >= 4.5:1 against its background, UI boundaries >= 3:1.
+     light: text #1a1a1a / #fff = 17.4:1, muted #555 / #fff = 7.5:1, error #b00020 / #fff = 7.2:1,
+            border #767676 / #fff = 4.5:1, focus #1f5fbf / #fff = 6.2:1
+     dark:  text #ededed / #121212 = 16.1:1, muted #b3b3b3 / #121212 = 9.3:1,
+            error #ff8a80 / #121212 = 8.4:1, border #8c8c8c / #121212 = 5.8:1,
+            focus #8ab4ff / #121212 = 9.0:1 */
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
   color-scheme: light dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --bg: #ffffff;
+  --surface: #f6f6f6;
+  --text: #1a1a1a;
+  --muted: #555555;
+  --border: #767676;
+  --grid: #d0d0d0;
+  --line: #1f5fbf;
+  --focus: #1f5fbf;
+  --error: #b00020;
+  --band-partial: rgba(230, 150, 0, 0.18);
+  --band-unverified: rgba(110, 110, 110, 0.22);
 }
 
-/* Reset and base styles */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212;
+    --surface: #1e1e1e;
+    --text: #ededed;
+    --muted: #b3b3b3;
+    --border: #8c8c8c;
+    --grid: #3a3a3a;
+    --line: #8ab4ff;
+    --focus: #8ab4ff;
+    --error: #ff8a80;
+    --band-partial: rgba(255, 190, 60, 0.18);
+    --band-unverified: rgba(160, 160, 160, 0.2);
+  }
 }
 
-html {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow-x: hidden;
-}
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
   margin: 0;
-  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#root {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 3rem;
+}
+
+h1 { font-size: 1.75rem; margin: 0.5rem 0 0; }
+h2 { font-size: 1.35rem; margin: 2rem 0 0.75rem; }
+h3 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+
+.hint, .muted { color: var(--muted); }
+.hint { font-size: 0.9rem; }
+
+/* The focus ring: always visible for keyboard focus, never removed. */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+table {
+  border-collapse: collapse;
   width: 100%;
-  min-height: 100vh;
-  overflow-x: hidden;
+  font-variant-numeric: tabular-nums;
+}
+caption {
+  text-align: left;
+  font-weight: 600;
+  padding: 0.25rem 0 0.5rem;
+}
+th, td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--grid);
+}
+thead th { border-bottom: 2px solid var(--border); }
+tbody th { font-weight: 500; }
+.num { text-align: right; }
+
+.table-scroll {
+  max-height: 24rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  margin-top: 0.5rem;
+}
+.table-scroll thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
 }
 
-/* Remove default Vite styles that conflict with our design */
-h1 {
-  margin: 0;
-}
+.chart { margin: 0; }
+.chart figcaption { color: var(--muted); font-size: 0.9rem; margin-bottom: 0.25rem; }
 
-button {
-  font-family: inherit;
-  cursor: pointer;
+.ranges {
+  border: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
+.ranges legend { float: left; margin-right: 0.5rem; font-weight: 600; }
+
+details summary { cursor: pointer; margin-top: 0.5rem; }
+
+.forms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+form {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  background: var(--surface);
+}
+.field { margin-bottom: 0.75rem; }
+.field label { display: block; font-weight: 500; margin-bottom: 0.2rem; }
+input, select, button {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+}
+input, select { width: 100%; }
+input[type='radio'] { width: auto; margin-right: 0.3rem; }
+input[aria-invalid='true'] { border-color: var(--error); border-width: 2px; }
+button { cursor: pointer; font-weight: 600; }
+button:disabled { cursor: progress; opacity: 0.7; }
+
+.field-error, .form-error { color: var(--error); margin: 0.25rem 0 0; }
+.form-error { font-weight: 600; margin-bottom: 0.5rem; }
+
+footer { margin-top: 3rem; color: var(--muted); font-size: 0.85rem; }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+  * { animation: none !important; transition: none !important; }
 }
