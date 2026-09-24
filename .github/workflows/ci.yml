@@ -1,0 +1,105 @@
+name: ci
+
+# slice-01 step 6: build -> unit -> integration -> contract, plus the architecture test and
+# the web build. The E2E is NOT here: the middle cut (Kyle, 2026-09-18) took "the E2E in
+# CI" out and kept the E2E itself, run locally. It still COMPILES here, with the solution.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# M-27: read-only by default; a job that needs more asks for it. No pull_request_target:
+# a PR's code never runs with this repository's secrets or a write token.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  dotnet:
+    name: .NET build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # Actions are pinned by commit SHA (M-27); the comment is the release it resolves to.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      # The whole solution, including the AppHost: its DCP and dashboard come from NuGet
+      # (AspireUseCliBundle=false, decided 2026-09-24), so no Aspire CLI is installed here.
+      - name: Build
+        run: dotnet build Portfolio.slnx
+
+      - name: Unit, with the Domain coverage floor
+        run: |
+          dotnet test --project tests/Unit --no-build \
+            --coverage --coverage-output-format cobertura --coverage-output "$RUNNER_TEMP/unit.cobertura.xml"
+          python3 scripts/coverage_floor.py "$RUNNER_TEMP/unit.cobertura.xml" Domain 70
+
+      - name: Architecture
+        run: dotnet test --project tests/Architecture --no-build
+
+      # Testcontainers: the runner's Docker starts postgres:18.3 per test class.
+      - name: Integration
+        run: dotnet test --project tests/Integration --no-build
+
+  contract:
+    name: Contract (advisory)
+    # The middle cut: generation and the committed document stay, the drift gate is advisory.
+    # A red here is information for the reviewer, not a blocked merge.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: OpenAPI document regenerates identically
+        run: dotnet test --project tests/Contract
+
+      - name: TypeScript client regenerates identically
+        working-directory: web
+        run: |
+          npm ci
+          npm run gen:api
+          git diff --exit-code -- src/api/schema.d.ts \
+            || { echo "::warning::web/src/api/schema.d.ts is stale - run: cd web && npm run gen:api"; exit 1; }
+
+  web:
+    name: Web build (type-checks the generated client)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      # `tsc -b && vite build`: DoD 6's "the TypeScript client compiles".
+      - run: npm run build

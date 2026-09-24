@@ -1,0 +1,35 @@
+# Keeps the pins current. Actions are pinned by commit SHA (M-27) and packages by exact
+# version, so nothing moves on its own: Dependabot proposes each update as a PR, and the
+# ci workflow decides whether it is safe to merge.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # Released together and versioned together; one PR, not a dozen.
+      aspire:
+        patterns: ["Aspire.*"]
+      ef-core:
+        patterns: ["Microsoft.EntityFrameworkCore*", "Npgsql*", "EFCore.*"]
+      opentelemetry:
+        patterns: ["OpenTelemetry*"]
+      microsoft-extensions:
+        patterns: ["Microsoft.Extensions.*", "Microsoft.AspNetCore.*"]
+
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    groups:
+      dev-tooling:
+        dependency-type: development

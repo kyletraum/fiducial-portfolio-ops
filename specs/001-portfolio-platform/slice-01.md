@@ -560,6 +560,25 @@ per job. No `pull_request_target` with a head checkout. Actions pinned by SHA.
 E2E stays in the workflow here — in this slice it is four tests, and watching it
 run in CI is part of the exercise.
 
+> **Superseded by the middle cut:** "the E2E in CI" is cut, and the paragraph above is
+> older than that ruling. The E2E compiles in CI and runs locally.
+>
+> **BUILT, 2026-09-24:** `.github/workflows/ci.yml`. The first run on PR #11 was green on
+> every job [`EXECUTED 2026-09-24`, run 36022443630]:
+>
+> - **Tests on the Linux runner:** Unit 11, Architecture 46, and Integration 17, with
+>   Testcontainers on the runner's Docker.
+> - **Coverage:** `Domain` lines at 72.2% against a floor of 70%.
+> - **Contract, advisory:** the OpenAPI document generated on Linux is
+>   **byte-identical to the one committed from Windows**, which is S-14's claim confirmed
+>   across operating systems. The TypeScript client regenerated with no diff.
+> - **No Aspire CLI needed:** the AppHost built from NuGet alone.
+> - **Pinning:** every action is pinned by SHA, including `hygiene.yml`'s. Dependabot keeps
+>   the pins current.
+>
+> Not demonstrated: a red contract job leaving the run green. `continue-on-error` is
+> configured but has not been seen firing.
+
 ### 7. Deploy (~4–8h)
 
 `Aspire.Hosting.Docker` + `aspire publish` → `docker-compose.yaml` + `.env`.
