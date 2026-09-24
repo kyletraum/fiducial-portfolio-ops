@@ -25,6 +25,7 @@ later; they are simply not the number the gate reads.
 | 2026-09-20 | 2 · data | — | 0.3 | Cadence + batch-entry modelling moved the cutoff 45d -> 90d; `D-034` ruled it; `slice-01.md` step 2 now names it |
 | 2026-09-20 | 0 · gate | — | 0.1 | Kyle ruled agent hours out of the threshold; `LOG.md` split into two columns and the threshold reworded |
 | 2026-09-24 | 0 · tooling | — | 0.2 | spec-kit 0.14.3.dev0 installed; constitution moved to `.specify/memory/`; stranded ruling commit merged as #4 |
+| 2026-09-24 | A · spike | — | 0.5 | Spike A on Aspire 13.5.4: same directory stops the first stack even with `--isolated`; two directories work; no `--launch-profile`, selection is configuration |
 
 <!-- Add a row per session. Total at the gate; do not total as you go. -->
 

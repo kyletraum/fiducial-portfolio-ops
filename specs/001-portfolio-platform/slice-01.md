@@ -85,6 +85,19 @@ actually parameterises volume name, database name and ports.
 `builder.AddParameter(...)`/configuration, and `environments.md` is corrected.
 **Blocks:** everything, because the app model's shape depends on the answer.
 
+> **RAN — it failed as expected.** [`EXECUTED 2026-09-24`, Aspire CLI 13.5.4,
+> `spikes/spike-a-two-stacks/RESULTS.md`] A second
+> `aspire run -- --STACK_ENV=prd` from the same directory stops the first stack,
+> **with or without `--isolated`**. Two directories run side by side, the second
+> with `--isolated` for its dashboard ports. `aspire run` has **no
+> `--launch-profile` option** and ignores one passed through; the first profile
+> in `launchSettings.json` always applies, so launch profiles do not select an
+> environment either. **Selection is configuration**: `STACK_ENV` from the
+> command line named the volume, database and container, and data written in one
+> stack was absent from the other. Step 1 uses `builder.AddParameter(...)` on
+> that configuration. `environments.md` and `plan.md` carry the correction in
+> their banners; this slice has one environment, so neither is rewritten.
+
 ### Spike B — how does the browser learn the API's address?
 
 > **Claim under test.** `plan.md` says service discovery supplies it, so no
