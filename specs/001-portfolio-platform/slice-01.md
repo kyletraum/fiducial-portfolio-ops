@@ -193,6 +193,11 @@ wording breaks step 5 of this same document:
 > exception: the integration-test project may reference `Aspire.Hosting.Testing`
 > and the `AppHost` project itself.** `Domain` references nothing outside the
 > shared framework.
+>
+> **The exception moved to the E2E project — ruled by Kyle, 2026-09-24.** Step 5 gave the
+> integration test Testcontainers, which needs no app model. The E2E starts the whole app
+> through `DistributedApplicationTestingBuilder`, so it is the one project that references
+> `Aspire.Hosting.Testing` and the AppHost. There is still exactly one named exception.
 
 `S-25c`'s premise is right and verified: `Aspire.*` **client** integrations belong
 in the `Api` and `Worker` composition roots — `AddNpgsqlDbContext<T>` is an
@@ -506,6 +511,37 @@ ever mounts a named volume.**
 
 Coverage floors: `Domain` only. Everywhere else, none — a floor measured in a job
 that cannot execute the code is decoration (`S-11`).
+
+> **BUILT, 2026-09-24.** 77 tests in five projects, all green with one command,
+> `dotnet test --solution Portfolio.slnx` [`EXECUTED 2026-09-24`]. Each layer's check
+> was seen failing when the thing it guards was broken.
+>
+> - **Unit:** the Money midpoints and a currency mismatch.
+> - **Integration:** Testcontainers, `postgres:18.3` (the image Aspire runs), and the
+>   same retrying execution strategy the app uses. A restatement supersedes the old row,
+>   and the index accepts the new one. The reverse order is refused by
+>   `account_balance_live_uq`. `numeric(19,4)` is read back from `pg_attribute`. The
+>   view is checked on derived dates: NULL-not-zero, the denominator, carry, the 90-day
+>   expiry, `closed_on`, and the cutoff read from the setting.
+> - **Contract:** a byte comparison against a fresh build-time generation. A failure
+>   prints the command. `.gitattributes` holds this one file at `eol=lf`, because
+>   `core.autocrlf=true` rewrote it on checkout. This is not S-14's determinism fix, and a
+>   generator-emitted CRLF would still fail the comparison.
+> - **E2E:** the whole app model through `DistributedApplicationTestingBuilder`, with .NET
+>   Playwright and one axe call. S-25b: the volume is opt-in via `Postgres:DataVolume`,
+>   which the launch profile sets for `aspire run` and the test builder does not. A test
+>   asserts no volume mount on the model.
+>
+> **Found by the integration test: the date spine stopped instead of saying
+> UNVERIFIED.** It ended at "last balance + cutoff", so once every carried value expired
+> the series simply had no more rows, and the chart ended early rather than showing
+> unverified days. Constitution II forbids that. The spike commented this for the spine's
+> start and left the end to "the endpoint". A `WHERE` clause cannot add rows. Migration 3,
+> `SpineRunsToToday`, runs the spine to `current_date`. It was applied to the dev database
+> with rows, and Spike D still passes against all three migrations.
+>
+> **Deferred to step 6:** the `Domain` coverage floor. It is measured where CI runs the
+> tests.
 
 ### 6. CI (~10–18h, starting at commit two)
 
