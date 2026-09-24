@@ -14,9 +14,11 @@
     "gen:api": "openapi-typescript ../src/Api/openapi/portfolio-api.json -o src/api/schema.d.ts"
   },
   "dependencies": {
+    "@tanstack/react-query": "5.103.2",
     "openapi-fetch": "0.17.0",
     "react": "^19.2.1",
-    "react-dom": "^19.2.1"
+    "react-dom": "^19.2.1",
+    "recharts": "3.10.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

@@ -1,31 +1,74 @@
-// Step 1 shell: proves the page reaches the API through a relative path (Spike B).
-// Replaced by the account list and net-worth chart in step 4.
-import { useEffect, useState } from 'react';
-import { api } from './api/client';
+import { useState } from 'react';
+import { useHealth, useNetWorth } from './api/queries';
+import { AccountsSection } from './components/Accounts';
+import { NetWorthChart } from './components/NetWorthChart';
+import { NetWorthTable } from './components/NetWorthTable';
+import { addDays, localToday } from './money';
 
-type Health = { state: 'checking' } | { state: 'ok' } | { state: 'error'; detail: string };
+const RANGES = [
+  { label: '3 months', days: 91 },
+  { label: '6 months', days: 182 },
+  { label: '1 year', days: 365 },
+] as const;
 
-export default function App() {
-  const [health, setHealth] = useState<Health>({ state: 'checking' });
-
-  useEffect(() => {
-    api.GET('/api/v1/system/health')
-      .then(({ data, response }) => {
-        if (!response.ok || !data) throw new Error(`HTTP ${response.status}`);
-        setHealth(data.status === 'ok' ? { state: 'ok' } : { state: 'error', detail: data.status });
-      })
-      .catch(e => setHealth({ state: 'error', detail: String(e) }));
-  }, []);
+function NetWorthSection() {
+  const [days, setDays] = useState<number>(182);
+  const to = localToday();
+  const from = addDays(to, -days);
+  const series = useNetWorth(from, to);
+  const points = series.data?.points ?? [];
+  const anyValue = points.some(p => p.netWorth !== null);
 
   return (
-    <main>
-      <h1>Portfolio</h1>
-      <p role="status" data-testid="api-health">
-        API:{' '}
-        {health.state === 'checking' && 'checking…'}
-        {health.state === 'ok' && 'reachable'}
-        {health.state === 'error' && `unreachable (${health.detail})`}
-      </p>
-    </main>
+    <section aria-labelledby="net-worth-heading">
+      <h2 id="net-worth-heading">Net worth</h2>
+      <fieldset className="ranges">
+        <legend>Range</legend>
+        {RANGES.map(r => (
+          <label key={r.days}>
+            <input type="radio" name="range" value={r.days} checked={days === r.days} onChange={() => setDays(r.days)} />
+            {r.label}
+          </label>
+        ))}
+      </fieldset>
+      {series.isPending && <p>Loading net worth…</p>}
+      {series.isError && <p role="alert" className="form-error">Could not load net worth: {series.error.message}</p>}
+      {series.data && (
+        <>
+          {anyValue
+            ? <NetWorthChart points={points} tableId="net-worth-table" />
+            : <p>No verified balance in this range yet. Record one below and it will appear here.</p>}
+          <p className="hint">
+            A balance is carried forward for up to {series.data.stalenessDays} days; after that the account
+            counts as unverified until a new balance is recorded.
+          </p>
+          <details>
+            <summary>Show as a table</summary>
+            <NetWorthTable id="net-worth-table" points={points} />
+          </details>
+        </>
+      )}
+    </section>
+  );
+}
+
+export default function App() {
+  const health = useHealth();
+  return (
+    <>
+      <header>
+        <h1>Portfolio</h1>
+        <p className="hint">Invented data only. Nothing here is a real account.</p>
+      </header>
+      <main>
+        <NetWorthSection />
+        <AccountsSection />
+      </main>
+      <footer>
+        <p role="status" data-testid="api-health">
+          API: {health.isPending ? 'checking…' : health.isSuccess ? 'reachable' : `unreachable (${health.error?.message})`}
+        </p>
+      </footer>
+    </>
   );
 }
