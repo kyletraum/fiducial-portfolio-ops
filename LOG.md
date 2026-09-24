@@ -34,6 +34,7 @@ later; they are simply not the number the gate reads.
 | 2026-09-24 | 2 · data | — | 1.0 | Domain + Money, Infrastructure (EF Core 10 / Npgsql), migrations `Initial` + `AccountSource` (M2 on rows), Migrator waits then migrates; Spike D passes on the migrated schema; enum-order defect caught |
 | 2026-09-24 | 3 · API | — | 1.2 | Six endpoints (POST /accounts per R2-B1, ruled today), money as decimal strings, restatement via execution strategy, OpenAPI committed + deterministic, openapi-fetch client, AllowedHosts + test; snake_case-in-SqlQuery bug found live |
 | 2026-09-24 | 4 · web | — | 0.9 | Recharts chart (gaps, labelled bands, filterNull=false) + tabular equivalent, accounts table and two forms on TanStack Query; driven in headless Edge, axe 0 violations light/dark; invisible-isolated-point bug found |
+| 2026-09-24 | 5 · tests | — | 1.3 | Integration (Testcontainers), Contract (byte compare), E2E (Aspire test builder + Playwright + axe), S-25b volume opt-in; spine-stops-early defect found -> migration 3; 77 tests green |
 
 <!-- Add a row per session. Total at the gate; do not total as you go. -->
 

@@ -1,0 +1,6 @@
+# The committed OpenAPI document is compared BYTE FOR BYTE with a fresh build-time
+# generation (tests/Contract). The generator always writes LF; with core.autocrlf=true a
+# Windows checkout would rewrite this file as CRLF and the comparison would fail on a
+# difference that is not in the document. eol=lf keeps the working copy what the generator
+# writes. It does not hide a generator-emitted CRLF: that would still fail the byte compare.
+src/Api/openapi/*.json text eol=lf

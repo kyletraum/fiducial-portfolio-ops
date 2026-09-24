@@ -1,13 +1,16 @@
 // slice-01.md step 1, the invariant as corrected there:
 //
 //   No project outside AppHost may reference Aspire.Hosting.*, with one named
-//   exception: the integration-test project may reference Aspire.Hosting.Testing
-//   and the AppHost project itself. Domain references nothing outside the shared
-//   framework.
+//   exception: the E2E project may reference Aspire.Hosting.Testing and the AppHost
+//   project itself. Domain references nothing outside the shared framework.
+//
+// The exception was written for "the integration-test project"; step 5 gave that project
+// Testcontainers instead, and the E2E is what starts the app model. Moved by Kyle's ruling,
+// 2026-09-24 - still exactly ONE named exception, on the project that uses it.
 //
 // Asserted over DIRECT PackageReference/ProjectReference, read from the project
-// files, not over the transitive closure - the integration tests' AppHost
-// reference would defeat a transitive check.
+// files, not over the transitive closure - the E2E project's AppHost reference
+// would defeat a transitive check.
 using System.Xml.Linq;
 
 namespace Portfolio.Architecture;
@@ -15,14 +18,14 @@ namespace Portfolio.Architecture;
 public class AspireBoundaryTests
 {
     const string AppHost = "AppHost";
-    const string IntegrationTests = "Integration";
+    const string AppModelTests = "E2E";
 
     static readonly string[] Expected = [AppHost, "Api", "Migrator", "Domain", "Infrastructure", "ServiceDefaults"];
 
     // S-25c: Aspire *client* integrations (Aspire.Npgsql.EntityFrameworkCore.PostgreSQL and
     // the like) belong in the composition roots that run as processes. Infrastructure owns
     // EF Core but is not Aspire-aware (plan.md, "The Aspire boundary").
-    static readonly string[] CompositionRoots = [AppHost, "Api", "Migrator", IntegrationTests];
+    static readonly string[] CompositionRoots = [AppHost, "Api", "Migrator", AppModelTests];
 
     public static TheoryData<string> Projects() => new(ProjectFile.All().Select(p => p.Name));
 
@@ -48,7 +51,7 @@ public class AspireBoundaryTests
     public void Only_AppHost_references_Aspire_Hosting(string name)
     {
         if (name == AppHost) return;
-        var allowed = name == IntegrationTests ? new[] { "Aspire.Hosting.Testing" } : [];
+        var allowed = name == AppModelTests ? new[] { "Aspire.Hosting.Testing" } : [];
         var offending = ProjectFile.Named(name).Packages
             .Where(p => p.StartsWith("Aspire.Hosting", StringComparison.OrdinalIgnoreCase))
             .Except(allowed, StringComparer.OrdinalIgnoreCase);
@@ -57,9 +60,9 @@ public class AspireBoundaryTests
 
     [Theory]
     [MemberData(nameof(Projects))]
-    public void Only_the_integration_tests_reference_AppHost(string name)
+    public void Only_the_E2E_tests_reference_AppHost(string name)
     {
-        if (name is AppHost or IntegrationTests) return;
+        if (name is AppHost or AppModelTests) return;
         Assert.DoesNotContain(AppHost, ProjectFile.Named(name).ProjectReferences);
     }
 
