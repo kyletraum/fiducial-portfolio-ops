@@ -37,6 +37,7 @@ later; they are simply not the number the gate reads.
 | 2026-09-24 | 5 · tests | — | 1.3 | Integration (Testcontainers), Contract (byte compare), E2E (Aspire test builder + Playwright + axe), S-25b volume opt-in; spine-stops-early defect found -> migration 3; 77 tests green |
 | 2026-09-24 | 6 · CI | — | 0.6 | ci.yml (build, unit + Domain floor 70%, architecture, integration; contract advisory; web), actions SHA-pinned incl. hygiene, Dependabot; E2E kept out per middle cut |
 | 2026-09-24 | 7 · deploy | — | 0.8 | Four compose overrides in the app model; aspire deploy + plain compose: Api loopback-only (LAN refused), pg unpublished, browser flow, data persists; missing-database defect found in Migrator |
+| 2026-09-24 | gate · assessment | — | 0.3 | DoD walked (all met; DoD 4 wording vs middle cut noted); assessment drafted with facts only - techniques and decision left to Kyle; agent-hour column found overstated vs commit timestamps |
 
 <!-- Add a row per session. Total at the gate; do not total as you go. -->
 
