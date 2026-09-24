@@ -30,6 +30,7 @@ later; they are simply not the number the gate reads.
 | 2026-09-24 | B · spike | — | 0.6 | Spike B: relative `/api` works in run (Vite proxy) and deployed compose (frontend in server `wwwroot`); no API address in client env; step 0 complete |
 | 2026-09-24 | 1 · skeleton | — | 0.8 | AppHost (pg -> Migrator -> Api -> web), ServiceDefaults project, architecture test (20, each rule seen failing); page reaches `/api/health`; OpenApi + 6 npm advisories cleared |
 | 2026-09-24 | 1 · skeleton | — | 0.2 | Tried `AspireUseCliBundle=true` (works); stayed on NuGet for CI-pinned versions, ASPIRE010 suppressed with the reason |
+| 2026-09-24 | 1 · skeleton | — | 0.3 | Packages current: ServiceDefaults 10.10 / OTel 1.19; xunit v3 on Microsoft.Testing.Platform (`global.json`), VSTest packages dropped |
 
 <!-- Add a row per session. Total at the gate; do not total as you go. -->
 
