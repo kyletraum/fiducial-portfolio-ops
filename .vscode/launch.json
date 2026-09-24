@@ -1,0 +1,30 @@
+{
+  // F5 runs the whole stack through the Aspire extension: Postgres, the Migrator, the Api and
+  // the Vite web app, with the debugger attached to every .NET process it starts. Breakpoints
+  // in src/Api, src/Migrator and src/Infrastructure hit without attaching anything by hand.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Aspire: run the stack",
+      "type": "aspire",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/AppHost/AppHost.csproj",
+      // The first launch profile sets Postgres__DataVolume, so data survives restarts in the
+      // portfolio-dev-pgdata volume (S-25b). Tests never mount it.
+      "launchProfile": "https",
+      "dashboardBrowser": "openExternalBrowser"
+    },
+    {
+      // Builds the images and runs the published Docker Compose stack: the Api on
+      // http://localhost:8080, loopback only. aspire-output/ is git-ignored - it holds the
+      // generated database password.
+      "name": "Aspire: deploy to local Docker Compose",
+      "type": "aspire",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/AppHost/AppHost.csproj",
+      "command": "deploy",
+      "args": ["-o", "${workspaceFolder}/aspire-output"],
+      "dashboardBrowser": "none"
+    }
+  ]
+}
