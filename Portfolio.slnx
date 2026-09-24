@@ -3,10 +3,12 @@
     <Project Path="src/Api/Api.csproj" />
     <Project Path="src/AppHost/AppHost.csproj" />
     <Project Path="src/Domain/Domain.csproj" />
+    <Project Path="src/Infrastructure/Infrastructure.csproj" />
     <Project Path="src/Migrator/Migrator.csproj" />
     <Project Path="src/ServiceDefaults/ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Architecture/Architecture.csproj" />
+    <Project Path="tests/Unit/Unit.csproj" />
   </Folder>
 </Solution>

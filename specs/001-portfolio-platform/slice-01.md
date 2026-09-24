@@ -313,6 +313,28 @@ in this slice and record that you did.
 .NET defaults to banker's rounding — configure .NET explicitly and add one
 midpoint test asserting both agree.
 
+> **BUILT, 2026-09-24.** Two EF Core migrations: `Initial` (tables, both guard
+> triggers, `v_date_spine`, `v_net_worth_daily`, `app_setting` seeded at 90) and
+> `AccountSource`, which was applied to a database already holding rows. The rows
+> survived, and reverting and reapplying it worked [`EXECUTED 2026-09-24`].
+> **Spike D's fixture and every assertion pass against the migrated schema**:
+> `spikes/spike-d-sql/run-on-migrations.sh`, re-runnable whenever a migration
+> changes [`EXECUTED 2026-09-24`]. S-17: triggers, not skipped. S-24: `Money`
+> names `MidpointRounding.AwayFromZero`. Its unit tests use midpoints where
+> banker's rounding would differ, and fail if the mode is changed.
+>
+> **Found in the build, and not in any review: `MapEnum` orders the labels
+> alphabetically.** Npgsql's generated migration created `source_strength` as
+> `api, export, manual, scrape, statement`. PostgreSQL compares enum values by
+> label order, so `'statement' > 'manual'` would have been true, silently
+> reversing Constitution IV. An explicit `HasPostgresEnum` with the labels in
+> declaration order fixes it. The migrated database reads `{statement, export,
+> api, scrape, manual}` [`EXECUTED 2026-09-24`].
+>
+> **Not a database default: `currency`.** As in Spike D, every insert names it.
+> The domain defaults it to the reporting currency in C#, and raw SQL must supply
+> it, which the CHECK then holds to `USD`.
+
 ### 3. API (~14–24h)
 
 > **`SEC-7`'s `Host`-header allow-list is one configuration line, not middleware.**
