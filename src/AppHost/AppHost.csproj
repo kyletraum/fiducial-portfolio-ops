@@ -6,6 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Portfolio.AppHost</RootNamespace>
+    <!-- ASPIRE010: DCP and the dashboard come from NuGet (pinned by the SDK version, restored
+         and updated like any package) rather than from a machine-installed Aspire CLI.
+         Decided 2026-09-24. Revisit if Aspire removes the SDK path (microsoft/aspire#16386). -->
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
     <UserSecretsId>5ff53491-a35f-492d-b73c-32d3c2f136b2</UserSecretsId>
   </PropertyGroup>
 
