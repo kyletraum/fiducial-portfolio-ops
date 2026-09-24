@@ -697,6 +697,30 @@ something the publisher already does** [`SOURCE@microsoft/aspire@b477bdd`]:
 affiliated with any financial institution. One file, and the repo is public from
 commit one.
 
+> **BUILT, 2026-09-24.** All four overrides are in the app model, as ruled, with no override
+> file: `WithDashboard(false)` on the compose environment, the `pg_isready` healthcheck, the
+> Migrator's `depends_on: service_healthy`, the Api's ports rewritten to `127.0.0.1:`, and
+> `restart: unless-stopped` on Postgres and the Api, **not** on the one-shot Migrator.
+> Publish mode always mounts the volume, because S-25b made it opt-in in run mode and a
+> published database must outlive its container. `aspire deploy`, then plain `docker compose
+> down` and `up` from the generated files [`EXECUTED 2026-09-24`]:
+>
+> - **The Api is reachable on 127.0.0.1:8080, and refused on the machine's LAN address.**
+> - **Postgres publishes no port.**
+> - **In a browser against the compose stack:** create an account, record a balance, and the
+>   chart draws it (DoD 3).
+> - **The data survives `down` and `up`.**
+>
+> **Found by the deploy: nothing creates the database in the compose stack.** `AddDatabase`
+> creates it only under `aspire run`, and the Postgres image creates only `POSTGRES_DB`. The
+> Migrator's wait used `CanConnectAsync`, which returns false for a missing database exactly
+> as for a server that is down. So it retried for 60 seconds, exited 1, and reported "not
+> reachable". The Api correctly never started. The Migrator now waits for the *server*,
+> treats `3D000` as "up", and lets `MigrateAsync` create the database.
+>
+> `M-26`: `LICENSE` and the non-affiliation line were in the first commit. `S-33`:
+> `deploy/.env.example` now lists the keys the generated file actually reads.
+
 ---
 
 ## Definition of done

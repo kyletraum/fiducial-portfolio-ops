@@ -47,23 +47,35 @@ catch (Exception ex)
 await host.StopAsync();
 return exitCode;
 
-// Spike C: in the published compose file this process starts on `service_started`, not
-// `service_healthy` - Postgres may not accept connections yet. Under `aspire run` it is
-// already healthy, and the first attempt succeeds.
+// Waits for the SERVER, not the database. Spike C: in compose this process may start before
+// Postgres accepts connections (step 7 now adds a healthcheck, but the wait stays - it is the
+// Migrator's own guarantee). And in compose NOTHING creates the database: Aspire's AddDatabase
+// creates it only under `aspire run`, and the image creates only POSTGRES_DB. So "database does
+// not exist" (3D000) means the server is up; MigrateAsync then creates the database.
+// CanConnectAsync cannot be used here: it returns false for both cases, and the first version
+// of this loop retried a missing database for 60s and then reported it as "not reachable".
 static async Task WaitForDatabaseAsync(PortfolioDbContext db, TimeSpan timeout, ILogger log)
 {
     var deadline = DateTime.UtcNow + timeout;
     for (var attempt = 1; ; attempt++)
     {
-        if (await db.Database.CanConnectAsync())
+        try
         {
+            await db.Database.OpenConnectionAsync();
+            await db.Database.CloseConnectionAsync();
             log.LogInformation("Database reachable after {Attempts} attempt(s).", attempt);
             return;
         }
-        if (DateTime.UtcNow >= deadline)
-            throw new TimeoutException($"Database not reachable within {timeout.TotalSeconds:0}s.");
-
-        log.LogWarning("Database not reachable yet (attempt {Attempt}); retrying.", attempt);
-        await Task.Delay(TimeSpan.FromSeconds(2));
+        catch (Npgsql.PostgresException e) when (e.SqlState == Npgsql.PostgresErrorCodes.InvalidCatalogName)
+        {
+            log.LogInformation("Server reachable after {Attempts} attempt(s); the database does not exist yet, and migrating will create it.", attempt);
+            return;
+        }
+        catch (Exception e) when (e is Npgsql.NpgsqlException or System.Net.Sockets.SocketException or TimeoutException
+                                  && DateTime.UtcNow < deadline)
+        {
+            log.LogWarning("Server not reachable yet (attempt {Attempt}: {Reason}); retrying.", attempt, e.GetBaseException().Message);
+            await Task.Delay(TimeSpan.FromSeconds(2));
+        }
     }
 }
