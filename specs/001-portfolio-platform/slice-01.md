@@ -131,6 +131,19 @@ Then confirm the same shape survives `aspire publish` as
 **Records:** whether the published compose file carries the dependency.
 **Blocks:** migrations, therefore the data layer.
 
+> **RAN — the one-shot Migrator works, and the dependency survives publish.**
+> [`EXECUTED 2026-09-24`, Aspire 13.5.4, `spikes/spike-c-migrator/RESULTS.md`]
+> Under `aspire run` the API waited from 11:13:30 until the Migrator exited 0 at
+> 11:13:47 and started at 11:13:48. When the Migrator exits 1 instead, the API
+> is `FailedToStart` and its process never runs. `aspire publish` writes
+> `api: depends_on: migrator: condition: "service_completed_successfully"`.
+> **Step 2 inherits one consequence:** the Migrator's own `WaitFor(db)` publishes
+> as `service_started`, not `service_healthy`, and `pg` gets no healthcheck. So in
+> compose the Migrator can start before Postgres accepts connections. It must
+> retry its connection, or step 7's override must add the healthcheck.
+> [`INFERRED` for the race itself: the file says `service_started`; compose was
+> not run.]
+
 **Gate:** none of the three spikes' subjects may be built on until its spike has
 run and its claim is restated at `EXECUTED` with the command and date.
 

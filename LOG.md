@@ -26,6 +26,7 @@ later; they are simply not the number the gate reads.
 | 2026-09-20 | 0 · gate | — | 0.1 | Kyle ruled agent hours out of the threshold; `LOG.md` split into two columns and the threshold reworded |
 | 2026-09-24 | 0 · tooling | — | 0.2 | spec-kit 0.14.3.dev0 installed; constitution moved to `.specify/memory/`; stranded ruling commit merged as #4 |
 | 2026-09-24 | A · spike | — | 0.5 | Spike A on Aspire 13.5.4: same directory stops the first stack even with `--isolated`; two directories work; no `--launch-profile`, selection is configuration |
+| 2026-09-24 | C · spike | — | 0.4 | Spike C: one-shot Migrator + `WaitForCompletion` holds the API, fails it on exit 1, publishes as `service_completed_successfully`; Migrator's wait on pg degrades to `service_started` |
 
 <!-- Add a row per session. Total at the gate; do not total as you go. -->
 
