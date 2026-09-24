@@ -24,6 +24,10 @@
       "program": "${workspaceFolder}/src/AppHost/AppHost.csproj",
       "command": "deploy",
       "args": ["-o", "${workspaceFolder}/aspire-output"],
+      // Aspire writes the generated web Dockerfile under Path.GetTempPath(), which prefers TMP.
+      // Where the user profile has no TMP of its own, the machine's C:\WINDOWS\TEMP applies -
+      // unreadable by the user - and the build fails with "resolve : Access is denied".
+      "env": { "TMP": "${env:TEMP}" },
       "dashboardBrowser": "none"
     }
   ]
