@@ -1,6 +1,7 @@
 // Step 1 shell: proves the page reaches the API through a relative path (Spike B).
 // Replaced by the account list and net-worth chart in step 4.
 import { useEffect, useState } from 'react';
+import { api } from './api/client';
 
 type Health = { state: 'checking' } | { state: 'ok' } | { state: 'error'; detail: string };
 
@@ -8,11 +9,10 @@ export default function App() {
   const [health, setHealth] = useState<Health>({ state: 'checking' });
 
   useEffect(() => {
-    fetch('/api/health')
-      .then(async r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const body = await r.json();
-        setHealth(body.status === 'ok' ? { state: 'ok' } : { state: 'error', detail: JSON.stringify(body) });
+    api.GET('/api/v1/system/health')
+      .then(({ data, response }) => {
+        if (!response.ok || !data) throw new Error(`HTTP ${response.status}`);
+        setHealth(data.status === 'ok' ? { state: 'ok' } : { state: 'error', detail: data.status });
       })
       .catch(e => setHealth({ state: 'error', detail: String(e) }));
   }, []);

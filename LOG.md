@@ -32,6 +32,7 @@ later; they are simply not the number the gate reads.
 | 2026-09-24 | 1 · skeleton | — | 0.2 | Tried `AspireUseCliBundle=true` (works); stayed on NuGet for CI-pinned versions, ASPIRE010 suppressed with the reason |
 | 2026-09-24 | 1 · skeleton | — | 0.3 | Packages current: ServiceDefaults 10.10 / OTel 1.19; xunit v3 on Microsoft.Testing.Platform (`global.json`), VSTest packages dropped |
 | 2026-09-24 | 2 · data | — | 1.0 | Domain + Money, Infrastructure (EF Core 10 / Npgsql), migrations `Initial` + `AccountSource` (M2 on rows), Migrator waits then migrates; Spike D passes on the migrated schema; enum-order defect caught |
+| 2026-09-24 | 3 · API | — | 1.2 | Six endpoints (POST /accounts per R2-B1, ruled today), money as decimal strings, restatement via execution strategy, OpenAPI committed + deterministic, openapi-fetch client, AllowedHosts + test; snake_case-in-SqlQuery bug found live |
 
 <!-- Add a row per session. Total at the gate; do not total as you go. -->
 

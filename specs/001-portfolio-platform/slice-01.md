@@ -50,7 +50,7 @@ shows net worth over time. That is the entire feature.
 
 ## What the slice is not
 
-**No PRD environment. No credentials. No connector. Generated data only.**
+**No PRD environment. No credentials. No connector. Invented data only.** Accounts and balances are entered through the API (`R2-B1`, ruled 2026-09-24), with made-up values. No real figure enters this slice.
 
 That is the decision that collapses the scope, and it does so by construction:
 most of the review's Must Fix tier is not deferred here, it is **not reachable**.
@@ -358,10 +358,20 @@ midpoint test asserting both agree.
 
 ```
 GET  /api/v1/accounts
+POST /api/v1/accounts
 GET  /api/v1/accounts/{id}/balances
 POST /api/v1/accounts/{id}/balances
+GET  /api/v1/net-worth
 GET  /api/v1/system/health
 ```
+
+> **Six, not four — ruled by Kyle, 2026-09-24.** `R2-B1` found that nothing created an
+> account, although DoD 2 and the E2E both need one. Its fix, `POST /api/v1/accounts`,
+> is taken over a generated seed. The series endpoint was always required: this step's
+> own preface and step 4 both depend on it. It simply was never listed. Money is a
+> **decimal string** in both directions, because `numeric(19,4)` carries more significant
+> digits than a JavaScript number. **BUILT 2026-09-24:** every endpoint was exercised
+> against the running stack through the Vite origin [`EXECUTED 2026-09-24`].
 
 Explicit request and response DTOs in **both** directions (`S-27`) — never
 model-bind an entity, or a request can set `source_strength` and forge provenance.
