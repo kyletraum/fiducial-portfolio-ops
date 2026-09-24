@@ -90,6 +90,7 @@ specs/
     contracts/api.md            the REST surface
     traceability.md             requirement -> spec section map
     slice-01.md                 THE LIVE UNIT OF WORK - build this
+    slice-01-assessment.md      the gate: DoD, cost, findings; the decision is Kyle's
   review/
     process.md                  claim-strength markers and review dispositions
     committee-findings.md       round 1: 14 seats, 89 findings
