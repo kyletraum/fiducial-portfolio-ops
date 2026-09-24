@@ -116,6 +116,19 @@ proxy, so the browser uses a relative path everywhere.
 [`SOURCE@microsoft/aspire@b477bdd`; note it is `[Experimental("ASPIREJAVASCRIPT001")]`]
 **Blocks:** the web layer. This is what fails on day one otherwise.
 
+> **RAN — the claim is wrong, and the template already answers it.**
+> [`EXECUTED 2026-09-24`, Aspire 13.5.4, `aspire-ts-cs-starter` 13.5.4,
+> `spikes/spike-b-api-address/RESULTS.md`] In headless Edge, client code could
+> see only `BASE_URL, DEV, MODE, PROD, SSR` in `import.meta.env`, in both modes.
+> The API's address exists only in the Vite **process**. A relative
+> `fetch('/api/health')` returned `200` both ways. Under `aspire run`, Vite's
+> `/api` proxy forwarded it. Under `aspire deploy`, the server served the page
+> itself from `wwwroot` via `PublishWithContainerFiles`: one origin, no
+> `webfrontend` service in compose. **Use that, not `PublishAsStaticWebsite`**,
+> which was not run and whose experimental flag is not needed. API routes live
+> under `/api`. The published server port binds `0.0.0.0` and `[::]`, so DoD 3's
+> loopback binding is a step-7 override.
+
 ### Spike C — how does the API wait for migrations?
 
 > **Claim under test.** `plan.md` gives migrations to a long-running Worker and
