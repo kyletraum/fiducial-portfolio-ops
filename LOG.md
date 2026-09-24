@@ -24,6 +24,7 @@ later; they are simply not the number the gate reads.
 | 2026-09-20 | D · spike | — | 0.3 | Staleness-cutoff sensitivity sweep; 45d proposed with a derivation rather than a guess |
 | 2026-09-20 | 2 · data | — | 0.3 | Cadence + batch-entry modelling moved the cutoff 45d -> 90d; `D-034` ruled it; `slice-01.md` step 2 now names it |
 | 2026-09-20 | 0 · gate | — | 0.1 | Kyle ruled agent hours out of the threshold; `LOG.md` split into two columns and the threshold reworded |
+| 2026-09-24 | 0 · tooling | — | 0.2 | spec-kit 0.14.3.dev0 installed; constitution moved to `.specify/memory/`; stranded ruling commit merged as #4 |
 
 <!-- Add a row per session. Total at the gate; do not total as you go. -->
 

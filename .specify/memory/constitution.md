@@ -1,50 +1,243 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# Constitution
 
-## Core Principles
+These are the non-negotiable principles of the portfolio platform. Every other
+document in this specification set assumes them. A design that violates one of
+these is wrong even if it satisfies every functional requirement.
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+Most of them are not invented here. They are carried forward from a planning
+system that has been operated under them, and that learned several of them the
+expensive way.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+---
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+## I. No recalled, estimated or model-generated figures
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+Every number the system stores originates in a source it can name: an API
+response, an MCP tool result, a file import, or an explicit human entry. A
+figure with no source does not get stored.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+*Consequence:* every externally-sourced row carries its origin in the schema,
+not in a comment. There is no "roughly" column.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## II. `null` means UNVERIFIED, never zero
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+A missing value is missing. It is not zero, not the last known value, and not a
+sensible default.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+*Consequence:* a projection given a null input **refuses to run** and names the
+input it lacks. A refusal is a successful outcome of a validation step, not an
+error to be smoothed over. This is the single rule most likely to be eroded
+under delivery pressure, because a default always looks more convenient than a
+refusal - and a plan built on a defaulted number is worse than no plan.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+## III. Closed accounts stop at their last sync
 
-## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+When an account stops reporting, its series ends. The system never
+forward-fills, never carries the last balance forward, and never interpolates
+across a gap it did not observe.
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+*Consequence:* charts and aggregates must be able to render a series that
+simply stops, and say why.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+## IV. Provenance strength is recorded, not assumed
+
+Sources are not equally strong. A statement or export is stronger than an API
+balance, which is stronger than a scraped page, which is stronger than a hand
+entry. The schema distinguishes them and the UI shows the distinction.
+
+*Consequence:* a weaker source still beats a null. Recording the weakness is
+what makes it acceptable to use.
+
+## V. Reported-but-unverified money is conditional, and says so
+
+Money that has been *reported* as moving but not yet *observed* in a balance is
+a distinct state, not a completed transfer. Any aggregate that includes it is
+conditional and is labelled conditional wherever it is displayed.
+
+*Consequence:* a pending-transfer state is first-class in the data model, and
+totals carry a flag rather than silently absorbing it.
+
+## VI. Determinism and reproducibility
+
+Given the same inputs, a projection produces the same output. Every projection
+run records the hash of every input it consumed and the version of the engine
+that produced it.
+
+*Consequence:* a stored result whose inputs have since changed is detectably
+stale, and can be shown as stale rather than quietly believed.
+
+## VII. Secrets never rest in plaintext, and never enter the repository
+
+Credentials are encrypted at rest, are never returned by any API response, are
+never written into an image layer, a committed environment file, or a frontend
+bundle, and are never logged.
+
+*Consequence:* a single secret-store interface with one implementation per
+environment, and an audit record for every use.
+
+## VIII. Local-first
+
+The system runs completely on a single machine with no cloud dependency for
+storage or compute. Nothing binds to a non-loopback interface by default.
+Cloud deployment is an option, never a requirement.
+
+*Consequence:* every feature must have a local answer. A feature that only
+works when hosted is not done.
+
+## IX. The repository contains no personal data, ever
+
+Not in seed data, not in fixtures, not in test snapshots, not in documentation,
+not in a screenshot, not in a commit message. Real data exists only in a runtime
+volume that the repository never sees.
+
+*Consequence:* this is enforced by a CI job, not by good intentions. The
+repository is public; a single careless fixture is permanent.
+
+## X. DEV can never reach PRD data
+
+The development and production environments have separate volumes, separate
+databases and separate credentials. Destructive operations - seed, reset, wipe -
+assert they are running against DEV and refuse otherwise.
+
+*Consequence:* the refusal has its own test. Of everything in this document,
+this is the property whose failure is least recoverable: the production
+environment holds somebody's actual finances.
+
+## XI. The API is the only way in
+
+The frontend holds no business logic and no database access. Every capability
+the UI offers is an API call that any other client could make.
+
+*Consequence:* the API contract is the product boundary. If something is only
+possible through the UI, it is in the wrong place.
+
+---
+
+## Amendment
+
+These principles change by explicit decision, recorded with a date and a
+rationale, superseding rather than editing the text above. A principle that is
+quietly weakened to let a feature land has not been amended; it has been broken.
+
+---
+
+### Amendment 1 — 2026-09-18 — two principles added
+
+**Decision:** `D-029` (external claim provenance). **Instance:** `C-374`.
+**Rationale:** a fourteen-seat review found that three core mechanisms in `plan.md`
+and `environments.md` were asserted from reasoning about .NET Aspire rather than
+from running it, and all three were wrong. Thirteen of the fourteen reviewers
+missed them, because the documents are internally consistent and read correctly.
+Only the seat that opened the vendor's source at a pinned commit found them.
+
+The principles above govern figures the *application* stores. Nothing governed
+claims the *specification* makes about the platform it is built on — and a wrong
+claim of that kind survives every review, because review reads documents.
+
+#### XII. Every claim about an external system carries the strength of its evidence
+
+A statement about how an API, CLI, framework or build tool behaves is marked
+`EXECUTED` (this session ran it), `SOURCE@<ref>` (read from the implementation at
+a pinned reference), `DOCS@<date>` (read from published vendor documentation), or
+`INFERRED` (reasoned, not observed).
+
+*Consequence:* this is Principle IV applied to the platform instead of to the
+data. A weaker source still beats a null — what makes it usable is that the
+weakness travels with it, on the page, next to the claim.
+
+#### XIII. A mechanism the design rests on may not stay `INFERRED`
+
+Where the design breaks or must be redesigned if a mechanism does not behave as
+described, `INFERRED` is not a resting state. It is raised to `EXECUTED` by a
+**spike** — the smallest runnable thing that exercises that mechanism and nothing
+else — and until then it is named in the document as a **gate on the step that
+depends on it**, not as a caveat in a preface.
+
+*Consequence:* the test is not *is this important* but **would this design have to
+change if the claim were false**. Ordinary facts — a package name, a default, a
+flag in help text — stay at whatever strength they were read at, marked, and
+nothing is owed. And the platform skeleton is built first, because the cheapest
+possible instance of the platform is worth more than another page of reasoning
+about it.
+
+#### What Amendment 1 does not change
+
+Principle I is **not** weakened. `D-029` covers claims about external systems;
+Principle I covers figures the application stores, and a figure still may not be
+stored without a source it can name.
+
+---
+
+### Amendment 2 — 2026-09-18 — Principle I reconciled with the constant states
+
+**Decision:** `D-029`, carrying the review's `M-20`. **Rationale:** `data-model.md`
+defines a third legal state for `app.constant` — a **working assumption**: a real
+value, openly banner-marked as unsourced, gated on an action dated before any
+irreversible step. Principle I as written forbids it outright (*"A figure with no
+source does not get stored… There is no 'roughly' column"*), and the review found
+the contradiction had been introduced without using this section.
+
+The mechanism is right and the absolute phrasing was wrong: a `null` cannot be
+planned against, and the alternative to a weak value is not a strong value but a
+gap that goes invisible. Principle I is therefore amended, by this section rather
+than by editing it, to admit exactly one exception:
+
+> A figure with no source does not get stored **unless it is carried as an openly
+> labelled working assumption**: a non-null value, an explicit assumption flag, a
+> source field that opens by declaring itself unsourced, and a named gating action
+> that is open and dated before the irreversible step. **No terminal action may
+> depend on such a value.** Reaching for this twice in one change is the erosion
+> signal, not a precedent.
+
+The banner, the flag and the gate are what keep it from being a "roughly" column.
+Principle II is untouched: a `null` still means unverified and still refuses.
+
+---
+
+### Amendment 3 — 2026-09-18 — Principle III admits carry-forward inside an active window
+
+**Decision:** `D-030` Amendment 1 (the cut that kept this one piece of paperwork).
+**Findings:** `M-1`, and `R2-B2`, reached independently by five review seats.
+**Rationale:** Principle III as written — *"never forward-fills, never carries the
+last balance forward, and never interpolates across a gap it did not observe"* —
+forbids the only user-visible output the first slice builds, and `slice-01.md`
+asserted for a time that this section already permitted it. It did not. A
+principle quietly weakened to let a feature land has not been amended; it has
+been broken, so it is amended here instead.
+
+**The problem Principle III did not anticipate.** Accounts do not report on the
+same days. A per-date sum over only the rows that exist sums a *different subset*
+every day, so a net-worth line moves for reasons that are purely reporting
+artefacts. That is not a chart of your money; it is a chart of who happened to
+sync. Refusing to draw anything is not the answer either, because the gap is
+invisible in a refusal.
+
+**The amendment.** Principle III is amended to admit exactly one case:
+
+> A balance may be **carried forward within an account's own active window** —
+> after its first observation and before its series ends — provided every carried
+> point is **marked as carried** and the row states how stale it is. Fill **past
+> the end of a series** remains forbidden absolutely: when an account stops
+> reporting, its series stops, and no later point may be invented for it.
+
+**Three conditions, all binding, none optional.**
+
+1. **A carried point is marked.** The view carries `accounts_carried` and
+   `max_staleness_days` per row, and `accounts_unverified` beside them. A carried
+   value that looks identical to an observed one has broken this amendment, not
+   satisfied it.
+2. **The window has a stated end.** "Active window" is not "up to today" — an
+   account that silently stopped reporting must not be forward-filled forever,
+   which would be Principle III's forbidden case wearing this amendment as a
+   disguise. The staleness cutoff is named in `slice-01.md` step 2 and is part of
+   this amendment, not an implementation detail.
+3. **A day with nothing verified is UNVERIFIED, never zero.** PostgreSQL's
+   `sum()` ignores NULLs, so a day where every in-window account is missing
+   returns NULL, and a naive implementation shows a confident zero or an empty
+   point. Principle II governs that case and is untouched here.
+
+**What this does not do.** It does not permit gap-filling in `v_balance_daily`,
+which stays non-filled by design — two views, two rules, so a report and a
+dashboard can legitimately differ *and say why*. It does not weaken Principle II.
+And it does not license interpolation: carry-forward repeats the last *observed*
+value, it never invents an intermediate one.
