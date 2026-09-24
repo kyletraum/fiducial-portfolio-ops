@@ -35,10 +35,54 @@ The full set lives in [`.specify/memory/constitution.md`](.specify/memory/consti
 
 ## Status
 
-**Pre-implementation.** This repository currently contains its licence, its data-
-hygiene controls, and this README. The first slice — manual balance entry through
-to a net-worth chart, through every layer once — is specified and costed but not
-yet built.
+**Slice 01 is built:** manual balance entry through to a net-worth chart, through every
+layer once. That means the Aspire app model, EF Core migrations, the API with a committed
+OpenAPI document and a generated TypeScript client, and the React page. It has one test per
+layer plus an architecture test, CI, and a Docker Compose deployment. **Invented data only:**
+nothing here is a real account. The slice ends at a written assessment and a full stop
+([`slice-01.md`](specs/001-portfolio-platform/slice-01.md), "Then stop").
+
+## Running it
+
+Needs the .NET 10 SDK, Docker, Node 24, and the Aspire CLI (`dotnet tool install -g Aspire.Cli`).
+
+```sh
+aspire run                     # the whole stack; the dashboard link is printed
+dotnet test --solution Portfolio.slnx   # every layer, including the E2E (about a minute)
+```
+
+`aspire run` keeps its data in the Docker volume `portfolio-dev-pgdata`. Tests never mount
+it: the integration tests and the E2E each start a throwaway Postgres.
+
+**Deploying locally with Docker Compose.** One command builds the images, writes the compose
+file, and starts it:
+
+```sh
+aspire deploy -o aspire-output
+```
+
+The API is then at <http://localhost:8080>, on **loopback only**. Postgres is not published
+at all. To stop the stack and start it again later from the same generated files, use plain
+Compose:
+
+```sh
+docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.Production down
+docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.Production up -d
+```
+
+`<project>` is the `aspire-compose-…` name shown by `docker ps`. Every override the deployment
+needs is in the app model ([`src/AppHost/AppHost.cs`](src/AppHost/AppHost.cs)), not in a
+separate file:
+
+- loopback binding;
+- a Postgres healthcheck;
+- the Migrator waiting for the healthcheck;
+- no dashboard;
+- restart policies.
+
+So the generated file is complete on its own. `aspire-output/` is git-ignored as a
+directory, because `.env.Production` holds the generated database password. Never commit
+it. [`deploy/.env.example`](deploy/.env.example) lists the keys.
 
 ## Before you commit anything
 
