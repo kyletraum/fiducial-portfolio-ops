@@ -162,8 +162,14 @@ BENIGN_LINE = re.compile(
 
 
 def _git(*args: str) -> str:
+    # Explicit UTF-8, replacing undecodable bytes. With text=True alone the locale
+    # codec is used - cp1252 on Windows - and a byte it cannot map kills the reader
+    # thread, .stdout comes back None, and the file is skipped as if binary. That
+    # skipped every file with an em dash in it. Binary files are still skipped, by
+    # the NUL check in scan().
     return subprocess.run(
-        ["git", *args], capture_output=True, text=True, check=True
+        ["git", *args], capture_output=True, text=True, check=True,
+        encoding="utf-8", errors="replace",
     ).stdout
 
 
