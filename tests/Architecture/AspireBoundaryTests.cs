@@ -17,7 +17,12 @@ public class AspireBoundaryTests
     const string AppHost = "AppHost";
     const string IntegrationTests = "Integration";
 
-    static readonly string[] Expected = [AppHost, "Api", "Migrator", "Domain", "ServiceDefaults"];
+    static readonly string[] Expected = [AppHost, "Api", "Migrator", "Domain", "Infrastructure", "ServiceDefaults"];
+
+    // S-25c: Aspire *client* integrations (Aspire.Npgsql.EntityFrameworkCore.PostgreSQL and
+    // the like) belong in the composition roots that run as processes. Infrastructure owns
+    // EF Core but is not Aspire-aware (plan.md, "The Aspire boundary").
+    static readonly string[] CompositionRoots = [AppHost, "Api", "Migrator", IntegrationTests];
 
     public static TheoryData<string> Projects() => new(ProjectFile.All().Select(p => p.Name));
 
@@ -56,6 +61,16 @@ public class AspireBoundaryTests
     {
         if (name is AppHost or IntegrationTests) return;
         Assert.DoesNotContain(AppHost, ProjectFile.Named(name).ProjectReferences);
+    }
+
+    [Theory]
+    [MemberData(nameof(Projects))]
+    public void Only_composition_roots_reference_any_Aspire_package(string name)
+    {
+        if (CompositionRoots.Contains(name)) return;
+        var offending = ProjectFile.Named(name).Packages
+            .Where(p => p.StartsWith("Aspire.", StringComparison.OrdinalIgnoreCase));
+        Assert.Empty(offending);
     }
 
     [Fact]
