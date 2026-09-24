@@ -31,7 +31,7 @@ the schema and the tests rather than the documentation:
    fixtures, not in a screenshot. Enforced by a CI job and a pre-commit hook, not
    by good intentions.
 
-The full set lives in `specs/constitution.md` (see *Where the specification lives*).
+The full set lives in [`.specify/memory/constitution.md`](.specify/memory/constitution.md), where spec-kit reads it.
 
 ## Status
 
@@ -71,7 +71,7 @@ plan were written and adversarially reviewed **before any code existed** — thr
 rounds, the last of which reviewed the reviews and found a prescription that
 silently cancelled itself.
 
-Start with [`specs/constitution.md`](specs/constitution.md), then
+Start with [`.specify/memory/constitution.md`](.specify/memory/constitution.md), then
 [`specs/001-portfolio-platform/slice-01.md`](specs/001-portfolio-platform/slice-01.md),
 which is the only document describing work actually in progress. The rest are a
 frozen reference and each carries a banner naming the claims the reviews

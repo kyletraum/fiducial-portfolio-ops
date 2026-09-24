@@ -43,7 +43,13 @@ hygiene scanner enforces the same rule mechanically on every commit.
 
 ## spec-kit
 
-Not yet installed. These documents were written in
+**Installed 2026-09-24**: spec-kit `0.14.3.dev0`, via
+`specify init --here --force --integration claude --script sh --ignore-agent-tools`.
+That added `.specify/` and the `speckit-*` skills under `.claude/skills/`. In this
+version the commands are skills named `/speckit-plan`, `/speckit-tasks` and so on,
+not `/speckit.plan`.
+
+**Installed is not converted.** These documents were written in
 [spec-kit](https://github.com/github/spec-kit)'s **general shapes** but not its
 exact ones, and the difference is a conversion rather than a drop-in:
 
@@ -56,21 +62,21 @@ exact ones, and the difference is a conversion rather than a drop-in:
 | `## Governance` plus a `Version \| Ratified \| Last Amended` footer in the constitution | neither |
 | `tasks.md`, `quickstart.md`, `checklists/` | none |
 
-`templates/tasks-template.md` decomposes by those story priorities, so
-`/speckit.tasks` would have nothing to work from until the conversion is done.
+`.specify/templates/tasks-template.md` decomposes by those story priorities, so
+`/speckit-tasks` has nothing to work from until the conversion is done.
 Verified against `github/spec-kit@main`, 2026-09-18.
 
-If spec-kit is adopted, `specs/constitution.md` becomes
-`.specify/memory/constitution.md` and `specs/001-portfolio-platform/` keeps its
-path. Check the flag set with `specify init --help` first; the CLI's options
-have changed across releases.
+The constitution has moved to `.specify/memory/constitution.md`, where the skills
+read it. `specs/constitution.md` is now a pointer, kept so existing links and the
+review documents' citations still resolve. `specs/001-portfolio-platform/` keeps
+its path.
 
 ## Layout
 
 ```
 specs/
   README.md                     this file
-  constitution.md               non-negotiable principles
+  constitution.md               pointer: moved to .specify/memory/constitution.md
   001-portfolio-platform/
     spec.md                     WHAT: requirements and acceptance criteria
     plan.md                     HOW: architecture and the Aspire app model
@@ -90,7 +96,7 @@ specs/
     round-2-findings.md         round 2: 9 seats, plus a review of that review
 ```
 
-Read `constitution.md` first. It is short, and the rest of the set assumes it.
+Read the constitution (`.specify/memory/constitution.md`) first. It is short, and the rest of the set assumes it.
 Then read **`001-portfolio-platform/slice-01.md`** - it is the only document
 describing work that is actually being done.
 

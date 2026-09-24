@@ -85,6 +85,19 @@ actually parameterises volume name, database name and ports.
 `builder.AddParameter(...)`/configuration, and `environments.md` is corrected.
 **Blocks:** everything, because the app model's shape depends on the answer.
 
+> **RAN — it failed as expected.** [`EXECUTED 2026-09-24`, Aspire CLI 13.5.4,
+> `spikes/spike-a-two-stacks/RESULTS.md`] A second
+> `aspire run -- --STACK_ENV=prd` from the same directory stops the first stack,
+> **with or without `--isolated`**. Two directories run side by side, the second
+> with `--isolated` for its dashboard ports. `aspire run` has **no
+> `--launch-profile` option** and ignores one passed through; the first profile
+> in `launchSettings.json` always applies, so launch profiles do not select an
+> environment either. **Selection is configuration**: `STACK_ENV` from the
+> command line named the volume, database and container, and data written in one
+> stack was absent from the other. Step 1 uses `builder.AddParameter(...)` on
+> that configuration. `environments.md` and `plan.md` carry the correction in
+> their banners; this slice has one environment, so neither is rewritten.
+
 ### Spike B — how does the browser learn the API's address?
 
 > **Claim under test.** `plan.md` says service discovery supplies it, so no
@@ -103,6 +116,19 @@ proxy, so the browser uses a relative path everywhere.
 [`SOURCE@microsoft/aspire@b477bdd`; note it is `[Experimental("ASPIREJAVASCRIPT001")]`]
 **Blocks:** the web layer. This is what fails on day one otherwise.
 
+> **RAN — the claim is wrong, and the template already answers it.**
+> [`EXECUTED 2026-09-24`, Aspire 13.5.4, `aspire-ts-cs-starter` 13.5.4,
+> `spikes/spike-b-api-address/RESULTS.md`] In headless Edge, client code could
+> see only `BASE_URL, DEV, MODE, PROD, SSR` in `import.meta.env`, in both modes.
+> The API's address exists only in the Vite **process**. A relative
+> `fetch('/api/health')` returned `200` both ways. Under `aspire run`, Vite's
+> `/api` proxy forwarded it. Under `aspire deploy`, the server served the page
+> itself from `wwwroot` via `PublishWithContainerFiles`: one origin, no
+> `webfrontend` service in compose. **Use that, not `PublishAsStaticWebsite`**,
+> which was not run and whose experimental flag is not needed. API routes live
+> under `/api`. The published server port binds `0.0.0.0` and `[::]`, so DoD 3's
+> loopback binding is a step-7 override.
+
 ### Spike C — how does the API wait for migrations?
 
 > **Claim under test.** `plan.md` gives migrations to a long-running Worker and
@@ -117,6 +143,19 @@ Then confirm the same shape survives `aspire publish` as
 
 **Records:** whether the published compose file carries the dependency.
 **Blocks:** migrations, therefore the data layer.
+
+> **RAN — the one-shot Migrator works, and the dependency survives publish.**
+> [`EXECUTED 2026-09-24`, Aspire 13.5.4, `spikes/spike-c-migrator/RESULTS.md`]
+> Under `aspire run` the API waited from 11:13:30 until the Migrator exited 0 at
+> 11:13:47 and started at 11:13:48. When the Migrator exits 1 instead, the API
+> is `FailedToStart` and its process never runs. `aspire publish` writes
+> `api: depends_on: migrator: condition: "service_completed_successfully"`.
+> **Step 2 inherits one consequence:** the Migrator's own `WaitFor(db)` publishes
+> as `service_started`, not `service_healthy`, and `pg` gets no healthcheck. So in
+> compose the Migrator can start before Postgres accepts connections. It must
+> retry its connection, or step 7's override must add the healthcheck.
+> [`INFERRED` for the race itself: the file says `service_started`; compose was
+> not run.]
 
 **Gate:** none of the three spikes' subjects may be built on until its spike has
 run and its claim is restated at `EXECUTED` with the command and date.

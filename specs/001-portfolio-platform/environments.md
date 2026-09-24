@@ -10,7 +10,7 @@
 > Three review rounds contradicted specific claims here. They are named by line
 > so you do not have to guess which paragraph is the wrong one:
 >
-> - **`:23`, `:36-43` — WRONG.** *Two stacks run side by side via launch profiles.* See `plan.md:101`. Simultaneity needs two directories; Compose also scopes volumes and networks by **project name**, which nothing here sets.
+> - **`:23`, `:36-43` — WRONG.** *Two stacks run side by side via launch profiles.* See `plan.md:101`. Simultaneity needs two directories; Compose also scopes volumes and networks by **project name**, which nothing here sets. **Spike A ran it** [`EXECUTED 2026-09-24`, Aspire 13.5.4, `spikes/spike-a-two-stacks/RESULTS.md`]: same directory stops the first stack even with `--isolated`; two directories run side by side; `aspire run` has no `--launch-profile` option, so `:36-43` is wrong for *selection* too. Select by configuration.
 > - **`:80-85` — FALSE TWICE.** *Three guards, each independently sufficient.* Guards 1 and 2 read the **same injected environment value** — one mis-set variable defeats both, so they are one guard with two spellings. Guard 3 rests on revoking `DROP`, which PostgreSQL does not have: *"The right to modify or destroy an object is inherent in being the object's owner, and cannot be granted or revoked in itself."* [`SOURCE@postgres@REL_16_STABLE ddl.sgml`]
 > - **Naming.** `portfolio` and `portfolio_dev` make the DEV assertion a substring test waiting to be written backwards — `portfolio_dev` contains `portfolio`. Use `portfolio_prd`.
 >
