@@ -1,0 +1,27 @@
+{
+  // spikes/ holds a second solution (SpikeB.sln). Without this, C# Dev Kit may load that one,
+  // and the Solution Explorer and Test Explorer show the spike instead of the product.
+  "dotnet.defaultSolution": "Portfolio.slnx",
+
+  // Inject the workspace .env (python.envFile, default ${workspaceFolder}/.env) into new
+  // integrated terminals. Declared by the Python Environments extension, resource-scoped, so it
+  // applies to everyone who opens this folder. The .env itself is git-ignored (Constitution IX):
+  // each developer keeps their own, and it is never committed.
+  "python.terminal.useEnvFile": true,
+
+  // Generated files: edited only by their generators, never by hand.
+  "files.readonlyInclude": {
+    "src/Api/openapi/*.json": true,
+    "web/src/api/schema.d.ts": true,
+    "src/Infrastructure/Migrations/*.Designer.cs": true,
+    "src/Infrastructure/Migrations/PortfolioDbContextModelSnapshot.cs": true
+  },
+
+  "search.exclude": {
+    "**/bin": true,
+    "**/obj": true,
+    "**/node_modules": true,
+    "web/dist": true,
+    "aspire-output": true
+  }
+}
