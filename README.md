@@ -66,11 +66,14 @@ at all. To stop the stack and start it again later from the same generated files
 Compose:
 
 ```sh
-docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.Production down
-docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.Production up -d
+docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.<Environment> down
+docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.<Environment> up -d
 ```
 
-`<project>` is the `aspire-compose-…` name shown by `docker ps`. Every override the deployment
+`<project>` is the `aspire-compose-…` name shown by `docker ps`. `<Environment>` is
+`Production` when you deploy from a terminal, and `Development` when you deploy from VS Code's
+"Aspire: deploy to local Docker Compose", because that uses the AppHost's launch profile, which
+sets the environment to Development. Use whichever `.env.*` file the deploy wrote. Every override the deployment
 needs is in the app model ([`src/AppHost/AppHost.cs`](src/AppHost/AppHost.cs)), not in a
 separate file:
 
@@ -81,7 +84,7 @@ separate file:
 - restart policies.
 
 So the generated file is complete on its own. `aspire-output/` is git-ignored as a
-directory, because `.env.Production` holds the generated database password. Never commit
+directory, because the `.env.<Environment>` file there holds the generated database password. Never commit
 it. [`deploy/.env.example`](deploy/.env.example) lists the keys.
 
 ## Before you commit anything
