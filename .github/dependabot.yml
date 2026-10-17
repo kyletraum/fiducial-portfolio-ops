@@ -30,6 +30,16 @@ updates:
     directory: /web
     schedule:
       interval: weekly
+    ignore:
+      # openapi-typescript (which generates web/src/api/schema.d.ts) requires TypeScript 5;
+      # TypeScript 7 fails `npm ci` with ERESOLVE (seen in #20). Lift when openapi-typescript
+      # supports it.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # Type definitions must match the Node major we run (24: ci.yml and the dev machine).
+      # Newer majors would type APIs the runtime does not have. Lift with the Node upgrade.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       dev-tooling:
         dependency-type: development
