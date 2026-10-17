@@ -4,3 +4,8 @@
 # difference that is not in the document. eol=lf keeps the working copy what the generator
 # writes. It does not hide a generator-emitted CRLF: that would still fail the byte compare.
 src/Api/openapi/*.json text eol=lf
+
+# The TypeScript client types are generated from that document (npm run gen:api) and compared
+# in CI the same way; openapi-typescript writes LF too, so a CRLF checkout would show the file
+# as modified after every regeneration with no content change.
+web/src/api/schema.d.ts text eol=lf

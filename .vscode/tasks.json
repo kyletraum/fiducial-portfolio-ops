@@ -1,0 +1,58 @@
+{
+  // Shell tasks run under cmd.exe: they chain with &&, which Windows PowerShell 5.1 lacks.
+  // Terminal > Run Task. Ctrl+Shift+B builds; "Run Test Task" runs the fast tests.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "Portfolio.slnx", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      // What CI blocks on: everything except the E2E (which CI does not run - middle cut).
+      "label": "test: fast (no E2E)",
+      "type": "shell",
+      "options": { "shell": { "executable": "cmd.exe", "args": ["/d", "/c"] } },
+      "command": "dotnet test --project tests/Unit && dotnet test --project tests/Architecture && dotnet test --project tests/Integration && dotnet test --project tests/Contract",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      // Every layer, including the E2E: starts the whole app on a throwaway database and drives
+      // a browser. About a minute; needs Docker running.
+      "label": "test: all (incl. E2E)",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["test", "--solution", "Portfolio.slnx"],
+      "group": "test",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      // After changing an endpoint or a DTO: regenerate the committed OpenAPI document (only via
+      // the build-time tool - S-14), then the TypeScript client from it. Commit both.
+      "label": "api: regenerate OpenAPI + TypeScript client",
+      "type": "shell",
+      "options": { "shell": { "executable": "cmd.exe", "args": ["/d", "/c"] } },
+      "command": "dotnet build src/Api && npm --prefix web run gen:api",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "web: lint + type-check",
+      "type": "shell",
+      "options": { "shell": { "executable": "cmd.exe", "args": ["/d", "/c"] } },
+      "command": "npm --prefix web run lint && npm --prefix web run build",
+      "problemMatcher": "$tsc"
+    },
+    {
+      // Constitution IX over the whole tree, as CI runs it.
+      "label": "hygiene: scan all files",
+      "type": "process",
+      "command": "python",
+      "args": ["scripts/hygiene.py", "--all"],
+      "problemMatcher": []
+    }
+  ]
+}
