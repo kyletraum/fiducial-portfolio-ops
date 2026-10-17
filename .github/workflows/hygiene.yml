@@ -26,6 +26,13 @@ jobs:
             echo "new branch - scanning every tracked file"
             python3 scripts/hygiene.py --all
             exit $?
+          elif ! git cat-file -e "${{ github.event.before }}^{commit}" 2>/dev/null; then
+            # A force-push (a rebase, e.g. `@dependabot rebase`): the previous head was
+            # discarded, so it is not in this clone and before..sha cannot be diffed - git
+            # exits 128 and the scan never runs. Scan everything instead, as for a new branch.
+            echo "previous head ${{ github.event.before }} not found (force-push) - scanning every tracked file"
+            python3 scripts/hygiene.py --all
+            exit $?
           else
             RANGE="${{ github.event.before }}..${{ github.sha }}"
           fi
