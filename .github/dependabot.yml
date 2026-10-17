@@ -15,7 +15,18 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # MessagePack is pinned only to lift Aspire's TRANSITIVE copy past GHSA-qhrr-8q5h-9q3h.
+      # Aspire.Hosting and StreamJsonRpc are built against MessagePack 2.5.x; 3.x is a major
+      # with breaking API changes, so forcing it under them risks runtime failures in the
+      # AppHost backchannel (#38, #42). Lift when Aspire itself depends on MessagePack 3.
+      - dependency-name: MessagePack
+        update-types: ["version-update:semver-major"]
     groups:
+      # One PR for the test framework across all five test projects, not one per project
+      # (#39 and its per-project duplicates #40, #41, #43).
+      xunit:
+        patterns: ["xunit*"]
       # Released together and versioned together; one PR, not a dozen.
       aspire:
         patterns: ["Aspire.*"]
