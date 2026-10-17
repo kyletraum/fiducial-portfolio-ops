@@ -38,6 +38,7 @@ later; they are simply not the number the gate reads.
 | 2026-09-24 | 6 · CI | — | 0.6 | ci.yml (build, unit + Domain floor 70%, architecture, integration; contract advisory; web), actions SHA-pinned incl. hygiene, Dependabot; E2E kept out per middle cut |
 | 2026-09-24 | 7 · deploy | — | 0.8 | Four compose overrides in the app model; aspire deploy + plain compose: Api loopback-only (LAN refused), pg unpublished, browser flow, data persists; missing-database defect found in Migrator |
 | 2026-09-24 | gate · assessment | — | 0.3 | DoD walked (all met; DoD 4 wording vs middle cut noted); assessment drafted with facts only - techniques and decision left to Kyle; agent-hour column found overstated vs commit timestamps |
+| 2026-10-17 | maint · Aspire | — | 0.6 | Aspire 13.5.4 -> 13.6.1 incl. the AppHost SDK Dependabot cannot bump; MessagePack pinned past GHSA-qhrr-8q5h-9q3h; corrupt NuGet cache entries cleared; Docker Desktop restarted; 77/77 |
 
 <!-- Add a row per session. Total at the gate; do not total as you go. -->
 
