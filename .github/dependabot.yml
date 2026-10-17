@@ -41,5 +41,11 @@ updates:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
     groups:
+      # React and React DOM must move together: react-dom declares a peer dependency on its
+      # own react version and checks at startup that the two match exactly. Separate PRs
+      # (#32 and #33) conflicted with each other, and landing either alone would have left
+      # main mismatched - a page that builds but throws "Incompatible React versions".
+      react:
+        patterns: ["react", "react-dom"]
       dev-tooling:
         dependency-type: development
