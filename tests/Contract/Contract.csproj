@@ -14,7 +14,7 @@
   <!-- No reference to Api: the test builds it in a child process, the way the committed
        document must be produced, so nothing here can load a stale copy of it. -->
   <ItemGroup>
-    <PackageReference Include="xunit.v3" Version="4.0.1" />
+    <PackageReference Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 
   <ItemGroup>
