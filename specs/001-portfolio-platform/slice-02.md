@@ -141,6 +141,19 @@ figure typed today outranks an export from last week. **This rule is the one
 judgement in the slice that Kyle should read before step 2**; everything else
 follows from the spec.
 
+> **RAN — the claim holds, and the rule is RULED.** [`EXECUTED 2026-10-18`,
+> PostgreSQL 18.3 on the real migrations, `spikes/spike-g-same-day-pick/RESULTS.md`]
+> With a manual `100` and an export `200` on one date, the unfixed view returned
+> `100` when the manual row was written first and `200` when the export was,
+> under the default plan and a forced sequential scan alike. **Write order
+> decides net worth**, and nothing on the page would show it. The plan did not
+> change the answer here; "changes its mind between queries" was not observed.
+> **Kyle approved the rule above on 2026-10-18.** A final `id` key is added only
+> to make the order total. The fixed view passes seven assertions across both
+> insertion orders and both plans, and the same assertions fail on the unfixed
+> view. Step 2's migration 4 copies `03-fixed-view.sql`; the integration suite
+> gets the three cases through the API.
+
 ---
 
 ## The build
