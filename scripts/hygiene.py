@@ -21,7 +21,7 @@ permanent. The allow-list is reviewed, never wildcarded.
 
 Usage:
     hygiene.py --staged         # pre-commit: scan the staged diff
-    hygiene.py --range A..B     # CI: scan a commit range
+    hygiene.py --range A..B     # CI: scan every commit in a range, each at its own content
     hygiene.py --all            # scan every tracked file (pre-flight audit)
 """
 from __future__ import annotations
@@ -173,20 +173,41 @@ def _git(*args: str) -> str:
     ).stdout
 
 
-def changed_files(mode: str, rev_range: str | None) -> list[str]:
-    if mode == "all":
-        out = _git("ls-files")
-    elif mode == "staged":
-        out = _git("diff", "--cached", "--name-only", "--diff-filter=ACMR")
-    else:
-        out = _git("diff", "--name-only", "--diff-filter=ACMR", rev_range or "HEAD~1..HEAD")
+def _lines(out: str) -> list[str]:
     return [p for p in out.splitlines() if p.strip()]
 
 
-def content_of(path: str, mode: str) -> str | None:
+def targets(mode: str, rev_range: str | None) -> list[tuple[str, str, str]]:
+    """(label, path, object) for every file version to scan. `object` is what
+    `git show` reads - ':path' for the index, 'sha:path' for a commit - or '' for
+    the working tree.
+
+    RANGE mode scans EVERY commit in the range, each at its own content - not the
+    net diff of the range read from the working tree, which is what it did until
+    2026-10-18. A value committed and then removed by a later commit is invisible
+    to a net diff, yet that commit stays reachable by SHA and through the PR (the
+    docstring above): exactly the leak this control exists for. A merge commit is
+    scanned against its FIRST parent - whatever it brought in, plus any conflict
+    resolution.
+    """
+    if mode == "all":
+        return [(p, p, "") for p in _lines(_git("ls-files"))]
+    if mode == "staged":
+        return [(p, p, f":{p}") for p in _lines(_git("diff", "--cached", "--name-only", "--diff-filter=ACMR"))]
+
+    found: list[tuple[str, str, str]] = []
+    for sha in _lines(_git("rev-list", "--reverse", rev_range or "HEAD~1..HEAD")):
+        parents = _git("rev-list", "--parents", "-n", "1", sha).split()[1:]
+        base = [parents[0]] if parents else ["--root"]
+        changed = _git("diff-tree", "-r", "--name-only", "--diff-filter=ACMR", "--no-commit-id", *base, sha)
+        found += [(f"{sha[:10]} {p}", p, f"{sha}:{p}") for p in _lines(changed)]
+    return found
+
+
+def content_of(path: str, obj: str) -> str | None:
     try:
-        if mode == "staged":
-            return _git("show", f":{path}")
+        if obj:
+            return _git("show", obj)
         return open(path, encoding="utf-8", errors="replace").read()
     except (subprocess.CalledProcessError, OSError):
         return None
@@ -197,14 +218,17 @@ def scan(mode: str, rev_range: str | None) -> int:
     warnings: list[str] = []
     allowed = {p for p, _ in ALLOWLIST}
 
-    for path in changed_files(mode, rev_range):
+    commits: set[str] = set()
+    for label, path, obj in targets(mode, rev_range):
+        if mode == "range":
+            commits.add(obj.split(":", 1)[0])
         for pattern, why in FORBIDDEN_PATHS:
             if pattern.search(path):
-                findings.append(f"{path}: refused - {why}")
+                findings.append(f"{label}: refused - {why}")
 
         if path in allowed:
             continue
-        text = content_of(path, mode)
+        text = content_of(path, obj)
         if text is None or "\0" in text[:2048]:
             continue
 
@@ -218,7 +242,7 @@ def scan(mode: str, rev_range: str | None) -> int:
                     if validator and not validator(m.group(0)):
                         continue
                     snippet = line.strip()[:90]
-                    entry = f"{path}:{lineno}: [{name}] {why}\n      {snippet}"
+                    entry = f"{label}:{lineno}: [{name}] {why}\n      {snippet}"
                     if name in PROSE_ADVISORY_RULES and path.lower().endswith(PROSE_SUFFIXES):
                         warnings.append(entry)
                     else:
@@ -231,8 +255,10 @@ def scan(mode: str, rev_range: str | None) -> int:
             print(f"  {w}", file=sys.stderr)
         print("", file=sys.stderr)
 
+    # Says how many commits a range scan read, so "clean" over an empty range is visible as such.
+    scope = f", {len(commits)} commit(s) each at its own content" if mode == "range" else ""
     if not findings:
-        print(f"hygiene: clean ({len(warnings)} advisory)" if warnings else "hygiene: clean")
+        print(f"hygiene: clean{scope} ({len(warnings)} advisory)" if warnings else f"hygiene: clean{scope}")
         return 0
 
     print("\nCONSTITUTION IX: refusing this change.\n", file=sys.stderr)
@@ -243,7 +269,11 @@ def scan(mode: str, rev_range: str | None) -> int:
         "\nname committed here cannot be removed by rewriting history - the objects"
         "\nstay reachable by SHA, in forks, and through any PR that references them."
         "\n\nIf this is a false positive, add the path to ALLOWLIST in scripts/hygiene.py"
-        "\nwith a reason. Never wildcard it.\n",
+        "\nwith a reason. Never wildcard it."
+        "\n\nA finding that names a commit is IN THAT COMMIT, even when a later commit"
+        "\nremoved it, so fixing the file does not clear it. Squash the branch and"
+        "\nforce-push to keep the commit out of main - and if the value is real, treat"
+        "\nit as already published.\n",
         file=sys.stderr,
     )
     return 1
@@ -253,11 +283,16 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--staged", action="store_true", help="scan the staged diff (pre-commit)")
-    g.add_argument("--range", dest="rev_range", help="scan a commit range, e.g. HEAD~1..HEAD")
+    g.add_argument("--range", dest="rev_range", help="scan every commit in a range, e.g. main..HEAD")
     g.add_argument("--all", action="store_true", help="scan every tracked file")
     a = ap.parse_args()
     mode = "staged" if a.staged else "all" if a.all else "range"
-    return scan(mode, a.rev_range)
+    try:
+        return scan(mode, a.rev_range)
+    except subprocess.CalledProcessError as e:
+        # Fail CLOSED: a range git cannot read is not a clean range.
+        print(f"hygiene: git failed ({' '.join(e.cmd[1:3])}): {e.stderr.strip()}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
