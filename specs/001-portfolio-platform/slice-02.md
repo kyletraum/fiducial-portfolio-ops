@@ -73,6 +73,43 @@ OFX-dialects beyond what Spike E names; storing the uploaded file itself
 and **value-weighted coverage** (`C-389`), which is carried as an open question
 below, not built.
 
+## Dates and time — ruled by Kyle, 2026-10-18
+
+**The data layer is UTC and uniform. Conversion happens only at the edge where
+a person reads or enters a value.** Kyle: "UTC in the database gets converted to
+CDT when I'm using the app, and when I pick or upload a CDT timezone it gets
+stored as UTC." There are three kinds of value, and the rule applies to each
+differently. The split was put to Kyle, who chose both halves.
+
+| Kind | Columns | Stored | Shown |
+|---|---|---|---|
+| **Moment** | `observed_at`, `created_at`, `deleted_at`, `superseded_at`, `ingest_run.started_at` / `finished_at`, `account_balance.source_as_of` (new) | `timestamptz`, UTC | In the viewer's timezone, converted in the browser. A moment a person enters converts to UTC on the way in |
+| **Calendar date** | `as_of_date`, `opened_on`, `closed_on` | `date`, no timezone | **As stored, never converted, in either direction.** Oct 15 is Oct 15 to every viewer. A date string is formatted as a string and never passed through `new Date(...)` for display: that call reads it as UTC midnight, which is the previous day anywhere in the Americas |
+| **"Today"** | `current_date` in the spine; the API's default `to` | The **UTC** date | The browser uses the viewer's **local** date for the chart's end and as the default for a date the person picks. In the evening in the Americas the server is a day ahead; the browser asks only up to its own today, so it never shows that day |
+
+**Imports, under the same rule:**
+
+- **CSV:** `as_of_date` is ISO `yyyy-mm-dd` and nothing else. `03/04/2026` is
+  **refused**, not guessed: it is March 4 or April 3 depending on who wrote it.
+  A guess goes wrong only when the day is 12 or less, so it passes every
+  validation.
+- **OFX:** `as_of_date` is **the date as written** in `DTASOF` (Spike E), the
+  day the institution meant. When `DTASOF` carries a time, the full stamp is
+  converted to UTC with its stated offset and stored as
+  `account_balance.source_as_of`, for provenance. Example: `20261015` `230000`
+  `[-5:CDT]` is dated **2026-10-15**, with `source_as_of` 2026-10-16 04:00 UTC,
+  and shown to a CDT viewer as "as of Oct 15, 11:00 PM CDT". A stamp with **no
+  offset** is read as UTC. That is the specification's default as recalled, and
+  stays `INFERRED` until the specification is read.
+- **Nothing in the import path builds a `DateTime` or `DateTimeOffset` from a
+  balance date.** The only moment an import creates is `source_as_of`, and only
+  from a stamp that carries a time.
+
+**Pinned, not assumed:** the database session timezone is set to `UTC`
+explicitly (`ALTER DATABASE ... SET timezone`, in migration 4). Today
+`current_date` is UTC only because the `postgres:18.3` image defaults to it.
+The API reads its clock through `TimeProvider`, so tests can pin it.
+
 ---
 
 ## Step 0 — the spikes (do these first)
@@ -216,6 +253,9 @@ was):
   on application code.
 - `account_balance.ingest_run_id`, nullable (manual rows have none),
   referencing `ingest_run` (`FR-4.3`).
+- `account_balance.source_as_of`, `timestamptz` nullable: the source's own
+  stamp, as a UTC moment, when it carried a time ("Dates and time", above).
+- The database's `timezone` set to `UTC`.
 - The view's tie-break from Spike G.
 
 **`source_system` per format:** `import:csv` and `import:ofx`
@@ -341,12 +381,27 @@ as slice 01's middle cut left it.
 8. No committed file is an export, real or invented; the hygiene job is green
    with no new allow-list entry, or each new one carries its reason.
 9. Each obligation below is done, or recorded as not done with a reason.
+10. **The dates rule holds away from UTC.** The rule was not exercised before,
+    because every test process and container ran in UTC. Required:
+    - the unit and integration suites green with the process timezone at
+      UTC+14 (`Pacific/Kiritimati`) and at UTC−11 (`Pacific/Pago_Pago`);
+    - the E2E green with the browser at `America/Chicago` (Playwright
+      `timezoneId`), its "today" computed in that zone and not from the test
+      machine's clock;
+    - a pinned clock at 23:30 local, and one across the US daylight-saving
+      change on 2026-11-01;
+    - `DTASOF` cases: 23:59 at `-5` keeps the written date; date only; `[0:GMT]`
+      and `[+0:GMT]`; `+14`;
+    - a CSV with `03/04/2026` refused;
+    - a calendar date rendered in the browser unchanged in every one of those
+      timezones.
 
 ## Obligations this slice carries
 
 | From | Item | Here |
 |---|---|---|
 | `D-030` Amendment 1 | Idempotency and correction on `POST /balances` | **Built**, step 2 |
+| Kyle, 2026-10-18 | Dates and time: UTC data layer, conversion at the edge; calendar dates never converted | **Built**, steps 2–5; DoD 10 |
 | `slice-01.md` (`S-34`) | Resource limits, "the first slice that runs an ingest batch" | **Built**, step 7 |
 | `D-034` §5 | Per-account-type staleness cutoffs | **Deferred**: no real entry history (`D-041` §4) |
 | `C-389` | Coverage weighted by value, not account count | **Open question**, below |
