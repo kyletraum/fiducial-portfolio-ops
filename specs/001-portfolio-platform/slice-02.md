@@ -178,6 +178,35 @@ antiforgery decision, or a raw-body read), the one number this slice enforces
 transactions), and where it is enforced so a too-large file is refused before
 it is read, not after.
 
+> **RAN — all three claims hold; the upload is the raw request body.**
+> [`EXECUTED 2026-10-18`, .NET 10 direct, through Vite 8.3.4, and in a Linux
+> container; `spikes/spike-f-upload/RESULTS.md`]
+>
+> **The claims:**
+> - Kestrel's default is exactly 30,000,000 bytes: `200` at it, `413` one byte over.
+> - An `IFormFile` endpoint with no antiforgery decision fails with `500`
+>   ("contains anti-forgery metadata, but a middleware was not found").
+> - Vite forwards bodies unchanged within limits.
+>
+> **Three findings decide the binding:**
+> 1. **A multipart upload is written to disk.** The form reader spilled every file
+>    over 64 KiB to an `ASPNETCORE_*.tmp` file while the request ran.
+> 2. **Taking a form means opting out of antiforgery.** A multipart POST is what any
+>    website's plain form can send to `127.0.0.1` without a preflight.
+> 3. **Through the dev proxy, "too large" arrives as `502`, not `413`**: 19 times in
+>    20 at 1 byte over 1 MiB.
+>
+> **So `POST /imports` takes the file as the raw body:**
+> - `text/csv` or `application/x-ofx` only. Anything else is `415`, which was shown
+>   refusing a multipart post, and which is also the cross-site defence.
+> - `RequestSizeLimitAttribute(1 MiB)` on the endpoint, shown refusing at 1 MiB + 1
+>   with and without `Content-Length`.
+> - Read into memory, so no temp file.
+>
+> The browser checks `File.size` before sending. **1 MiB stands.** The 10,000-row
+> limit is the parser's. **Still a gate on step 3:** how the raw body is described in
+> OpenAPI, and whether the generated client sends a `File` unchanged (`INFERRED`).
+
 ### Spike G — which balance does the net-worth view count when two sources report the same day?
 
 > **Claim under test.** `v_net_worth_daily` picks the newest live balance per
@@ -304,11 +333,13 @@ All under `/api/v1`, OpenAPI regenerated and committed, client regenerated:
   `import:*` systems are accepted. A pair already bound to **any** account is
   refused (`account_source_identity` is unique across all rows: a source id
   once seen is never re-bindable).
-- `POST /imports` — one file, `multipart/form-data`, format from the extension
-  (`.csv`, `.ofx`) and nothing else. Returns the run: counts, and on failure the
-  refused lines with line numbers and reasons. `201` with the run whether it
-  succeeded or failed; `413` or `422` only for what Spike F refuses before a run
-  begins.
+- `POST /imports?fileName=...` — one file as the **raw request body** (Spike F;
+  not `multipart/form-data`). The format comes from `Content-Type`: `text/csv` or
+  `application/x-ofx`, and anything else is `415`. The limit is
+  `RequestSizeLimitAttribute(1 MiB)` on the endpoint, and the body is read into
+  memory, never a temp file. Returns the run: counts, and on failure the refused
+  lines with line numbers and reasons. `201` with the run whether it succeeded or
+  failed; `413` or `415` only for what is refused before a run begins.
 - `GET /imports` — the run history, newest first, bounded (`SE-23`).
 - `BalanceResponse` gains `ingestRunId`.
 
@@ -322,7 +353,10 @@ echoing more than a bounded prefix of it.
 - On the account row: bind an import identifier.
 - An upload form: file picker, submit, then the run's counts and any refused
   lines. Keyboard-reachable and labelled, with the result announced
-  (`aria-live`), as slice 01's forms are.
+  (`aria-live`), as slice 01's forms are. It checks `File.size` against 1 MiB
+  **before** sending, because through the dev proxy an over-limit upload
+  usually comes back as `502` (Spike F). It sends the `File` as the body with
+  its `Content-Type`, not a `FormData`.
 - A run history table.
 - The chart is unchanged; it already reads the view.
 
