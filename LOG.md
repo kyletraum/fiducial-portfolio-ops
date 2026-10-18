@@ -49,6 +49,7 @@ later; they are simply not the number the gate reads.
 | Date | Step | Kyle h | Agent h | What actually happened |
 |---|---|---|---|---|
 | 2026-10-18 | 0 · definition | — | 0.4 | `slice-02.md` written: file import (CSV/OFX), Spikes E-G; the view's same-day pick across sources found unspecified |
+| 2026-10-18 | G · spike | — | 0.4 | Spike G on pg 18.3 + real migrations: unfixed view returns 100 or 200 by WRITE ORDER; Kyle ruled the tie-break; fixed view 7/7, seen failing unfixed |
 
 <!-- Slice 02 rows above. Total at its gate. -->
 
