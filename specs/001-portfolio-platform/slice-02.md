@@ -560,6 +560,10 @@ per `scripts/hygiene.py`; never a wildcard.
 No new workflow. The new tests run in the existing jobs; the E2E stays local,
 as slice 01's middle cut left it.
 
+> **DONE 2026-10-18.** The new unit, architecture and integration tests run in
+> the existing jobs. One job was added beside them: the time-zone matrix
+> (DoD 10, step 5). The E2E stays local, now 14 tests.
+
 ### 7. Deploy
 
 - **Resource limits** (`S-34`, deferred by slice 01 to "the first slice that
@@ -570,6 +574,34 @@ as slice 01's middle cut left it.
   file from Spike F against `docker compose up`.
 - Everything slice 01 proved still holds: API on loopback, database port
   unpublished, data survives a restart.
+
+> **BUILT 2026-10-18.**
+>
+> **Measured first, on the published compose file with no limit.** Load: a
+> 10,000-row CSV, the same file again, every row restated, and the widest
+> net-worth query (3,644 days). Peaks from the cgroup's `memory.peak`, which is
+> exact, not sampled:
+>
+> | Container | Peak, no limit | Limit set | Peak under the limit |
+> |---|---|---|---|
+> | `api` | 234.5 MiB | **512M** | 254.2 MiB (50%) |
+> | `postgres` | 126.3 MiB | **256M** | 125.5 MiB (49%) |
+>
+> - **The limits are about twice the unlimited peak**, set with `Service.Deploy`
+>   in the app model. The api's unlimited peak overstates its need: .NET grows
+>   its heap into free memory, and caps it at 75% of a limit.
+> - **Under the limits** the whole load passed again: 10,000 created, then
+>   10,000 unchanged, then 10,000 restated, in 0.5–2.9 s. No container was
+>   killed for memory, and none restarted. Docker applies them
+>   (`HostConfig.Memory` of 512 MiB and 256 MiB).
+> - **The upload limit in the published stack:** exactly 1 MiB gets `201`.
+>   1 MiB + 1 gets `413` with a `Content-Length` and chunked, and neither became
+>   a run. A `Sec-Fetch-Site: cross-site` write gets `403`.
+> - **Slice 01's properties still hold:** the API answers on loopback and
+>   refuses the Wi-Fi and WSL addresses; Postgres publishes no port; data
+>   survives a `docker compose restart`.
+> - **The measurement ran on a copy:** the published compose file with its own
+>   volume, on port 8081, removed afterwards with its volume.
 
 ---
 

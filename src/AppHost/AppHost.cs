@@ -3,6 +3,7 @@
 // Spike B: the browser calls a relative /api; Vite proxies it under `aspire run`,
 // and at publish the built web app is served by the Api from wwwroot.
 using Aspire.Hosting.Docker.Resources.ServiceNodes;
+using Aspire.Hosting.Docker.Resources.ServiceNodes.Swarm;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -40,6 +41,7 @@ postgres.PublishAsDockerComposeService((_, service) =>
         StartPeriod = "10s",
     };
     service.Restart = "unless-stopped";
+    service.Deploy = MemoryLimit("256M");
 });
 
 var db = postgres.AddDatabase("portfolio", databaseName: "portfolio_dev");
@@ -65,6 +67,7 @@ var api = builder.AddProject<Projects.Api>("api")
         // loopback is purely a property of this publish string.
         service.Ports = service.Ports.Select(p => $"127.0.0.1:{p}:{p}").ToList();
         service.Restart = "unless-stopped";
+        service.Deploy = MemoryLimit("512M");
     });
 
 var web = builder.AddViteApp("web", "../../web")
@@ -74,3 +77,12 @@ var web = builder.AddViteApp("web", "../../web")
 api.PublishWithContainerFiles(web, "wwwroot");
 
 builder.Build().Run();
+
+// S-34, deferred by slice 01 to "the first slice that runs an ingest batch" - without limits a
+// mis-sized ingest batch takes the host down. Measured 2026-10-18 on the published stack with no
+// limit, a 10,000-row import, the same file again, every row restated and the widest net-worth
+// query: peaks (cgroup memory.peak) api 234.5 MiB, postgres 126.3 MiB. The limits are about twice
+// that. The api's unconstrained peak overstates its need - .NET grows its heap into whatever is
+// free, and under a limit caps it at 75% - and the same load was re-run under these limits and
+// passed (slice-02.md step 7). Revisit when the import limit or the row limit changes.
+static Deploy MemoryLimit(string memory) => new() { Resources = new() { Limits = new() { Memory = memory } } };
