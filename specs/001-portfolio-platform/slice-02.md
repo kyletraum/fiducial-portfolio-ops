@@ -100,6 +100,27 @@ whether the slice accepts 1.x at all. If 2.x XML is read, the reader runs with
 DTD processing **prohibited** and external entities unresolved; that is not up
 for the spike to decide.
 
+> **RAN — all three claims hold; step 2 writes its own reader.** [`EXECUTED
+> 2026-10-18`, .NET SDK 10.0.402, `spikes/spike-e-ofx/RESULTS.md`] Thirteen
+> generated files. A reader of about 150 lines reads 1.0.2 SGML, with leaves
+> closed or unclosed, and 2.2 XML into one element tree. **Both versions are
+> accepted.** OfxNet 1.8.1, the only recently published .NET 10 parser, was run
+> on the same files and is **not adopted**:
+> - it read `1234,56` as `123456`, and on a de-DE machine it read the plain
+>   `1234.56` as `123456`. The balance comes out 100 times too large, silently;
+> - it processes DTDs, and expanded an internal entity into the account id;
+> - it returned nothing, without an error, for an investment statement;
+> - it threw on an unsigned `[0:GMT]` offset.
+>
+> Step 2 inherits these rules:
+> - `DtdProcessing.Prohibit`, which the run showed refusing all four `DOCTYPE` files;
+> - invariant-culture amounts only;
+> - an unknown statement type refuses the file;
+> - the as-of date is taken as written, not converted to UTC.
+>
+> The element names are corroborated by OfxNet's independent reading. They were
+> **not** read from the OFX specification itself, which stays `INFERRED`.
+
 ### Spike F — how large a file gets through, and what refuses it?
 
 > **Claims under test.** (1) Kestrel refuses a request body over 30,000,000

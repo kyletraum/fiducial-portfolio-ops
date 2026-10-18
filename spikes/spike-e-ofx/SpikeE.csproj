@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Spike E only. Not in Portfolio.slnx; nothing in src/ references it. OfxNet is here to be
+       compared against, not adopted - see RESULTS.md. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OfxNet" Version="1.8.1" />
+  </ItemGroup>
+
+</Project>
