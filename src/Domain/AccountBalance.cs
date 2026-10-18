@@ -19,6 +19,14 @@ public class AccountBalance
     public string? SourceId { get; set; }
     public SourceStrength SourceStrength { get; set; }
     public DateTimeOffset ObservedAt { get; set; }
+    /// <summary>The import run that wrote this row (FR-4.3); null for a manual entry.</summary>
+    public Guid? IngestRunId { get; set; }
+    /// <summary>
+    /// The source's own stamp as a UTC moment, when it carried a time (an OFX DTASOF with a
+    /// time). Provenance only: <see cref="AsOfDate"/> is the calendar date as written, and
+    /// nothing is dated by this (slice-02.md "Dates and time").
+    /// </summary>
+    public DateTimeOffset? SourceAsOf { get; set; }
     public Guid? Supersedes { get; set; }
     public DateTimeOffset? SupersededAt { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }

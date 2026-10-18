@@ -11,6 +11,7 @@ public class PortfolioDbContext(DbContextOptions<PortfolioDbContext> options) : 
     public DbSet<AccountSource> AccountSources => Set<AccountSource>();
     public DbSet<AccountBalance> AccountBalances => Set<AccountBalance>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<IngestRun> IngestRuns => Set<IngestRun>();
 
     /// <summary>
     /// The one place the provider is configured. The runtime composition roots and the
@@ -23,7 +24,8 @@ public class PortfolioDbContext(DbContextOptions<PortfolioDbContext> options) : 
             .UseSnakeCaseNamingConvention();
 
     public static void Npgsql(NpgsqlDbContextOptionsBuilder npgsql) =>
-        npgsql.MapEnum<SourceStrength>("source_strength");
+        npgsql.MapEnum<SourceStrength>("source_strength")
+              .MapEnum<IngestRunStatus>("ingest_run_status");
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -32,6 +34,8 @@ public class PortfolioDbContext(DbContextOptions<PortfolioDbContext> options) : 
         // scrape, statement), which would make 'statement' > 'manual'. Declare them in order.
         model.HasPostgresEnum("source_strength",
             Enum.GetNames<SourceStrength>().Select(n => n.ToLowerInvariant()).ToArray());
+        model.HasPostgresEnum("ingest_run_status",
+            Enum.GetNames<IngestRunStatus>().Select(n => n.ToLowerInvariant()).ToArray());
 
         model.ApplyConfigurationsFromAssembly(typeof(PortfolioDbContext).Assembly);
     }

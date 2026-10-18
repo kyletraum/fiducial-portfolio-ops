@@ -18,9 +18,10 @@ namespace Portfolio.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "ingest_run_status", new[] { "succeeded", "failed" });
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "source_strength", new[] { "statement", "export", "api", "scrape", "manual" });
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
@@ -113,9 +114,17 @@ namespace Portfolio.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
+                    b.Property<Guid?>("IngestRunId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ingest_run_id");
+
                     b.Property<DateTimeOffset>("ObservedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("observed_at");
+
+                    b.Property<DateTimeOffset?>("SourceAsOf")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("source_as_of");
 
                     b.Property<string>("SourceId")
                         .HasColumnType("text")
@@ -140,6 +149,9 @@ namespace Portfolio.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_account_balance");
+
+                    b.HasIndex("IngestRunId")
+                        .HasDatabaseName("ix_account_balance_ingest_run_id");
 
                     b.HasIndex("Supersedes")
                         .IsUnique()
@@ -231,6 +243,82 @@ namespace Portfolio.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Portfolio.Domain.IngestRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<int>("Created")
+                        .HasColumnType("integer")
+                        .HasColumnName("created");
+
+                    b.Property<string>("ErrorDetail")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("error_detail");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("FileSha256")
+                        .IsRequired()
+                        .HasColumnType("character(64)")
+                        .HasColumnName("file_sha256");
+
+                    b.Property<DateTimeOffset>("FinishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<int>("Restated")
+                        .HasColumnType("integer")
+                        .HasColumnName("restated");
+
+                    b.Property<int>("RowsRead")
+                        .HasColumnType("integer")
+                        .HasColumnName("rows_read");
+
+                    b.Property<string>("SourceSystem")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("source_system");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<IngestRunStatus>("Status")
+                        .HasColumnType("ingest_run_status")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Unchanged")
+                        .HasColumnType("integer")
+                        .HasColumnName("unchanged");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ingest_run");
+
+                    b.HasIndex("StartedAt")
+                        .IsDescending()
+                        .HasDatabaseName("ingest_run_newest_first");
+
+                    b.ToTable("ingest_run", null, t =>
+                        {
+                            t.HasCheckConstraint("ingest_run_all_or_nothing", "(status = 'failed' AND created = 0 AND restated = 0 AND unchanged = 0 AND error_detail IS NOT NULL) OR (status = 'succeeded' AND created + restated + unchanged = rows_read AND error_detail IS NULL)");
+
+                            t.HasCheckConstraint("ingest_run_counts_nonnegative", "rows_read >= 0 AND created >= 0 AND restated >= 0 AND unchanged >= 0");
+
+                            t.HasCheckConstraint("ingest_run_finished_after_started", "finished_at >= started_at");
+
+                            t.HasCheckConstraint("ingest_run_sha256_hex", "file_sha256 ~ '^[0-9a-f]{64}$'");
+                        });
+                });
+
             modelBuilder.Entity("Portfolio.Domain.Institution", b =>
                 {
                     b.Property<Guid>("Id")
@@ -278,6 +366,12 @@ namespace Portfolio.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_account_balance_accounts_account_id");
+
+                    b.HasOne("Portfolio.Domain.IngestRun", null)
+                        .WithMany()
+                        .HasForeignKey("IngestRunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_account_balance_ingest_runs_ingest_run_id");
 
                     b.HasOne("Portfolio.Domain.AccountBalance", null)
                         .WithMany()

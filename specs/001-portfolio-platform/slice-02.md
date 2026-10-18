@@ -373,6 +373,33 @@ identical one; after this slice it returns the existing row, `200` instead of
 `Idempotency-Key` header:** the key is the content `(account, date, source,
 amount)`, which a retried request repeats on its own.
 
+> **BUILT 2026-10-18.**
+> - **One write rule for both callers:** `BalanceWrites` classifies each
+>   balance as created, restated or unchanged. Every retirement is written
+>   before any insert. `BalanceRecorder` (the API path) and `ImportPipeline`
+>   both use it.
+> - **The run row first:** within the transaction it is written with its final
+>   counts, and the balances then reference it. `finished_at` is when the
+>   outcome was decided, and the row is never updated.
+> - **Migration 4 adds:**
+>   - `ingest_run`, with CHECKs that hold the all-or-nothing rule on the row;
+>   - an immutability trigger refusing `UPDATE`, `DELETE` and `TRUNCATE`;
+>   - `ingest_run_id` and `source_as_of`;
+>   - the database's `timezone` set to UTC with `ALTER DATABASE`, asserted from
+>     `pg_db_role_setting`;
+>   - Spike G's `ORDER BY`. `Down` restores migration 1's view exactly.
+>
+>   It is shown applying to existing rows, then rolling back and applying again.
+> - **`POST /balances`:** the same amount returns `200` with the existing row
+>   and writes nothing; the OpenAPI document and the client are regenerated.
+>   The clock is `TimeProvider`.
+> - **Seen failing:** the old `ORDER BY` fails G1 in both write orders, and a
+>   write rule that never returns "unchanged" fails the three idempotency tests.
+> - **43 integration tests.**
+> - **Stated, not tested:** a write to the same (account, date, source) between
+>   the plan and the write fails the run with "try again", and nothing is
+>   committed.
+
 ### 3. API
 
 All under `/api/v1`, OpenAPI regenerated and committed, client regenerated:
