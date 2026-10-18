@@ -1,8 +1,10 @@
 # Slice 01 — the assessment
 
-**Status: DRAFT. The facts are filled in; the decision is not.** Written 2026-09-24,
-against `main` at `dec25df` (PR #13 merged). `slice-01.md` "Then stop" requires this
-document before anything else happens, and says **the default at the gate is STOP**.
+**Status: DECIDED, 2026-10-18 (Kyle): a second slice is wanted.** Written 2026-09-24
+against `main` at `dec25df` (PR #13 merged); the decision recorded 2026-10-18. Per
+`slice-01.md` "Then stop", the second slice still needs **its own decision file, written
+and dated, in the planning repository** before any work starts. It is not a continuation of
+this one, and section 6 asks which technique it is for.
 
 **Who wrote which part.** Sections 1–4 are facts assembled by the agent session that did
 the build. Each one is checkable against a commit, a CI run or `LOG.md`, and they carry no
@@ -151,26 +153,26 @@ not satisfy this limb.**
 
 Tick the ones that are genuinely yours; strike the rest. **Fewer than three means STOP.**
 
-- [ ] **The AppHost is not the production runtime, and the generated compose file proves
+- [x] **The AppHost is not the production runtime, and the generated compose file proves
       it.** `aspire run` created the database, ordered startup by health, and bound
       loopback. The published file did none of those until the app model said so.
       `b59cd7b`, and `f208875` for S-25b. *This is the slice's own worked example of a
       technique that counts.*
-- [ ] **A partial unique index fixes the write order, and a retrying execution strategy
+- [x] **A partial unique index fixes the write order, and a retrying execution strategy
       must own the transaction.** The inverted pointer, UPDATE before INSERT, the reverse
       order shown refused, and the transaction run inside `CreateExecutionStrategy()`.
       `9c79690`, `92841ae`, `f208875`.
-- [ ] **Carry-forward over a date spine, where "unverified" is a first-class state.**
+- [x] **Carry-forward over a date spine, where "unverified" is a first-class state.**
       `LEFT JOIN LATERAL … ON true` rather than `CROSS JOIN`, NULL rather than zero, a stored
       cutoff, and a spine that runs to today, with each rule pinned by a test that fails
       without it. `9c79690`, `f208875`.
-- [ ] **A hermetic end-to-end test of the whole app model.** `DistributedApplicationTestingBuilder`
+- [x] **A hermetic end-to-end test of the whole app model.** `DistributedApplicationTestingBuilder`
       with .NET Playwright and axe, and the no-volume rule asserted on the model rather
       than assumed. `f208875`.
-- [ ] **A contract that is generated, committed, and byte-stable across operating systems.**
+- [x] **A contract that is generated, committed, and byte-stable across operating systems.**
       Build-time OpenAPI generation, its incremental cache, and a typed client generated
       from it. `92841ae`, `f208875`, and the first CI run on PR #11.
-- [ ] **Verifying a claim before building on it.** Spikes as single-mechanism experiments,
+- [x] **Verifying a claim before building on it.** Spikes as single-mechanism experiments,
       and results restated with strength markers. `e44d991`, `a845d93`, `608a528`.
 
 Kyle's own, if different: ________________________________________________
@@ -183,7 +185,7 @@ Kyle's own, if different: ________________________________________________
 and that the next slice is obvious."* Both are true now.
 
 - [ ] **STOP.** The default.
-- [ ] **A second slice**, which requires **a new decision file, written and dated**, in the
+- [x] **A second slice**, which requires **a new decision file, written and dated**, in the
       planning repository. It is not a continuation of this one. If chosen: which
       technique is it for?
 

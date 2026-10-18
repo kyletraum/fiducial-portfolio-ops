@@ -39,8 +39,12 @@ The full set lives in [`.specify/memory/constitution.md`](.specify/memory/consti
 layer once. That means the Aspire app model, EF Core migrations, the API with a committed
 OpenAPI document and a generated TypeScript client, and the React page. It has one test per
 layer plus an architecture test, CI, and a Docker Compose deployment. **Invented data only:**
-nothing here is a real account. The slice ends at a written assessment and a full stop
-([`slice-01.md`](specs/001-portfolio-platform/slice-01.md), "Then stop").
+nothing here is a real account.
+
+**The slice-01 gate is decided (2026-10-18): a second slice is wanted.** See
+[`slice-01-assessment.md`](specs/001-portfolio-platform/slice-01-assessment.md). Per
+[`slice-01.md`](specs/001-portfolio-platform/slice-01.md) "Then stop", no second slice starts
+until its own decision file is written and dated in the planning repository.
 
 ## Running it
 
