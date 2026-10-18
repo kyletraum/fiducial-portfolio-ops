@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import {
-  ApiError, useAccounts, useCreateAccount, useRecordBalance, type Account,
+  ApiError, useAccounts, useBindSource, useCreateAccount, useRecordBalance, useSources, type Account,
 } from '../api/queries';
 import { formatMoney, localToday } from '../money';
 
@@ -16,6 +16,7 @@ export function AccountsTable({ accounts }: { accounts: Account[] }) {
           <th scope="col">Opened</th>
           <th scope="col" className="num">Latest balance</th>
           <th scope="col">As of</th>
+          <th scope="col">Import identifiers</th>
         </tr>
       </thead>
       <tbody>
@@ -28,10 +29,29 @@ export function AccountsTable({ accounts }: { accounts: Account[] }) {
               {a.latestBalance === null ? <span className="muted">none</span> : `${formatMoney(a.latestBalance)} ${a.currency}`}
             </td>
             <td>{a.latestAsOfDate ?? '—'}</td>
+            <td><SourceList accountId={a.id} /></td>
           </tr>
         ))}
       </tbody>
     </table>
+  );
+}
+
+const FORMATS = { 'import:csv': 'CSV', 'import:ofx': 'OFX' } as const;
+
+/** The identifiers a file may use for this account. Text from the API is rendered as text (FR-1.5). */
+function SourceList({ accountId }: { accountId: string }) {
+  const sources = useSources(accountId);
+  if (!sources.data) return <span className="muted">…</span>;
+  if (sources.data.length === 0) return <span className="muted">none</span>;
+  return (
+    <ul className="plain">
+      {sources.data.map(s => (
+        <li key={`${s.sourceSystem}:${s.sourceId}`}>
+          <code>{s.sourceId}</code> <span className="muted">({FORMATS[s.sourceSystem as keyof typeof FORMATS] ?? s.sourceSystem})</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -129,10 +149,62 @@ export function RecordBalanceForm({ accounts }: { accounts: Account[] }) {
       <button type="submit" disabled={record.isPending}>{record.isPending ? 'Saving…' : 'Record balance'}</button>
       {record.isSuccess && (
         <p role="status">
-          Recorded {formatMoney(record.data.balance)} {record.data.currency} for {record.data.asOfDate}
-          {record.data.supersedes ? ', replacing the earlier value' : ''}.
+          {record.data.unchanged
+            ? <>That balance, {formatMoney(record.data.balance.balance)} {record.data.balance.currency} for {record.data.balance.asOfDate}, was already recorded; nothing changed.</>
+            : <>Recorded {formatMoney(record.data.balance.balance)} {record.data.balance.currency} for {record.data.balance.asOfDate}
+                {record.data.balance.supersedes ? ', replacing the earlier value' : ''}.</>}
         </p>
       )}
+    </form>
+  );
+}
+
+/**
+ * slice-02.md step 4: tell the importer which account a file's identifier means. A binding is
+ * never guessed by the importer and never moved once made - the API refuses a re-bind (409).
+ */
+export function BindSourceForm({ accounts }: { accounts: Account[] }) {
+  const bind = useBindSource();
+  const [accountId, setAccountId] = useState('');
+  const [sourceSystem, setSourceSystem] = useState<keyof typeof FORMATS>('import:csv');
+  const [sourceId, setSourceId] = useState('');
+  const errors = fieldErrors(bind.error);
+  const chosen = accountId || accounts[0]?.id || '';
+
+  if (accounts.length === 0) return null;
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    bind.mutate({ accountId: chosen, body: { sourceSystem, sourceId } }, { onSuccess: () => setSourceId('') });
+  }
+
+  return (
+    <form onSubmit={submit} aria-labelledby="bind-source-heading" noValidate>
+      <h3 id="bind-source-heading">Link an import identifier</h3>
+      <p className="hint">
+        The identifier a file uses for this account: the CSV <code>account</code> column, or the OFX account id.
+        A link cannot be moved once made.
+      </p>
+      <FormError error={bind.error} />
+      <Field label="Account">
+        {p => (
+          <select {...p} value={chosen} onChange={e => setAccountId(e.target.value)}>
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.displayName} ({a.institutionName})</option>)}
+          </select>
+        )}
+      </Field>
+      <Field label="File format" error={errors.sourceSystem}>
+        {p => (
+          <select {...p} value={sourceSystem} onChange={e => setSourceSystem(e.target.value as keyof typeof FORMATS)}>
+            {Object.entries(FORMATS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        )}
+      </Field>
+      <Field label="Identifier in the file" error={errors.sourceId}>
+        {p => <input {...p} value={sourceId} onChange={e => setSourceId(e.target.value)} required maxLength={64} autoComplete="off" />}
+      </Field>
+      <button type="submit" disabled={bind.isPending}>{bind.isPending ? 'Linking…' : 'Link identifier'}</button>
+      {bind.isSuccess && <p role="status">Linked <code>{bind.data.sourceId}</code>.</p>}
     </form>
   );
 }
@@ -148,6 +220,7 @@ export function AccountsSection() {
       <div className="forms">
         {accounts.data && <RecordBalanceForm accounts={accounts.data} />}
         <AddAccountForm />
+        {accounts.data && <BindSourceForm accounts={accounts.data} />}
       </div>
     </section>
   );

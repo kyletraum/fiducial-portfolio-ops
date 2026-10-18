@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useHealth, useNetWorth } from './api/queries';
 import { AccountsSection } from './components/Accounts';
+import { ImportsSection } from './components/Imports';
 import { NetWorthChart } from './components/NetWorthChart';
 import { NetWorthTable } from './components/NetWorthTable';
 import { addDays, localToday } from './money';
@@ -63,6 +64,7 @@ export default function App() {
       <main>
         <NetWorthSection />
         <AccountsSection />
+        <ImportsSection />
       </main>
       <footer>
         <p role="status" data-testid="api-health">
