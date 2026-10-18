@@ -17,7 +17,7 @@ builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddOpenApi(o => o.AddDocumentTransformer((doc, _, _) =>
 {
     doc.Info.Title = "Portfolio API";
-    doc.Info.Description = "Slice 01: manual balance entry to a net-worth chart. Money is a decimal string at scale 4.";
+    doc.Info.Description = "Manual balance entry and file import (CSV, OFX) to a net-worth chart. Money is a decimal string at scale 4.";
     return Task.CompletedTask;
 }));
 
@@ -32,6 +32,9 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+
+// Before any endpoint runs: a write marked cross-site or same-site never reaches a handler.
+app.UseCrossSiteWriteRefusal();
 
 if (app.Environment.IsDevelopment())
 {
