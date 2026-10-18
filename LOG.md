@@ -44,6 +44,14 @@ later; they are simply not the number the gate reads.
 
 <!-- Add a row per session. Total at the gate; do not total as you go. Slice 01 totalled at its gate, 2026-10-18. -->
 
+### Slice 02 (`D-041`)
+
+| Date | Step | Kyle h | Agent h | What actually happened |
+|---|---|---|---|---|
+| 2026-10-18 | 0 · definition | — | 0.4 | `slice-02.md` written: file import (CSV/OFX), Spikes E-G; the view's same-day pick across sources found unspecified |
+
+<!-- Slice 02 rows above. Total at its gate. -->
+
 <!--
 UNITS NOTE -- RAISED 2026-09-18, RULED 2026-09-20. The 200-hour abandon
 threshold assumes Kyle-evenings. Agent rows are wall-clock of an agent session
