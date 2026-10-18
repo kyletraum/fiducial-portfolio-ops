@@ -69,6 +69,10 @@ public class OfxBalanceSourceTests
     [InlineData("2026-10-15", "120000", "", "2026-10-15", "2026-10-15T12:00:00Z")]          // no offset: UTC [INFERRED]
     [InlineData("2026-10-15", "120000", "[-3.5:NST]", "2026-10-15", "2026-10-15T15:30:00Z")]
     [InlineData("2026-10-15", "120000", ".123[-5:EST]", "2026-10-15", "2026-10-15T17:00:00Z")] // milliseconds dropped from the moment's minute
+    // DoD 10, across the US change on 1 Nov: 01:30 happens TWICE in Chicago. The stated offset says
+    // which - same calendar date, two moments an hour apart.
+    [InlineData("2026-11-01", "013000", "[-5:CDT]", "2026-11-01", "2026-11-01T06:30:00Z")]
+    [InlineData("2026-11-01", "013000", "[-6:CST]", "2026-11-01", "2026-11-01T07:30:00Z")]
     public void Takes_the_date_as_written_and_keeps_the_stamp_as_a_UTC_moment(string iso, string time, string bracket, string expectedDate, string expectedUtc)
     {
         var file = new OfxFile().Add(Kind.Bank, "EXAMPLE-CHK-1", "1", Stamp(iso, time, bracket));
