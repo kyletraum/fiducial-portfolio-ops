@@ -96,8 +96,8 @@ differently. The split was put to Kyle, who chose both halves.
 - **OFX:** `as_of_date` is **the date as written** in `DTASOF` (Spike E), the
   day the institution meant. When `DTASOF` carries a time, the full stamp is
   converted to UTC with its stated offset and stored as
-  `account_balance.source_as_of`, for provenance. Example: `20261015` `230000`
-  `[-5:CDT]` is dated **2026-10-15**, with `source_as_of` 2026-10-16 04:00 UTC,
+  `account_balance.source_as_of`, for provenance. Example: a `DTASOF` of
+  2026-10-15 at 23:00 `[-5:CDT]` is dated **2026-10-15**, with `source_as_of` 2026-10-16 04:00 UTC,
   and shown to a CDT viewer as "as of Oct 15, 11:00 PM CDT". A stamp with **no
   offset** is read as UTC. That is the specification's default as recalled, and
   stays `INFERRED` until the specification is read.
