@@ -30,3 +30,17 @@ export function addDays(date: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+/**
+ * A MOMENT from the API (UTC) in the viewer's own time zone, the zone named (slice-02.md "Dates
+ * and time", Kyle 2026-10-18: the data layer is UTC; the browser shows the viewer's zone).
+ * Never for a calendar date - those are shown as the strings they are, because new Date() would
+ * read "2026-10-15" as UTC midnight: the 14th anywhere in the Americas.
+ */
+export function formatMoment(iso: string): string {
+  // The parts spelled out: dateStyle/timeStyle cannot be combined with timeZoneName - the
+  // browser throws, and with no error boundary that unmounted the whole page (found by the E2E).
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+  });
+}

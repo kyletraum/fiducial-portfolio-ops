@@ -463,6 +463,32 @@ echoing more than a bounded prefix of it.
 - A run history table.
 - The chart is unchanged; it already reads the view.
 
+> **BUILT 2026-10-18.**
+> - **Linking:** the accounts table gains an "Import identifiers" column, and a
+>   "Link an import identifier" form sits beside the other two.
+> - **"Import a balance file":**
+>   - checks the extension and the 1 MiB limit **before** sending;
+>   - sends the `File` with plain `fetch`, its type set from the extension, never
+>     `file.type`, which Windows reports as `application/vnd.ms-excel` for a
+>     `.csv`;
+>   - announces every outcome in one `aria-live` region.
+> - **The history table:** start times in the viewer's zone, with the zone
+>   named; a refused run opens to its problems.
+> - **"Record a balance"** now tells "already recorded; nothing changed" (`200`)
+>   from a recorded or replaced value (`201`). Its old message claimed a
+>   replacement whenever the returned row had one.
+> - **E2E, in a real browser:**
+>   - link, import, chart;
+>   - the same file again gives `unchanged`;
+>   - an unlinked identifier is refused with its line;
+>   - over 1 MiB, and a `.txt`, are refused by the page with no run recorded;
+>   - axe finds 0 violations.
+> - **The E2E found a bug:** `toLocaleString` throws when `dateStyle` is combined
+>   with `timeZoneName`, and with no error boundary the throw blanked the whole
+>   page.
+> - **Left for step 5:** the cross-site browser test (DoD 11) and the
+>   time-zone matrix (DoD 10).
+
 ### 5. Tests
 
 | Layer | What it proves |
