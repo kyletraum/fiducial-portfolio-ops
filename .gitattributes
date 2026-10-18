@@ -11,5 +11,6 @@ src/Api/openapi/*.json text eol=lf
 web/src/api/schema.d.ts text eol=lf
 
 # Shell scripts run under sh, which reads a CRLF line ending as part of the command
-# (`set -e` fails). With core.autocrlf=true a Windows checkout would write them CRLF.
+# (`set -e` then fails on a stray carriage return). With core.autocrlf=true a Windows
+# checkout would write them CRLF.
 *.sh text eol=lf
