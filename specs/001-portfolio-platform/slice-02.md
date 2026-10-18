@@ -485,7 +485,10 @@ echoing more than a bounded prefix of it.
 >   - axe finds 0 violations.
 > - **The E2E found a bug:** `toLocaleString` throws when `dateStyle` is combined
 >   with `timeZoneName`, and with no error boundary the throw blanked the whole
->   page.
+>   page. **Contained afterwards, at Kyle's request:** one `SectionBoundary` per
+>   section, so a render error costs that section and never the page.
+>   `SectionFailureTests` forces a real throw and failed before the boundary
+>   existed.
 > - **Left for step 5:** the cross-site browser test (DoD 11) and the
 >   time-zone matrix (DoD 10).
 

@@ -4,6 +4,7 @@ import { AccountsSection } from './components/Accounts';
 import { ImportsSection } from './components/Imports';
 import { NetWorthChart } from './components/NetWorthChart';
 import { NetWorthTable } from './components/NetWorthTable';
+import { SectionBoundary } from './components/SectionBoundary';
 import { addDays, localToday } from './money';
 
 const RANGES = [
@@ -62,9 +63,10 @@ export default function App() {
         <p className="hint">Invented data only. Nothing here is a real account.</p>
       </header>
       <main>
-        <NetWorthSection />
-        <AccountsSection />
-        <ImportsSection />
+        {/* One boundary per section: a render error costs that section, never the page. */}
+        <SectionBoundary title="Net worth"><NetWorthSection /></SectionBoundary>
+        <SectionBoundary title="Accounts"><AccountsSection /></SectionBoundary>
+        <SectionBoundary title="Imports"><ImportsSection /></SectionBoundary>
       </main>
       <footer>
         <p role="status" data-testid="api-health">
