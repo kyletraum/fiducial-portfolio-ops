@@ -89,7 +89,9 @@ separate file:
 - a Postgres healthcheck;
 - the Migrator waiting for the healthcheck;
 - no dashboard;
-- restart policies.
+- restart policies;
+- memory limits: 512M for the API and 256M for Postgres, about twice the measured peak of a
+  10,000-row import (slice 02, step 7).
 
 So the generated file is complete on its own. `aspire-output/` is git-ignored as a
 directory, because the `.env.<Environment>` file there holds the generated database password. Never commit
