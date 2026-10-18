@@ -65,6 +65,10 @@ rediscovers it:
   entry history to tune against; the trigger is the first slice holding real
   balances.
 - **No credentials, no PRD, no second environment.** A file needs none of them.
+- **No security tier.** Login, sessions and CSRF tokens (`security.md`) are not
+  built. Kyle ruled on 2026-10-18 that **no real balance enters before a slice
+  that builds them** (`D-041` amendment). This slice's interim defence is
+  "Cross-site writes", below.
 
 Also out: transactions, holdings and securities (balances only, as slice 01);
 scheduled or watched-folder imports (a user uploads); QFX and other
@@ -109,6 +113,40 @@ differently. The split was put to Kyle, who chose both halves.
 explicitly (`ALTER DATABASE ... SET timezone`, in migration 4). Today
 `current_date` is UTC only because the `postgres:18.3` image defaults to it.
 The API reads its clock through `TimeProvider`, so tests can pin it.
+
+## Cross-site writes — refused twice, and tested (Kyle, 2026-10-18)
+
+The API listens on loopback with **no authentication**. Between any website the
+viewer happens to visit and a write to this API there is only the browser. Spike F
+found that a form upload is exactly the request such a site can send. Slice 02
+does not build the security tier (`security.md`: login, `SameSite` cookies, CSRF
+tokens). Kyle ruled that no real balance enters before a slice that does
+(`D-041`, amendment of 2026-10-18). Until then, cross-site writes are refused by
+**two independent layers**, and **each is tested**, so the defence does not rest
+on an argument.
+
+1. **Content types a cross-site page cannot send without a preflight.** Every
+   write endpoint accepts only `application/json` (`POST /accounts`,
+   `/balances`, `/sources`), or `text/csv` or `application/x-ofx` (`POST
+   /imports`). Anything else gets `415`, in particular the three types a plain
+   HTML form can send: `application/x-www-form-urlencoded`,
+   `multipart/form-data` and `text/plain`. The API answers no CORS preflight, so
+   a cross-origin `fetch` carrying an accepted type is never sent. [`INFERRED`
+   from the Fetch standard; DoD 11 raises it to `EXECUTED`.]
+2. **`Sec-Fetch-Site`, which a page's script cannot set.** A small middleware
+   refuses with `403` any `POST`, `PUT`, `PATCH` or `DELETE` whose
+   `Sec-Fetch-Site` is `cross-site` **or `same-site`**. A site ignores ports, so
+   another server on `localhost` is the same site. `same-origin` passes, as does
+   `none`, which a browser sends for a request the user typed. A request with no
+   header passes too: a non-browser client such as `curl` or the tests sends
+   none, and is not the threat this layer exists for. Under `aspire run`, the
+   Vite proxy forwards the browser's `same-origin` header unchanged.
+   [`INFERRED`; DoD 11.]
+
+**Reads** were already covered in slice 01. The same-origin policy keeps a
+cross-site page from reading a response. `AllowedHosts`
+(`localhost;127.0.0.1;[::1]`) refuses any other `Host`, which is what DNS
+rebinding needs.
 
 ---
 
@@ -429,6 +467,23 @@ as slice 01's middle cut left it.
     - a CSV with `03/04/2026` refused;
     - a calendar date rendered in the browser unchanged in every one of those
       timezones.
+11. **Cross-site writes are refused, each layer shown on its own and both
+    together.**
+    - *Integration*, against the API: on every write endpoint, each of the
+      three form content types gets `415`, and nothing is written. A valid body
+      with `Sec-Fetch-Site: cross-site`, and again with `same-site`, gets
+      `403`, and nothing is written. `same-origin`, `none` and no header are
+      accepted.
+    - *E2E*, in a real browser: Playwright serves an attacker page from a
+      second origin, `http://attacker.localhost:<port>`, and from another port
+      on `127.0.0.1`. The page tries:
+      - a plain HTML form post of a file to `/api/v1/imports`;
+      - a `fetch` of `text/csv` to `/imports`;
+      - a `fetch` of JSON to `/balances`.
+
+      Afterwards, the API shows nothing was written.
+    - The E2E records whether each request **reached** the API, so a browser's
+      own local-network blocking cannot pass the test for the wrong reason.
 
 ## Obligations this slice carries
 
@@ -436,6 +491,8 @@ as slice 01's middle cut left it.
 |---|---|---|
 | `D-030` Amendment 1 | Idempotency and correction on `POST /balances` | **Built**, step 2 |
 | Kyle, 2026-10-18 | Dates and time: UTC data layer, conversion at the edge; calendar dates never converted | **Built**, steps 2–5; DoD 10 |
+| Kyle, 2026-10-18 | Cross-site writes refused by two layers, both tested | **Built**, steps 3 and 5; DoD 11 |
+| `D-041`, amendment of 2026-10-18 | No real balance before a slice that builds `security.md`'s tier | **Holds**: this slice reads invented data only (`D-041` §2) |
 | `slice-01.md` (`S-34`) | Resource limits, "the first slice that runs an ingest batch" | **Built**, step 7 |
 | `D-034` §5 | Per-account-type staleness cutoffs | **Deferred**: no real entry history (`D-041` §4) |
 | `C-389` | Coverage weighted by value, not account count | **Open question**, below |
