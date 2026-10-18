@@ -107,8 +107,13 @@ static class Endpoints
         return TypedResults.Ok(rows.Select(ToResponse).ToList());
     }
 
-    static async Task<Results<Created<BalanceResponse>, NotFound, ProblemHttpResult>> RecordBalance(
-        Guid id, RecordBalanceRequest request, PortfolioDbContext db, CancellationToken ct)
+    /// <summary>
+    /// Idempotent since slice 02 (D-030 Amendment 1's deferral): the same amount for the same
+    /// (account, date) again is <c>200</c> with the existing row, and nothing is written. A
+    /// different amount restates (<c>201</c>). The key is the content; no Idempotency-Key header.
+    /// </summary>
+    static async Task<Results<Created<BalanceResponse>, Ok<BalanceResponse>, NotFound, ProblemHttpResult>> RecordBalance(
+        Guid id, RecordBalanceRequest request, PortfolioDbContext db, TimeProvider clock, CancellationToken ct)
     {
         if (!MoneyText.TryParse(request.Balance, out var amount, out var error))
             return Unprocessable(new() { ["balance"] = [error!] });
@@ -119,8 +124,10 @@ static class Endpoints
         {
             // Provenance is set HERE, never taken from the request (S-27).
             var result = await BalanceRecorder.RecordAsync(
-                db, id, request.AsOfDate, amount, ManualSource, SourceStrength.Manual, ct);
-            return TypedResults.Created($"/api/v1/accounts/{id}/balances", ToResponse(result.Balance));
+                db, clock, id, request.AsOfDate, amount, ManualSource, SourceStrength.Manual, ct);
+            return result.Unchanged
+                ? TypedResults.Ok(ToResponse(result.Balance))
+                : TypedResults.Created($"/api/v1/accounts/{id}/balances", ToResponse(result.Balance));
         }
         catch (Exception ex) when (ex.GetBaseException() is PostgresException { SqlState: PostgresErrorCodes.CheckViolation } pg)
         {

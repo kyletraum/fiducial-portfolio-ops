@@ -23,6 +23,9 @@ public sealed partial class CsvBalanceSource : IBalanceSource
     public const string System = "import:csv";
     public string SourceSystem => System;
 
+    /// <summary>An export from the institution (slice-02.md step 2).</summary>
+    public SourceStrength Strength => SourceStrength.Export;
+
     const string Account = "account", AsOfDate = "as_of_date", Balance = "balance", Currency = "currency";
     static readonly string[] Required = [Account, AsOfDate, Balance];
     static readonly string[] Known = [Account, AsOfDate, Balance, Currency];

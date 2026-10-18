@@ -19,13 +19,16 @@ public class PostgresFixture : IAsyncLifetime
 
     public string ConnectionString => container.GetConnectionString();
 
-    public async ValueTask InitializeAsync()
+    public virtual async ValueTask InitializeAsync()
     {
-        await container.StartAsync();
+        await StartAsync();
         await using var db = CreateContext();
         await db.Database.MigrateAsync();
         await SeedAsync();
     }
+
+    /// <summary>Starts the container only. A fixture that migrates to a chosen point calls this.</summary>
+    protected Task StartAsync() => container.StartAsync();
 
     /// <summary>Runs once per fixture - per test CLASS - after migrating.</summary>
     protected virtual Task SeedAsync() => Task.CompletedTask;

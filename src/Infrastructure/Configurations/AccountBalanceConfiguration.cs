@@ -21,6 +21,10 @@ sealed class AccountBalanceConfiguration : IEntityTypeConfiguration<AccountBalan
         // row that does not exist yet, and aborts on the foreign key.
         e.HasOne<AccountBalance>().WithMany().HasForeignKey(x => x.Supersedes).OnDelete(DeleteBehavior.Restrict);
 
+        // FR-4.3: an imported row points at the run that wrote it. Restrict, and the run is
+        // immutable anyway: a balance can never be orphaned from its provenance.
+        e.HasOne<IngestRun>().WithMany().HasForeignKey(x => x.IngestRunId).OnDelete(DeleteBehavior.Restrict);
+
         // M-9: one live row per (account, date, source). Partial, so restatement history stays
         // queryable. It forces the write order: UPDATE the old row, THEN insert the new one.
         e.HasIndex(x => new { x.AccountId, x.AsOfDate, x.SourceSystem })

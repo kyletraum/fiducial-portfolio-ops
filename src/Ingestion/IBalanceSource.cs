@@ -9,6 +9,12 @@ public interface IBalanceSource
     /// <summary>The <c>source_system</c> its rows are recorded under, e.g. <c>import:csv</c>.</summary>
     string SourceSystem { get; }
 
+    /// <summary>
+    /// Constitution IV: how much its rows can be trusted. Declared by the connector, server-side,
+    /// never taken from the request (S-27).
+    /// </summary>
+    Domain.SourceStrength Strength { get; }
+
     ParseResult Parse(ReadOnlySpan<byte> content);
 }
 

@@ -23,6 +23,9 @@ public sealed partial class OfxBalanceSource : IBalanceSource
     public const string System = "import:ofx";
     public string SourceSystem => System;
 
+    /// <summary>An export from the institution (slice-02.md step 2).</summary>
+    public SourceStrength Strength => SourceStrength.Export;
+
     static readonly (string Statement, string Transaction, string AccountFrom)[] Readable =
     [
         ("STMTRS", "STMTTRNRS", "BANKACCTFROM"),

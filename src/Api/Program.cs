@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Portfolio.Api;
 using Portfolio.Infrastructure;
 
@@ -9,6 +10,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.Services.AddProblemDetails();
+
+// One clock, injected, so tests can pin it (slice-02.md "Dates and time"). The data layer's
+// "now" is UTC: TimeProvider.GetUtcNow() is offset zero, which Npgsql requires for timestamptz.
+builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddOpenApi(o => o.AddDocumentTransformer((doc, _, _) =>
 {
     doc.Info.Title = "Portfolio API";
