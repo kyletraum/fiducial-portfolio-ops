@@ -46,9 +46,15 @@ nothing here is a real account.
 [`slice-01.md`](specs/001-portfolio-platform/slice-01.md) "Then stop", no second slice starts
 until its own decision file is written and dated in the planning repository.
 
-**Slice 02 is commissioned (`D-041`, 2026-10-18):** a file-import connector (CSV and OFX)
-over invented balances, then a full stop under the same gate. The definition is
-[`slice-02.md`](specs/001-portfolio-platform/slice-02.md); it opens with three spikes.
+**Slice 02 is built (`D-041`, 2026-10-18):** a file-import connector (CSV and OFX) over
+invented balances. Files are linked to accounts by their own identifiers and imported all or
+nothing, and the same file twice changes nothing. Every import is recorded, immutably. Cross-site
+writes are refused by two tested layers. The dates rule (UTC data, the viewer's zone on the
+page) is tested away from UTC. The definition is
+[`slice-02.md`](specs/001-portfolio-platform/slice-02.md). **The slice-02 gate is open**: the
+default is STOP, and [`slice-02-assessment.md`](specs/001-portfolio-platform/slice-02-assessment.md)
+waits on Kyle's sections 5 and 6. No real balance enters before a slice that builds the
+security tier (`D-041` Amendment 1).
 
 ## Running it
 
