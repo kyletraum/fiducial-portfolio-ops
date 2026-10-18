@@ -14,7 +14,7 @@ static class Endpoints
     const int DefaultBalanceLimit = 100, MaxBalanceLimit = 1000;
     const int DefaultSeriesDays = 365, MaxSeriesDays = 3660;
     const int MaxNameLength = 200;
-    const int Unprocessable422 = StatusCodes.Status422UnprocessableEntity;
+    internal const int Unprocessable422 = StatusCodes.Status422UnprocessableEntity;
 
     public static void MapPortfolioApi(this WebApplication app)
     {
@@ -28,6 +28,8 @@ static class Endpoints
         accounts.MapPost("/", CreateAccount).WithName("CreateAccount").ProducesValidationProblem(Unprocessable422);
         accounts.MapGet("/{id:guid}/balances", ListBalances).WithName("ListBalances").ProducesValidationProblem(Unprocessable422);
         accounts.MapPost("/{id:guid}/balances", RecordBalance).WithName("RecordBalance").ProducesValidationProblem(Unprocessable422);
+
+        v1.MapImportApi(accounts);
 
         v1.MapGet("/net-worth", GetNetWorth).WithName("GetNetWorth").WithTags("Net worth").ProducesValidationProblem(Unprocessable422);
     }
@@ -137,9 +139,11 @@ static class Endpoints
     }
 
     static async Task<Results<Ok<NetWorthResponse>, ProblemHttpResult>> GetNetWorth(
-        PortfolioDbContext db, CancellationToken ct, DateOnly? from = null, DateOnly? to = null)
+        PortfolioDbContext db, TimeProvider clock, CancellationToken ct, DateOnly? from = null, DateOnly? to = null)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        // The data layer's "today" is the UTC date (slice-02.md "Dates and time"); the browser
+        // always passes its own local "to".
+        var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime);
         var end = to ?? today;
         var start = from ?? end.AddDays(-DefaultSeriesDays);
         if (start > end)
@@ -164,10 +168,10 @@ static class Endpoints
 
     static BalanceResponse ToResponse(AccountBalance b) => new(
         b.Id, b.AccountId, b.AsOfDate, MoneyText.Format(b.Balance), b.Currency,
-        b.SourceSystem, b.SourceStrength, b.ObservedAt, b.Supersedes);
+        b.SourceSystem, b.SourceStrength, b.ObservedAt, b.Supersedes, b.IngestRunId, b.SourceAsOf);
 
     /// <summary>R2-M8: a well-formed request whose content is refused is 422, as RFC 9457.</summary>
-    static ProblemHttpResult Unprocessable(Dictionary<string, string[]> errors) =>
+    internal static ProblemHttpResult Unprocessable(Dictionary<string, string[]> errors) =>
         TypedResults.Problem(new HttpValidationProblemDetails(errors)
         {
             Status = StatusCodes.Status422UnprocessableEntity,

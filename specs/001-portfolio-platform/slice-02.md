@@ -423,6 +423,34 @@ name is stored as given, length-bounded, returned escaped, and never reaches a
 query except as a parameter. An error message quotes a refused line **without**
 echoing more than a bounded prefix of it.
 
+> **BUILT 2026-10-18.**
+> - **The endpoints:** `POST`/`GET /accounts/{id}/sources`;
+>   `POST /imports?fileName=`; `GET /imports` (newest first, `limit` 1–500);
+>   `GET /imports/{id}`. `BalanceResponse` gains `ingestRunId` and `sourceAsOf`.
+> - **A re-binding is `409`:** an id once bound is never moved, to this account
+>   or another.
+> - **The upload size limit is enforced twice:** Kestrel's
+>   `RequestSizeLimitAttribute`, and the handler's own bounded read, so the limit
+>   also holds on the in-memory test server. `413` was shown one byte over, with
+>   and without `Content-Length`.
+> - **The content-type rule is enforced twice on the upload.** `.Accepts(...)`
+>   both describes the body to OpenAPI and makes routing return `415` for any
+>   other Content-Type. The handler refuses a request with **no** Content-Type.
+>   This was found by disabling the handler's check: only that case got through.
+>   The JSON endpoints already return `415` for every form content type; this
+>   was shown, not assumed.
+> - **Spike F's gate, resolved:** OpenAPI describes the raw body (`format:
+>   binary`, both content types). openapi-typescript types it as `string`, so
+>   step 4 sends the `File` with plain `fetch`, typed on the response, rather
+>   than casting it through the client.
+> - **The cross-site middleware** refuses `cross-site` and `same-site` writes
+>   with `403`.
+> - **DoD 11's integration half is done:** each layer on its own, on every
+>   write endpoint, with nothing written.
+> - **Seen failing:** without the middleware, layer 2 fails on all four write
+>   endpoints.
+> - **74 integration tests and 116 unit tests.**
+
 ### 4. Web
 
 - On the account row: bind an import identifier.

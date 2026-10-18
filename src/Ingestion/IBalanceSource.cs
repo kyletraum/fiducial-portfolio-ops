@@ -98,3 +98,16 @@ static class Text
         return null;
     }
 }
+
+/// <summary>
+/// The one rule for what a source id may be, shared by the parsers and the endpoint that binds an
+/// id to an account - so an id that can be bound is exactly an id a file can carry.
+/// </summary>
+public static class SourceIds
+{
+    /// <summary>Why <paramref name="id"/> is not a valid source id, or null if it is.</summary>
+    public static string? Problem(string id) => Text.SourceIdProblem(id);
+
+    /// <summary>The source systems an account can be bound under: one per file format.</summary>
+    public static readonly IReadOnlyList<string> ImportSystems = [CsvBalanceSource.System, OfxBalanceSource.System];
+}

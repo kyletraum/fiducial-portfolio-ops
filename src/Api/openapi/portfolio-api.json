@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Portfolio API",
-    "description": "Slice 01: manual balance entry to a net-worth chart. Money is a decimal string at scale 4.",
+    "description": "Manual balance entry and file import (CSV, OFX) to a net-worth chart. Money is a decimal string at scale 4.",
     "version": "1.0.0"
   },
   "paths": {
@@ -255,6 +255,258 @@
           }
         }
       }
+    },
+    "/api/v1/accounts/{id}/sources": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "operationId": "BindSource",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "operationId": "ListSources",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SourceResponse"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/imports": {
+      "post": {
+        "tags": [
+          "Imports"
+        ],
+        "operationId": "ImportFile",
+        "parameters": [
+          {
+            "name": "fileName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "text/csv": {
+              "schema": {
+                "$ref": "#/components/schemas/Stream"
+              }
+            },
+            "application/x-ofx": {
+              "schema": {
+                "$ref": "#/components/schemas/Stream"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRunResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Imports"
+        ],
+        "operationId": "ListImports",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ImportRunResponse"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/imports/{id}": {
+      "get": {
+        "tags": [
+          "Imports"
+        ],
+        "operationId": "GetImport",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRunResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -322,7 +574,9 @@
           "sourceSystem",
           "sourceStrength",
           "observedAt",
-          "supersedes"
+          "supersedes",
+          "ingestRunId",
+          "sourceAsOf"
         ],
         "type": "object",
         "properties": {
@@ -362,6 +616,39 @@
             ],
             "description": "The balance this one restated, if any.",
             "format": "uuid"
+          },
+          "ingestRunId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The import run that wrote this balance; null for one entered by hand.",
+            "format": "uuid"
+          },
+          "sourceAsOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The source's own stamp as a UTC moment, when it carried a time. Provenance only: asOfDate is the date as written. Display it in the viewer's time zone.",
+            "format": "date-time"
+          }
+        }
+      },
+      "BindSourceRequest": {
+        "required": [
+          "sourceSystem",
+          "sourceId"
+        ],
+        "type": "object",
+        "properties": {
+          "sourceSystem": {
+            "type": "string",
+            "description": "The source system the id belongs to: \"import:csv\" or \"import:ofx\"."
+          },
+          "sourceId": {
+            "type": "string",
+            "description": "The file's own identifier for this account: the CSV 'account' column or the OFX ACCTID."
           }
         }
       },
@@ -443,6 +730,113 @@
             }
           }
         }
+      },
+      "ImportErrorResponse": {
+        "required": [
+          "location",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "Where in the file: 'line 3', 'statement 2', or 'file'."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why. File text in it is quoted, bounded and escaped."
+          }
+        }
+      },
+      "ImportRunResponse": {
+        "required": [
+          "id",
+          "sourceSystem",
+          "fileName",
+          "fileSha256",
+          "startedAt",
+          "finishedAt",
+          "status",
+          "rowsRead",
+          "created",
+          "restated",
+          "unchanged",
+          "errors"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceSystem": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string",
+            "description": "As the uploader named it. Data, never a path."
+          },
+          "fileSha256": {
+            "type": "string",
+            "description": "Lower-case hex SHA-256 of the file. The file itself is not kept."
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ImportStatus"
+          },
+          "rowsRead": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "created": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "restated": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "unchanged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportErrorResponse"
+            },
+            "description": "Why the run failed; empty when it succeeded. At most 50, then a count of the rest."
+          }
+        }
+      },
+      "ImportStatus": {
+        "enum": [
+          "succeeded",
+          "failed"
+        ]
       },
       "NetWorthPoint": {
         "required": [
@@ -555,6 +949,44 @@
           "unverified"
         ]
       },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "RecordBalanceRequest": {
         "required": [
           "asOfDate",
@@ -572,6 +1004,31 @@
           }
         }
       },
+      "SourceResponse": {
+        "required": [
+          "accountId",
+          "sourceSystem",
+          "sourceId",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceSystem": {
+            "type": "string"
+          },
+          "sourceId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "SourceStrength": {
         "enum": [
           "statement",
@@ -580,6 +1037,10 @@
           "scrape",
           "manual"
         ]
+      },
+      "Stream": {
+        "type": "string",
+        "format": "binary"
       }
     }
   },
@@ -592,6 +1053,9 @@
     },
     {
       "name": "Accounts"
+    },
+    {
+      "name": "Imports"
     }
   ]
 }

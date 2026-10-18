@@ -68,6 +68,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/accounts/{id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListSources"];
+        put?: never;
+        post: operations["BindSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListImports"];
+        put?: never;
+        post: operations["ImportFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -106,6 +154,22 @@ export interface components {
              * @description The balance this one restated, if any.
              */
             supersedes: null | string;
+            /**
+             * Format: uuid
+             * @description The import run that wrote this balance; null for one entered by hand.
+             */
+            ingestRunId: null | string;
+            /**
+             * Format: date-time
+             * @description The source's own stamp as a UTC moment, when it carried a time. Provenance only: asOfDate is the date as written. Display it in the viewer's time zone.
+             */
+            sourceAsOf: null | string;
+        };
+        BindSourceRequest: {
+            /** @description The source system the id belongs to: "import:csv" or "import:ofx". */
+            sourceSystem: string;
+            /** @description The file's own identifier for this account: the CSV 'account' column or the OFX ACCTID. */
+            sourceId: string;
         };
         CreateAccountRequest: {
             /** @description Institution name. Created if no institution has it yet. */
@@ -128,6 +192,38 @@ export interface components {
                 [key: string]: string[];
             };
         };
+        ImportErrorResponse: {
+            /** @description Where in the file: 'line 3', 'statement 2', or 'file'. */
+            location: string;
+            /** @description Why. File text in it is quoted, bounded and escaped. */
+            reason: string;
+        };
+        ImportRunResponse: {
+            /** Format: uuid */
+            id: string;
+            sourceSystem: string;
+            /** @description As the uploader named it. Data, never a path. */
+            fileName: string;
+            /** @description Lower-case hex SHA-256 of the file. The file itself is not kept. */
+            fileSha256: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            finishedAt: string;
+            status: components["schemas"]["ImportStatus"];
+            /** Format: int32 */
+            rowsRead: number | string;
+            /** Format: int32 */
+            created: number | string;
+            /** Format: int32 */
+            restated: number | string;
+            /** Format: int32 */
+            unchanged: number | string;
+            /** @description Why the run failed; empty when it succeeded. At most 50, then a count of the rest. */
+            errors: components["schemas"]["ImportErrorResponse"][];
+        };
+        /** @enum {unknown} */
+        ImportStatus: "succeeded" | "failed";
         NetWorthPoint: {
             /** Format: date */
             asOfDate: string;
@@ -159,14 +255,32 @@ export interface components {
         };
         /** @enum {unknown} */
         NetWorthStatus: "verified" | "partial" | "unverified";
+        ProblemDetails: {
+            type?: null | string;
+            title?: null | string;
+            /** Format: int32 */
+            status?: null | number | string;
+            detail?: null | string;
+            instance?: null | string;
+        };
         RecordBalanceRequest: {
             /** Format: date */
             asOfDate: string;
             /** @description Decimal string, at most 4 decimal places, e.g. "1234.5678". */
             balance: string;
         };
+        SourceResponse: {
+            /** Format: uuid */
+            accountId: string;
+            sourceSystem: string;
+            sourceId: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
         /** @enum {unknown} */
         SourceStrength: "statement" | "export" | "api" | "scrape" | "manual";
+        /** Format: binary */
+        Stream: string;
     };
     responses: never;
     parameters: never;
@@ -369,6 +483,200 @@ export interface operations {
                 content: {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
+            };
+        };
+    };
+    ListSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceResponse"][];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BindSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BindSourceRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+        };
+    };
+    ListImports: {
+        parameters: {
+            query?: {
+                limit?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRunResponse"][];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+        };
+    };
+    ImportFile: {
+        parameters: {
+            query?: {
+                fileName?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "text/csv": components["schemas"]["Stream"];
+                "application/x-ofx": components["schemas"]["Stream"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRunResponse"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+        };
+    };
+    GetImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRunResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
