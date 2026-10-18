@@ -46,6 +46,10 @@ nothing here is a real account.
 [`slice-01.md`](specs/001-portfolio-platform/slice-01.md) "Then stop", no second slice starts
 until its own decision file is written and dated in the planning repository.
 
+**Slice 02 is commissioned (`D-041`, 2026-10-18):** a file-import connector (CSV and OFX)
+over invented balances, then a full stop under the same gate. The definition is
+[`slice-02.md`](specs/001-portfolio-platform/slice-02.md); it opens with three spikes.
+
 ## Running it
 
 Needs the .NET 10 SDK, Docker, Node 24, and the Aspire CLI (`dotnet tool install -g Aspire.Cli`).
