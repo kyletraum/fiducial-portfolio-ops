@@ -20,7 +20,7 @@ public class AspireBoundaryTests
     const string AppHost = "AppHost";
     const string AppModelTests = "E2E";
 
-    static readonly string[] Expected = [AppHost, "Api", "Migrator", "Domain", "Infrastructure", "ServiceDefaults"];
+    static readonly string[] Expected = [AppHost, "Api", "Migrator", "Domain", "Infrastructure", "Ingestion", "ServiceDefaults"];
 
     // S-25c: Aspire *client* integrations (Aspire.Npgsql.EntityFrameworkCore.PostgreSQL and
     // the like) belong in the composition roots that run as processes. Infrastructure owns
