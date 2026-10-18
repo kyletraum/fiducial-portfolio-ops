@@ -300,6 +300,16 @@ The parsers live where `plan.md` puts connectors (`Infrastructure`), unless the
 architecture rule is easier to hold as its own project; that is the builder's
 call, recorded in the commit.
 
+> **BUILT 2026-10-18 — its own project.** `src/Ingestion` references `Domain`
+> and nothing else, so the rule is read from the project file, as
+> `Domain_references_nothing` is, and no package can arrive transitively. Shown
+> failing once, with `Infrastructure` and EF Core added: 51 of 52. `MoneyText`
+> moved from `Api` to `Domain`, so the API and the importers share one
+> definition of a number. The parsers are **all or nothing**: a result with any
+> error carries no balances, and every error is reported (at most 50). 109 unit
+> tests; Ingestion's hand-written lines are covered but one, the
+> 10,001-statement limit. CI floors: Domain 70 → 85, Ingestion 80.
+
 **The CSV format is this platform's own**, not an institution's: a header row
 `account,as_of_date,balance` and an optional `currency` column which, if
 present, must be `USD` (`M-11`, single currency). Dates ISO 8601. Balances are

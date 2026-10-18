@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Fail if one package's line coverage in a Cobertura report is below a floor.
 
-slice-01 step 5: coverage floors apply to Domain ONLY - "a floor measured in a job that
-cannot execute the code is decoration" (S-11). The floor sits just under the measured
+slice-01 step 5: coverage floors apply to packages the Unit job fully executes - Domain, and
+from slice 02 Ingestion - "a floor measured in a job that cannot execute the code is
+decoration" (S-11). The floor sits just under the measured
 figure, so removing tested logic fails, and it only ever moves up.
 
     python scripts/coverage_floor.py <cobertura.xml> <package> <minimum-percent>

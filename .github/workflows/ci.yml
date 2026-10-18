@@ -39,11 +39,16 @@ jobs:
       - name: Build
         run: dotnet build Portfolio.slnx
 
-      - name: Unit, with the Domain coverage floor
+      # Floors sit just under the measured figure and only move up (S-11). 2026-10-18, slice 02
+      # step 1: Domain 72.2% -> 85.4% with MoneyText and its tests moved in, so its floor
+      # 70 -> 85; Ingestion (the file parsers) 81.4%, floor 80 - every hand-written line but
+      # one is covered, and the rest of the package is generated regex code.
+      - name: Unit, with the Domain and Ingestion coverage floors
         run: |
           dotnet test --project tests/Unit --no-build \
             --coverage --coverage-output-format cobertura --coverage-output "$RUNNER_TEMP/unit.cobertura.xml"
-          python3 scripts/coverage_floor.py "$RUNNER_TEMP/unit.cobertura.xml" Domain 70
+          python3 scripts/coverage_floor.py "$RUNNER_TEMP/unit.cobertura.xml" Domain 85
+          python3 scripts/coverage_floor.py "$RUNNER_TEMP/unit.cobertura.xml" Ingestion 80
 
       - name: Architecture
         run: dotnet test --project tests/Architecture --no-build

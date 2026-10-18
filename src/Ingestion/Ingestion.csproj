@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The connector side of plan.md "Ingestion": parsers that turn a file's bytes into parsed
+       rows. Domain only - no EF Core, no Npgsql, no Infrastructure. The architecture test holds
+       it to that (slice-02.md step 1); the pipeline that writes is Infrastructure's. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Portfolio.Ingestion</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Domain\Domain.csproj" />
+  </ItemGroup>
+
+</Project>

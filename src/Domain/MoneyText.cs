@@ -1,11 +1,14 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
-using Portfolio.Domain;
 
-namespace Portfolio.Api;
+namespace Portfolio.Domain;
 
-/// <summary>Money on the wire: a plain decimal string, invariant culture, scale 4.</summary>
-static partial class MoneyText
+/// <summary>Money as text: a plain decimal string, invariant culture, scale 4.</summary>
+/// <remarks>
+/// In Domain, not Api, since slice 02: the API and the file importers parse money through this
+/// one definition, so they cannot disagree about what a number is (slice-02.md step 1).
+/// </remarks>
+public static partial class MoneyText
 {
     // No exponent, no grouping, no leading '+'. At most 15 integer digits: numeric(19,4).
     [GeneratedRegex(@"^-?\d{1,15}(\.\d+)?$")]
