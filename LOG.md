@@ -51,6 +51,7 @@ later; they are simply not the number the gate reads.
 | 2026-10-18 | 0 · definition | — | 0.4 | `slice-02.md` written: file import (CSV/OFX), Spikes E-G; the view's same-day pick across sources found unspecified |
 | 2026-10-18 | G · spike | — | 0.4 | Spike G on pg 18.3 + real migrations: unfixed view returns 100 or 200 by WRITE ORDER; Kyle ruled the tie-break; fixed view 7/7, seen failing unfixed |
 | 2026-10-18 | E · spike | — | 0.6 | Spike E: own ~150-line reader reads OFX 1.0.2 SGML + 2.2 XML; OfxNet 1.8.1 rejected - comma-decimal and de-DE culture read balances 100x, DTDs processed, investment statements dropped silently |
+| 2026-10-18 | maint · hygiene | — | 0.4 | CI hygiene now scans every commit in a range at its own content; a value added then removed passed before, fails now (shown on a throwaway repo); all of main's history passes |
 
 <!-- Slice 02 rows above. Total at its gate. -->
 

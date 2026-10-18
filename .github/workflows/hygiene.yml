@@ -18,21 +18,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      # --range scans EVERY commit in the range, each at its own content, so a value
+      # committed and then removed by a later commit is still caught: that commit stays
+      # reachable by SHA and through the PR. The two fallbacks below scan the tree AND
+      # every commit not yet on the default branch, for the same reason.
       - name: Scan the pushed range
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             RANGE="${{ github.event.pull_request.base.sha }}..${{ github.sha }}"
-          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-            echo "new branch - scanning every tracked file"
-            python3 scripts/hygiene.py --all
-            exit $?
-          elif ! git cat-file -e "${{ github.event.before }}^{commit}" 2>/dev/null; then
-            # A force-push (a rebase, e.g. `@dependabot rebase`): the previous head was
-            # discarded, so it is not in this clone and before..sha cannot be diffed - git
-            # exits 128 and the scan never runs. Scan everything instead, as for a new branch.
-            echo "previous head ${{ github.event.before }} not found (force-push) - scanning every tracked file"
-            python3 scripts/hygiene.py --all
-            exit $?
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ] \
+            || ! git cat-file -e "${{ github.event.before }}^{commit}" 2>/dev/null; then
+            # A new branch has no previous head. A force-push (a rebase, e.g. `@dependabot
+            # rebase`) discarded it, so it is not in this clone and before..sha cannot be
+            # read - git exits 128 and the scan would never run. Either way: every tracked
+            # file, then every commit the default branch does not already have.
+            echo "no usable previous head (${{ github.event.before }}) - scanning the tree and every commit not on ${{ github.event.repository.default_branch }}"
+            status=0
+            python3 scripts/hygiene.py --all || status=1
+            python3 scripts/hygiene.py --range "origin/${{ github.event.repository.default_branch }}..${{ github.sha }}" || status=1
+            exit $status
           else
             RANGE="${{ github.event.before }}..${{ github.sha }}"
           fi
