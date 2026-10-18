@@ -143,6 +143,19 @@ on an argument.
    Vite proxy forwards the browser's `same-origin` header unchanged.
    [`INFERRED`; DoD 11.]
 
+> **FOUND BY THE BROWSER TEST, 2026-10-18 — the dev server defeated layer 1,
+> and leaked reads.** Vite's dev server answers CORS itself, and by default
+> allows any `localhost` or `*.localhost` origin on any port. Through the Vite
+> proxy, a page on `attacker.localhost`:
+> - **read `/api/v1/accounts`** (`200`, readable);
+> - had its preflighted `text/csv` and JSON writes **let through to the API**,
+>   where `Sec-Fetch-Site` refused them with `403`, so nothing was written.
+>
+> The API's own port leaked nothing. Fixed with `server.cors: false` in
+> `web/vite.config.ts`; the app's page is served by that same server and never
+> needs CORS. This is the case for two layers: one held while the other was
+> silently off. The published stack has no Vite, so it was never exposed.
+
 **Reads** were already covered in slice 01. The same-origin policy keeps a
 cross-site page from reading a response. `AllowedHosts`
 (`localhost;127.0.0.1;[::1]`) refuses any other `Host`, which is what DNS
@@ -511,6 +524,36 @@ in the test project writes the file at test time from obviously invented values
 (institution `Example Bank`, identifiers like `EXAMPLE-CHK-1`). If a committed
 fixture ever becomes necessary, its allow-list entry is reviewed with a reason,
 per `scripts/hygiene.py`; never a wildcard.
+
+> **BUILT 2026-10-18 — DoD 10 and DoD 11 closed.**
+> - **DoD 11, in Chromium.** An attacker page is served by a real loopback
+>   listener, not Playwright routing, so the browser treats it as a real local
+>   origin. It runs from `attacker.localhost` (cross-site) and from `localhost`
+>   on another port (same-site), against the API port and against the Vite
+>   proxy. It tries:
+>   - a read;
+>   - a `text/csv` fetch and a JSON fetch, both preflighted;
+>   - a `no-cors` fetch, which the browser downgrades to `text/plain`;
+>   - a plain form post.
+>
+>   **Reads are blocked. Preflighted writes are never sent. The other two
+>   reach the API and get `403`. Nothing is written.** Reaching the API is
+>   recorded per request, so the browser's own blocking of loopback cannot
+>   pass the test. It found the Vite CORS hole above.
+> - **DoD 10, the browser.** The page runs in `America/Chicago` with its clock
+>   pinned at 23:30 on 31 Oct (CDT) and on 1 Nov (CST, after the change). Every
+>   default "today" and the end of the series is Chicago's date. An import time
+>   is shown in Chicago time, zone named. A calendar date renders as written in
+>   Chicago, UTC+14 and UTC−11. **Seen failing:** a UTC `localToday()` fails
+>   both 23:30 cases.
+> - **DoD 10, the server.** With the API's clock pinned at the same two
+>   moments, the default series end is the UTC date, and `observedAt` is the
+>   pinned moment in UTC. In OFX, the repeated 01:30 on 1 Nov, as CDT or CST,
+>   is one date and two moments an hour apart.
+> - **DoD 10, the suites.** A CI matrix runs unit and integration at
+>   `Pacific/Kiritimati` and `Pacific/Pago_Pago`. A unit test fails if .NET
+>   did not take the zone, so green cannot mean UTC by mistake.
+> - **Totals:** E2E 14, integration 77, unit 119.
 
 ### 6. CI
 

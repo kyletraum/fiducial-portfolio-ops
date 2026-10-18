@@ -57,6 +57,43 @@ jobs:
       - name: Integration
         run: dotnet test --project tests/Integration --no-build
 
+  # slice-02.md DoD 10: the dates rule must hold away from UTC. Every other job, container and
+  # dev machine runs in UTC or one US zone, so a test that only passes there proves nothing about
+  # 23:30 in Chicago. TZ is honoured by .NET on Linux (not on Windows - which is why this is CI).
+  # EXPECT_TZ makes the run prove its own zone: Unit's ProcessTimeZoneTests fails if .NET did
+  # not pick it up, so a green run cannot be a run in UTC by mistake.
+  timezones:
+    name: Time zone ${{ matrix.tz }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        tz: [Pacific/Kiritimati, Pacific/Pago_Pago] # UTC+14 and UTC-11: a day apart, the widest gap there is
+    env:
+      TZ: ${{ matrix.tz }}
+      EXPECT_TZ: ${{ matrix.tz }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: The zone in effect
+        run: date '+%Y-%m-%d %H:%M %Z (%z)'
+
+      - name: Build
+        run: |
+          dotnet build tests/Unit
+          dotnet build tests/Integration
+
+      - name: Unit
+        run: dotnet test --project tests/Unit --no-build
+
+      - name: Integration
+        run: dotnet test --project tests/Integration --no-build
+
   contract:
     name: Contract (advisory)
     # The middle cut: generation and the committed document stay, the drift gate is advisory.

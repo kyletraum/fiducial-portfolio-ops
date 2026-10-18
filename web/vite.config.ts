@@ -14,6 +14,12 @@ export default defineConfig(({ command }) => {
   return {
     plugins: [react()],
     server: {
+      // NO CORS. Vite's dev server answers CORS itself, and by default allows any localhost or
+      // *.localhost origin on any port - so a page on attacker.localhost could READ /api through
+      // this proxy, and its preflighted writes were let through to the API (whose Sec-Fetch-Site
+      // check refused them). Found by tests/E2E/CrossSiteBrowserTests, 2026-10-18. This app's
+      // page is served by this same server, so it never needs CORS.
+      cors: false,
       proxy: {
         '/api': { target: apiTarget, changeOrigin: true },
       },

@@ -17,6 +17,8 @@ public sealed class AppFixture : IAsyncLifetime
 
     public IBrowser Browser { get; private set; } = null!;
     public Uri WebUrl { get; private set; } = null!;
+    /// <summary>The API's own endpoint - what an attacking page would aim at directly.</summary>
+    public Uri ApiUrl { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()
     {
@@ -33,6 +35,7 @@ public sealed class AppFixture : IAsyncLifetime
         await app.ResourceNotifications.WaitForResourceHealthyAsync("api", timeout.Token);
         await app.ResourceNotifications.WaitForResourceHealthyAsync("web", timeout.Token);
         WebUrl = app.GetEndpoint("web", "http");
+        ApiUrl = app.GetEndpoint("api", "http");
 
         playwright = await Playwright.CreateAsync();
         Browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
