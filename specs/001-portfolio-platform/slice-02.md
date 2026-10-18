@@ -700,6 +700,10 @@ slice taught. An untripped threshold is not evidence the slice was cheap.
 
 ## Then stop
 
+> **STOPPED 2026-10-18.** The build is done and all eleven DoD items are met.
+> [`slice-02-assessment.md`](slice-02-assessment.md) is written; sections 5 and 6
+> are Kyle's.
+
 Write `slice-02-assessment.md`. It answers:
 
 - What did it cost, in both columns?

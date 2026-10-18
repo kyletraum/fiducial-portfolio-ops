@@ -84,6 +84,51 @@ public class ImportAFileTests(AppFixture fixture) : IClassFixture<AppFixture>
         await import.GetByLabel("File").SetInputFilesAsync(new FilePayload { Name = "notes.txt", MimeType = "text/plain", Buffer = "x"u8.ToArray() });
         await Assertions.Expect(result).ToContainTextAsync("notes.txt is not a .csv or .ofx file.");
 
+        // DoD 2: an OFX file too, through the same form, bound under its own format. Built from an
+        // ISO date so this source carries no eight-digit stamp (the hygiene scanner refuses those).
+        await link.GetByLabel("File format").SelectOptionAsync("import:ofx");
+        await link.GetByLabel("Identifier in the file").FillAsync("EXAMPLE-E2E-OFX");
+        await link.GetByRole(AriaRole.Button, new() { Name = "Link identifier" }).ClickAsync();
+        await Assertions.Expect(link.GetByRole(AriaRole.Status)).ToHaveTextAsync("Linked EXAMPLE-E2E-OFX.");
+        var ofx = new FilePayload
+        {
+            Name = "statement.ofx",
+            MimeType = "application/octet-stream", // what a browser reports for .ofx: the page sets application/x-ofx itself
+            Buffer = Encoding.UTF8.GetBytes(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<?OFX OFXHEADER=\"200\" VERSION=\"220\"?>\n"
+                + "<OFX><BANKMSGSRSV1><STMTTRNRS><TRNUID>1</TRNUID><STATUS><CODE>0</CODE><SEVERITY>INFO</SEVERITY></STATUS>"
+                + "<STMTRS><CURDEF>USD</CURDEF><BANKACCTFROM><BANKID>X</BANKID><ACCTID>EXAMPLE-E2E-OFX</ACCTID><ACCTTYPE>SAVINGS</ACCTTYPE></BANKACCTFROM>"
+                + $"<LEDGERBAL><BALAMT>500.00</BALAMT><DTASOF>{Day(2).Replace("-", "")}120000[-5:CDT]</DTASOF></LEDGERBAL>"
+                + "</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>\n"),
+        };
+        await import.GetByLabel("File").SetInputFilesAsync(ofx);
+        await import.GetByRole(AriaRole.Button, new() { Name = "Import file" }).ClickAsync();
+        await Assertions.Expect(result).ToHaveTextAsync("Imported statement.ofx: 1 new, 0 restated, 0 unchanged.");
+        await import.GetByLabel("File").SetInputFilesAsync(ofx);
+        await import.GetByRole(AriaRole.Button, new() { Name = "Import file" }).ClickAsync();
+        await Assertions.Expect(result).ToHaveTextAsync("Imported statement.ofx: 0 new, 0 restated, 1 unchanged.");
+
+        // DoD 7: keyboard-reachable. Tab from the top of a fresh load reaches every new control.
+        await page.ReloadAsync();
+        await Assertions.Expect(page.GetByText("API: reachable")).ToBeVisibleAsync();
+        var wanted = new Dictionary<string, bool>
+        {
+            ["Identifier in the file"] = false, ["Link identifier"] = false, ["File"] = false,
+            ["Import file"] = false, ["import-history"] = false,
+        };
+        for (var i = 0; i < 80 && wanted.ContainsValue(false); i++)
+        {
+            await page.Keyboard.PressAsync("Tab");
+            var focused = await page.EvaluateAsync<string>("""
+                () => { const e = document.activeElement; if (!e) return '';
+                  if (e.getAttribute('aria-labelledby') === 'import-history-caption') return 'import-history';
+                  return (e.labels && e.labels[0] && e.labels[0].textContent) || e.textContent || ''; }
+                """);
+            foreach (var key in wanted.Keys.ToList())
+                if (focused.Trim() == key) wanted[key] = true;
+        }
+        Assert.True(!wanted.ContainsValue(false), "not reached by Tab: " + string.Join(", ", wanted.Where(w => !w.Value).Select(w => w.Key)));
+
         // The accessibility floor over the page as it now stands, with a refusal open.
         await history.Locator("details summary").First.ClickAsync();
         var axe = await page.RunAxe(new AxeRunOptions
