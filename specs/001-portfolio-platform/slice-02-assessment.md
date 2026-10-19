@@ -1,15 +1,18 @@
 # Slice 02 — the assessment
 
-**Status: AWAITING KYLE (sections 5 and 6).** Written 2026-10-18 against `main` at `a6bd187`
-(PR #60 merged), plus the DoD evidence added with this file. Per `slice-02.md` "Then stop"
-and `D-041` §6, **the default is STOP**. A third slice needs **its own decision file,
-written and dated, in the planning repository**, and it is not a continuation of this one.
+**Status: DECIDED, 2026-10-19 (Kyle): a third slice is wanted, for the security tier.**
+Written 2026-10-18 against `main` at `a6bd187` (PR #60 merged), with the DoD evidence added
+alongside it; Kyle's sections 5 and 6 recorded 2026-10-19. **Seven** techniques are ticked
+(§5), against a limb that needs three. The first box was typed `[c]`; Kyle confirmed it is a
+tick. Per `slice-02.md` "Then stop" and `D-041` §6, the third slice still needs **its own
+decision file, written and dated, in the planning repository** before any work starts. It is
+not a continuation of this one.
 
 **Who wrote which part.** Sections 1–4 and 7 are facts, assembled by the agent session that
 did the build. Each one can be checked against a commit, a CI run or `LOG.md`, and none
 carries a recommendation. Sections 5 and 6 are **Kyle's**: the gate asks what this taught
 *Kyle*, which no one else can answer. The agent laid out candidates and evidence there and
-decided nothing. Every box is left unticked.
+decided nothing; every box was left unticked for Kyle.
 
 ---
 
@@ -160,24 +163,24 @@ answer. **A technique merely present in the repository does not satisfy this lim
 
 Tick the ones that are genuinely yours; strike the rest. **Fewer than three means STOP.**
 
-- [ ] **Idempotency by content, with one write rule for every path and the run record
+- [x] **Idempotency by content, with one write rule for every path and the run record
       immutable at the database.** Unchanged, restated or created per (account, date,
       source); triggers refuse `UPDATE`/`DELETE`/`TRUNCATE`; CHECKs hold all-or-nothing on
       the row; the migration applied to rows and reversed. `522a9aa`.
-- [ ] **Defence in depth, tested from a real second origin in a real browser.** Content types
+- [x] **Defence in depth, tested from a real second origin in a real browser.** Content types
       that force a preflight, plus `Sec-Fetch-Site`, each shown alone and together. It caught
       the dev server's CORS default. `8f683f8`, `e7fc1b6`.
-- [ ] **Moments versus calendar dates.** UTC moments converted only at the edge; calendar
+- [x] **Moments versus calendar dates.** UTC moments converted only at the edge; calendar
       dates never converted. Tested with pinned clocks, browser time zones, and a CI matrix
       that proves its own zone. `fcaf458` (the rule), `e7fc1b6`.
-- [ ] **Reading hostile input without a library, and declining a dependency on evidence.** An
+- [x] **Reading hostile input without a library, and declining a dependency on evidence.** An
       SGML and an XML front end over one tree; DTDs prohibited; invariant-culture amounts;
       all or nothing. `fcaf458`, `eb2ca94`.
-- [ ] **Raw-body uploads rather than multipart**, for what a form reader does to disk, to
+- [x] **Raw-body uploads rather than multipart**, for what a form reader does to disk, to
       antiforgery and behind a proxy. `035a404`, `8f683f8`.
-- [ ] **Measuring before limiting.** cgroup `memory.peak`, and why an unconstrained .NET peak
+- [x] **Measuring before limiting.** cgroup `memory.peak`, and why an unconstrained .NET peak
       overstates its need. `a6bd187`.
-- [ ] **Proving a defence by breaking it.** Every new rule here was seen failing: the
+- [x] **Proving a defence by breaking it.** Every new rule here was seen failing: the
       architecture rule, idempotency, the tie-break, both cross-site layers, the time-zone
       cases and the error boundary. `eb2ca94`, `522a9aa`, `8f683f8`, `e7fc1b6`, `edb9504`.
       *Closest to slice 01's "verifying a claim before building on it"; Kyle should decide
@@ -193,9 +196,12 @@ Kyle's own, if different: ________________________________________________
 and that the next slice is obvious."*
 
 - [ ] **STOP.** The default.
-- [ ] **A third slice**, which requires **a new decision file, written and dated**, in the
+- [x] **A third slice**, which requires **a new decision file, written and dated**, in the
       planning repository. It is not a continuation of this one. If chosen: which technique
-      is it for?
+      is it for? **The security tier** (Kyle, 2026-10-19): `security.md`'s "API" section -
+      authentication, `SameSite=Strict` session cookies, CSRF protection on every
+      state-changing request, CORS restricted to the app's own origin - and the pre-commit
+      hook. It is the slice `D-041` Amendment 1 requires before any real balance.
 
 **Bound by `D-041` Amendment 1 whatever is chosen:** no real balance enters before a slice
 that builds `security.md`'s tier. A third slice that proposes real balances must be that

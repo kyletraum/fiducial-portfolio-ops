@@ -61,6 +61,7 @@ later; they are simply not the number the gate reads.
 | 2026-10-18 | 5 · tests | — | 1.4 | DoD 11 in Chromium from attacker.localhost and another port: found Vite's default CORS let a cross-site page READ the API through the dev proxy (fixed, cors:false); DoD 10: Chicago at 23:30 either side of DST, UTC+14/-11 rendering, pinned server clock, CI TZ matrix with a self-check; E2E 14 |
 | 2026-10-18 | 7 · deploy | — | 0.8 | Peaks measured on the published compose copy (10k import, re-import, restate, widest series): api 234.5, pg 126.3 MiB; limits 512M/256M via Service.Deploy; same load passes under them (50%/49%, no OOM); 1 MiB+1 is 413 in the published stack; loopback, unpublished pg, restart persistence hold |
 | 2026-10-18 | gate · assessment | — | 0.5 | DoD walked, all 11 met (DoD 2 OFX in the browser and DoD 7 keyboard added; DoD 3 CSV+OFX on the published stack, via the API); assessment drafted with facts only - techniques and decision left to Kyle; LOG rows 1-7 found in slice 01's table and moved |
+| 2026-10-19 | gate · decision | — | — | Kyle: seven techniques ticked ([c] confirmed a tick); a third slice is wanted, for the security tier; it needs its own decision file in the planning repo |
 
 | **Total at the gate** | | **0** | **9.4** | Agent h as logged, and overstated again: merge timestamps measure ~5.2 h for the definition through step 7 (assessment, section 2) |
 
