@@ -701,8 +701,9 @@ slice taught. An untripped threshold is not evidence the slice was cheap.
 ## Then stop
 
 > **STOPPED 2026-10-18.** The build is done and all eleven DoD items are met.
-> [`slice-02-assessment.md`](slice-02-assessment.md) is written; sections 5 and 6
-> are Kyle's.
+> [`slice-02-assessment.md`](slice-02-assessment.md) is written. **The gate was
+> decided by Kyle on 2026-10-19:** seven techniques ticked, and a third slice for
+> the security tier. That slice needs its own decision file first.
 
 Write `slice-02-assessment.md`. It answers:
 

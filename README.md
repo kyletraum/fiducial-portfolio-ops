@@ -51,10 +51,11 @@ invented balances. Files are linked to accounts by their own identifiers and imp
 nothing, and the same file twice changes nothing. Every import is recorded, immutably. Cross-site
 writes are refused by two tested layers. The dates rule (UTC data, the viewer's zone on the
 page) is tested away from UTC. The definition is
-[`slice-02.md`](specs/001-portfolio-platform/slice-02.md). **The slice-02 gate is open**: the
-default is STOP, and [`slice-02-assessment.md`](specs/001-portfolio-platform/slice-02-assessment.md)
-waits on Kyle's sections 5 and 6. No real balance enters before a slice that builds the
-security tier (`D-041` Amendment 1).
+[`slice-02.md`](specs/001-portfolio-platform/slice-02.md). **The slice-02 gate is decided
+(2026-10-19): a third slice is wanted, for the security tier.** See
+[`slice-02-assessment.md`](specs/001-portfolio-platform/slice-02-assessment.md). It needs its
+own decision file in the planning repository before it starts. No real balance enters before
+it is built (`D-041` Amendment 1).
 
 ## Running it
 
