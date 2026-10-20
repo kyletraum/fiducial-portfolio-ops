@@ -1,6 +1,12 @@
 <!-- UPDATED BY HAND: Dependabot does not bump an MSBuild SDK named in this attribute, only
      PackageReferences. Keep it on the same version as the Aspire.* packages below: it pins DCP
-     and the dashboard, which come from NuGet (AspireUseCliBundle=false, decided 2026-09-24). -->
+     and the dashboard, which come from NuGet (AspireUseCliBundle=false, decided 2026-09-24).
+     ON THE NEXT BUMP PAST 13.6.1, check that it carries microsoft/aspire PR #20542 (merged
+     2026-10-03, not in 13.6.1): it moves the AuxiliaryBackchannelService connection-reset
+     stack traces seen in the VS Code debug console from Debug to Trace, while unexpected
+     failures still log as errors. Its companion, PR #20763 (the VS Code extension's
+     `aspire ps --follow` watcher and duplicate dashboard-URL calls), ships in the extension
+     after 1.24.0. Diagnosed 2026-10-20: benign tooling chatter, not an app fault. -->
 <Project Sdk="Aspire.AppHost.Sdk/13.6.1">
 
   <PropertyGroup>
