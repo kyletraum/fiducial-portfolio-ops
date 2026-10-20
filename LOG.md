@@ -40,6 +40,7 @@ later; they are simply not the number the gate reads.
 | 2026-09-24 | gate · assessment | — | 0.3 | DoD walked (all met; DoD 4 wording vs middle cut noted); assessment drafted with facts only - techniques and decision left to Kyle; agent-hour column found overstated vs commit timestamps |
 | 2026-10-17 | maint · Aspire | — | 0.6 | Aspire 13.5.4 -> 13.6.1 incl. the AppHost SDK Dependabot cannot bump; MessagePack pinned past GHSA-qhrr-8q5h-9q3h; corrupt NuGet cache entries cleared; Docker Desktop restarted; 77/77 |
 | 2026-10-18 | gate · decision | — | — | Kyle: a second slice is wanted; assessment final; it needs its own decision file in the planning repo |
+| 2026-10-20 | maint · records | — | 0.2 | Planning PR #122 (D-041 Amendment 1) was closed unmerged; Kyle chose not to revive it. Every reference here to that amendment now cites Kyle's 2026-10-18 ruling, recorded in slice-02.md |
 | **Total at the gate** | | **0.5** | **10.6** | Agent h as logged. They were the agent's own estimates and overstate: commit timestamps measure ~5.1 h for steps 0-7 (assessment, section 2) |
 
 <!-- Add a row per session. Total at the gate; do not total as you go. Slice 01 totalled at its gate, 2026-10-18. -->

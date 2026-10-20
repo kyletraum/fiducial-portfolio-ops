@@ -55,7 +55,8 @@ page) is tested away from UTC. The definition is
 (2026-10-19): a third slice is wanted, for the security tier.** See
 [`slice-02-assessment.md`](specs/001-portfolio-platform/slice-02-assessment.md). It needs its
 own decision file in the planning repository before it starts. No real balance enters before
-it is built (`D-041` Amendment 1).
+it is built: Kyle's ruling of 2026-10-18, recorded in
+[`slice-02.md`](specs/001-portfolio-platform/slice-02.md) ("What the slice is not").
 
 ## Running it
 
