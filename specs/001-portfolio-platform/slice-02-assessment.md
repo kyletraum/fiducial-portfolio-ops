@@ -55,7 +55,7 @@ decided nothing; every box was left unticked for Kyle.
 | Dependabot PR #12 | `@types/node` on Node's major | **Held** in `.github/dependabot.yml` |
 | Kyle, 2026-10-18 | The dates rule | **Done**, DoD 10 |
 | Kyle, 2026-10-18 | Cross-site writes refused by two layers | **Done**, DoD 11 |
-| `D-041` Amendment 1 | No real balance before the security tier | **Held.** Invented data only throughout |
+| Kyle, 2026-10-18 (`slice-02.md`, "What the slice is not") | No real balance before the security tier | **Held.** Invented data only throughout |
 
 ---
 
@@ -71,7 +71,8 @@ decided nothing; every box was left unticked for Kyle.
 agent wrote as it went. They total more than the span they fall inside.
 
 **Work outside both columns:**
-- the planning-repository PRs, `D-041` (#119) and its Amendment 1 (#122);
+- the planning-repository PRs: `D-041` (#119, merged), and an amendment to it (#122, closed
+  unmerged on 2026-10-20);
 - the guard that keeps this project's sessions from writing to the planning repository, a
   hook outside both repositories;
 - the Dependabot pass.
@@ -93,7 +94,8 @@ slice runs. **The gate rests entirely on the techniques limb, §5.**
 **Still suspect as a result.** None of these documents was rewritten, because `D-031` keeps
 them frozen until a slice is commissioned against them:
 - **`spec.md`** has no requirement for a file import: FR-1 is MCP and FR-2 is HTTP APIs.
-  `D-041` was corrected (Amendment 1); the spec was not.
+  A correction to `D-041` was drafted (planning PR #122) and closed unmerged, so `D-041`
+  still says FR-1/FR-2. The spec was not changed either.
 - **`data-model.md`** describes an `ingest_run` that was not built: `connection_id`,
   `trigger`, `environment`, and a `partial` status this slice deliberately never produces.
   Its provenance-strength list is `statement, api, derived, scraped, manual`; the code's
@@ -121,10 +123,11 @@ Each one was found by running something, not by reading.
 One discovery, not a defect: `.Accepts(...)` metadata makes **routing** return `415`. It was
 found by disabling the handler's own content-type check (`8f683f8`).
 
-**The session's own slips, each corrected:**
+**The session's own slips, each corrected unless marked:**
 - a hygiene refusal masked by a pipe (PR #51);
 - mixed line endings in `.gitattributes` (PR #50);
-- three drafting errors in `D-041` (planning PR #122);
+- three drafting errors in `D-041`. **Not corrected:** the corrections (planning PR #122)
+  were closed unmerged, so the errors stand in `D-041`;
 - CRLF in a planning file (`C-411`);
 - `LOG.md` rows for steps 1–7 written into slice 01's table, moved with this file.
 
@@ -201,15 +204,15 @@ and that the next slice is obvious."*
       is it for? **The security tier** (Kyle, 2026-10-19): `security.md`'s "API" section -
       authentication, `SameSite=Strict` session cookies, CSRF protection on every
       state-changing request, CORS restricted to the app's own origin - and the pre-commit
-      hook. It is the slice `D-041` Amendment 1 requires before any real balance.
+      hook. It is the slice Kyle's 2026-10-18 ruling requires before any real balance.
 
-**Bound by `D-041` Amendment 1 whatever is chosen:** no real balance enters before a slice
-that builds `security.md`'s tier. A third slice that proposes real balances must be that
+**Bound by Kyle's ruling of 2026-10-18 whatever is chosen** (recorded in `slice-02.md`, "What
+the slice is not"): no real balance enters before a slice that builds `security.md`'s tier. A third slice that proposes real balances must be that
 slice, or come after it.
 
 If a third slice is commissioned, these are its known starting obligations, each already
 named with a trigger or recorded in a PR:
-- **the security tier** (`D-041` Amendment 1), before any real balance;
+- **the security tier** (Kyle, 2026-10-18), before any real balance;
 - **the pre-commit hook** (`D-030` Amendment 1), the first real balance;
 - **per-account-type cutoffs** (`D-034`) and **value-weighted coverage** (`C-389`), once
   real entry history exists;
@@ -229,8 +232,10 @@ hook enforces it). These are owed there, by a planning-repository session:
 
 - **The slice-02 gate, recorded once Kyle decides:** a new decision file if a third slice is
   wanted, as `D-041` was for slice 01's gate, or a dated note on `D-041` if STOP.
-- **Planning PR #122** (`D-041` Amendment 1) is **still open**. Once it merges, its crossing
-  closes: the planning clone switched to `main`, and the session branch deleted.
+- **Kyle's 2026-10-18 ruling is recorded only in this repository.** Its amendment to `D-041`
+  (planning PR #122) was closed unmerged on 2026-10-20, and Kyle chose not to revive it for
+  now. Its three corrections to `D-041` went with it. The planning clone is still checked
+  out on that PR's branch.
 - **The project mirror** `claude/Portfolio_Current_State.md`, unsynced since PR #119.
 - **`C-374` and `C-375`**: slice 01's executed spikes bear on both, and closing them is
   their own crossing (`D-041`, "What this does NOT do").

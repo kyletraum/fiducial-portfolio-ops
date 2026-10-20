@@ -29,8 +29,8 @@ Claim markers per `D-029`: `EXECUTED` · `SOURCE@<ref>` · `DOCS@<date>` ·
 > row, including the originating run), `FR-4.4` (one account, whatever the
 > source), `FR-4.6` (an immutable run record) and the rule in `FR-1.5` that
 > source text is data. `D-041`'s "in the spec's terms (FR-1/FR-2)" overstates
-> this; the correction is owed to the planning repository as a dated append on
-> `D-041`, not made here.
+> this. The correction was drafted as an amendment to `D-041` (planning PR
+> #122) and closed unmerged, so `D-041` still says it.
 
 ---
 
@@ -66,9 +66,11 @@ rediscovers it:
   balances.
 - **No credentials, no PRD, no second environment.** A file needs none of them.
 - **No security tier.** Login, sessions and CSRF tokens (`security.md`) are not
-  built. Kyle ruled on 2026-10-18 that **no real balance enters before a slice
-  that builds them** (`D-041` amendment). This slice's interim defence is
-  "Cross-site writes", below.
+  built. **Kyle ruled on 2026-10-18 that no real balance enters before a slice
+  that builds them.** This bullet is that ruling's record. Its planning-repository
+  form, an amendment to `D-041` (PR #122), was closed unmerged on 2026-10-20, and
+  Kyle chose not to revive it, so no planning decision carries the ruling. This
+  slice's interim defence is "Cross-site writes", below.
 
 Also out: transactions, holdings and securities (balances only, as slice 01);
 scheduled or watched-folder imports (a user uploads); QFX and other
@@ -120,8 +122,8 @@ The API listens on loopback with **no authentication**. Between any website the
 viewer happens to visit and a write to this API there is only the browser. Spike F
 found that a form upload is exactly the request such a site can send. Slice 02
 does not build the security tier (`security.md`: login, `SameSite` cookies, CSRF
-tokens). Kyle ruled that no real balance enters before a slice that does
-(`D-041`, amendment of 2026-10-18). Until then, cross-site writes are refused by
+tokens). Kyle ruled on 2026-10-18 that no real balance enters before a slice
+that does ("What the slice is not", above). Until then, cross-site writes are refused by
 **two independent layers**, and **each is tested**, so the defence does not rest
 on an argument.
 
@@ -661,7 +663,7 @@ as slice 01's middle cut left it.
 | `D-030` Amendment 1 | Idempotency and correction on `POST /balances` | **Built**, step 2 |
 | Kyle, 2026-10-18 | Dates and time: UTC data layer, conversion at the edge; calendar dates never converted | **Built**, steps 2–5; DoD 10 |
 | Kyle, 2026-10-18 | Cross-site writes refused by two layers, both tested | **Built**, steps 3 and 5; DoD 11 |
-| `D-041`, amendment of 2026-10-18 | No real balance before a slice that builds `security.md`'s tier | **Holds**: this slice reads invented data only (`D-041` §2) |
+| Kyle, 2026-10-18 ("What the slice is not") | No real balance before a slice that builds `security.md`'s tier | **Holds**: this slice reads invented data only (`D-041` §2) |
 | `slice-01.md` (`S-34`) | Resource limits, "the first slice that runs an ingest batch" | **Built**, step 7 |
 | `D-034` §5 | Per-account-type staleness cutoffs | **Deferred**: no real entry history (`D-041` §4) |
 | `C-389` | Coverage weighted by value, not account count | **Open question**, below |
