@@ -5,7 +5,7 @@
      2026-10-03, not in 13.6.1): it moves the AuxiliaryBackchannelService connection-reset
      stack traces seen in the VS Code debug console from Debug to Trace, while unexpected
      failures still log as errors. Its companion, PR #20763 (the VS Code extension's
-     `aspire ps --follow` watcher and duplicate dashboard-URL calls), ships in the extension
+     `aspire ps` follow-mode watcher and duplicate dashboard-URL calls), ships in the extension
      after 1.24.0. Diagnosed 2026-10-20: benign tooling chatter, not an app fault. -->
 <Project Sdk="Aspire.AppHost.Sdk/13.6.1">
 
