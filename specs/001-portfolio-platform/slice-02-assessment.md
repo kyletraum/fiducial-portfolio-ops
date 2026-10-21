@@ -4,9 +4,10 @@
 Written 2026-10-18 against `main` at `a6bd187` (PR #60 merged), with the DoD evidence added
 alongside it; Kyle's sections 5 and 6 recorded 2026-10-19. **Seven** techniques are ticked
 (§5), against a limb that needs three. The first box was typed `[c]`; Kyle confirmed it is a
-tick. Per `slice-02.md` "Then stop" and `D-041` §6, the third slice still needs **its own
-decision file, written and dated, in the planning repository** before any work starts. It is
-not a continuation of this one.
+tick. Per `slice-02.md` "Then stop" and `D-041` §6, the third slice needed its own written,
+dated commission before any work started. It is not a continuation of this one. **Since the
+planning repository's `D-043` (2026-10-20) decoupled the two projects, that commission is
+recorded in this repository: [`slice-03.md`](slice-03.md), "The commission" (2026-10-21).**
 
 **Who wrote which part.** Sections 1–4 and 7 are facts, assembled by the agent session that
 did the build. Each one can be checked against a commit, a CI run or `LOG.md`, and none
@@ -206,6 +207,11 @@ and that the next slice is obvious."*
       state-changing request, CORS restricted to the app's own origin - and the pre-commit
       hook. It is the slice Kyle's 2026-10-18 ruling requires before any real balance.
 
+> **2026-10-21:** the decision file this option names is no longer written in the planning
+> repository. Its `D-043` (2026-10-20) decoupled the projects, and slices are commissioned
+> here. Kyle's choice stands as ticked; the commission is in
+> [`slice-03.md`](slice-03.md).
+
 **Bound by Kyle's ruling of 2026-10-18 whatever is chosen** (recorded in `slice-02.md`, "What
 the slice is not"): no real balance enters before a slice that builds `security.md`'s tier. A third slice that proposes real balances must be that
 slice, or come after it.
@@ -218,24 +224,27 @@ named with a trigger or recorded in a PR:
   real entry history exists;
 - **the network split** (`S-25a`);
 - **the bundle**, now 638 kB;
-- **the two time-zone jobs as required checks** on `main` (Kyle's call, PR #59);
+- **the two time-zone jobs as required checks** on `main` (Kyle's call, PR #59). **Done
+  2026-10-20**: both are required checks in the `Protect main` ruleset;
 - **finer error boundaries and a web unit-test runner** (PR #58);
 - **the import's plan-to-write race**, stated and not tested (PR #55);
-- **the `dotnet-ef` tool** at 10.0.12 against EF Core 10.0.13 (PR #55).
+- **the `dotnet-ef` tool** at 10.0.12 against EF Core 10.0.13 (PR #55). **Done**: PR #64.
 
 ---
 
-## 7. Owed elsewhere
+## 7. Owed elsewhere — resolved by the planning repository's `D-043`
 
-This project's sessions **cannot write to the planning repository** (Kyle, 2026-10-18; a
-hook enforces it). These are owed there, by a planning-repository session:
+This section listed what was owed to the planning repository. On 2026-10-20 that repository's
+`D-043` decoupled the two projects. This repository may read it, nothing flows back, and it
+no longer commissions, gates, reviews or tracks the platform. So:
 
-- **The slice-02 gate, recorded once Kyle decides:** a new decision file if a third slice is
-  wanted, as `D-041` was for slice 01's gate, or a dated note on `D-041` if STOP.
-- **Kyle's 2026-10-18 ruling is recorded only in this repository.** Its amendment to `D-041`
-  (planning PR #122) was closed unmerged on 2026-10-20, and Kyle chose not to revive it for
-  now. Its three corrections to `D-041` went with it. The planning clone is still checked
-  out on that PR's branch.
-- **The project mirror** `claude/Portfolio_Current_State.md`, unsynced since PR #119.
-- **`C-374` and `C-375`**: slice 01's executed spikes bear on both, and closing them is
-  their own crossing (`D-041`, "What this does NOT do").
+- **The slice-02 gate is recorded here.** The commission is
+  [`slice-03.md`](slice-03.md), "The commission"; no decision file there is needed.
+- **Kyle's 2026-10-18 ruling** (no real balance before the security tier) stays recorded
+  here, in `slice-02.md`'s "What the slice is not". The planning repository's `D-043` points
+  at that record. Its amendment to `D-041` (PR #122) was closed unmerged, and its three
+  corrections to `D-041` went with it, as history there.
+- **`C-374` and `C-375` are discharged** there by `D-043`. **`C-389`**, value-weighted
+  coverage, is discharged there too, and carried here as an open question in `slice-03.md`'s
+  obligations.
+- **The project mirror** is the planning repository's own matter, no longer the platform's.

@@ -705,7 +705,10 @@ slice taught. An untripped threshold is not evidence the slice was cheap.
 > **STOPPED 2026-10-18.** The build is done and all eleven DoD items are met.
 > [`slice-02-assessment.md`](slice-02-assessment.md) is written. **The gate was
 > decided by Kyle on 2026-10-19:** seven techniques ticked, and a third slice for
-> the security tier. That slice needs its own decision file first.
+> the security tier. **Its commission is recorded in [`slice-03.md`](slice-03.md)**
+> (2026-10-21). The decision file the gate rule above names is no longer written
+> in the planning repository: its `D-043` (2026-10-20) decoupled the projects, so
+> slices are commissioned and gated here.
 
 Write `slice-02-assessment.md`. It answers:
 

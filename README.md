@@ -53,9 +53,16 @@ writes are refused by two tested layers. The dates rule (UTC data, the viewer's 
 page) is tested away from UTC. The definition is
 [`slice-02.md`](specs/001-portfolio-platform/slice-02.md). **The slice-02 gate is decided
 (2026-10-19): a third slice is wanted, for the security tier.** See
-[`slice-02-assessment.md`](specs/001-portfolio-platform/slice-02-assessment.md). It needs its
-own decision file in the planning repository before it starts. No real balance enters before
-it is built: Kyle's ruling of 2026-10-18, recorded in
+[`slice-02-assessment.md`](specs/001-portfolio-platform/slice-02-assessment.md).
+
+**Slice 03 is commissioned (2026-10-21):** the security tier, over invented balances. That
+means passkey login with an argon2id fallback, sessions, CSRF, CORS, security headers and a
+strict CSP, an audit log of logins, rate-limited login, secrets kept out of logs, and the
+pre-commit hook installed and tested. The commission and definition are
+[`slice-03.md`](specs/001-portfolio-platform/slice-03.md); it opens with four spikes. Slices
+are now commissioned and gated in this repository: the planning repository's `D-043`
+(2026-10-20) decoupled the two projects, and this repository only reads it. No real balance
+enters before this slice is built: Kyle's ruling of 2026-10-18, recorded in
 [`slice-02.md`](specs/001-portfolio-platform/slice-02.md) ("What the slice is not").
 
 ## Running it
