@@ -70,6 +70,14 @@ later; they are simply not the number the gate reads.
 <!-- Slice 02 rows above. Total at its gate. Rows 1 to 7 (PRs #54-#60) were first written into slice 01's
      table by a script that anchored on text both tables contain ("step 0 complete"); moved here 2026-10-18. -->
 
+### Slice 03 (commissioned here, 2026-10-21)
+
+| Date | Step | Kyle h | Agent h | What actually happened |
+|---|---|---|---|---|
+| 2026-10-21 | 0 · commission | — | 0.4 | Planning `D-043` decoupled the projects, so slices are commissioned here; `slice-03.md` written with Kyle's 2026-10-19 rulings as its commission, Spikes H-K; docs pointing at a planning decision file updated |
+
+<!-- Slice 03 rows above. Total at its gate. -->
+
 <!--
 UNITS NOTE -- RAISED 2026-09-18, RULED 2026-09-20. The 200-hour abandon
 threshold assumes Kyle-evenings. Agent rows are wall-clock of an agent session
