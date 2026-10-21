@@ -93,6 +93,30 @@ authenticator, and decide on what the run shows, including taking no dependency.
 or only its passkey pieces; and the argon2id implementation and its parameters, which are
 measured on this machine, not copied from a guide.
 
+> **RAN: no WebAuthn library; Geralt for argon2id.** [`EXECUTED 2026-10-21`,
+> `spikes/spike-h-auth/RESULTS.md`]
+> - **Identity's in-box passkey API** (`SignInManager`/`UserManager`, schema
+>   `Version3`) registered a passkey and signed in with it, end to end in Chromium with
+>   a CDP virtual authenticator, on a throwaway PostgreSQL 18.3. An anonymous `/me` got
+>   `401`, and `/me` signed in got `200`. **Fido2NetLib was not needed and not run.**
+> - **On `http://127.0.0.1`, the browser refused both ceremonies:** "This is an invalid
+>   domain". That observes Spike I's claim 2 early.
+> - **Found:** the EF in-memory provider cannot read back a passkey's JSON-mapped data,
+>   so tests need real Postgres. Cookie authentication redirects by default, and needs a
+>   `401` instead.
+> - **argon2id:** no type in .NET 10 (confirmed). Three candidates were compared.
+>   **Geralt 4.4.0** was 108 ms at 64 MiB, t=3 here, and 139 ms on Linux under the
+>   API's 512 MB limit. It accepts any valid parameters, and its `NeedsRehash` maps onto
+>   Identity's `SuccessRehashNeeded`.
+>   - Sodium.Core was within 5%, but refuses fewer than three passes.
+>   - Konscious was about 3× slower, with no encoded string.
+>
+>   The two libsodium wrappers verify each other's hashes.
+>
+> **Step 1 inherits:** Identity passkeys; a Geralt `IPasswordHasher` at m=64 MiB, t=3,
+> p=1; `401`, not redirects. **Left open for step 1:** whether the Identity store lives in
+> `PortfolioDbContext` (`IdentityUserContext<TUser>`) or on the platform's own tables.
+
 ### Spike I — do passkeys and `Secure` cookies work on `http://localhost`?
 
 > **Claims under test.**
