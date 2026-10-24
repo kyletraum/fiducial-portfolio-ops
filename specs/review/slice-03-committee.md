@@ -1,6 +1,8 @@
 # Slice 03 committee findings
 **Date:** 2026-10-21 · **Seats:** 8 (+ broker) · **Raw findings:** 104 · **Consolidated:** 53 · **Discarded at the broker:** 7 (all partial: the INFERRED claim moved to a gate, the finding kept on its marked remainder) · **Gates:** 30
 
+**Dispositioned 2026-10-24:** Kyle's rulings on D1–D17 and every finding's disposition are in "Rulings and dispositions", after "Decisions for the owner".
+
 ## Method
 
 Eight seats reviewed `specs/001-portfolio-platform/slice-03.md` (the commission, Spikes H–K, the build outline, DoD 1–10, the obligations and the gate), `security.md`'s commissioned sections and `spikes/spike-h-auth/RESULTS.md` independently: application security (SEC, 17 findings), red team (RED, 13), ASP.NET source reader (SRC, 17), browser platform reader (BRW, 10), test automation (TST, 14), scope realist (SCO, 7), accessibility (A11Y, 14) and operator (OPS, 12). The fresh-eyes rule held: no seat read `specs/review/` or another seat's file. Three seats executed something (BRW: a Playwright probe in Chromium 153 and Firefox 155 against three loopback listeners including the repository's own Vite 8.3.4; SRC: a console probe of Identity's passkey store on EF in-memory; OPS: a read-only `docker run` of `api:latest` and `net localgroup docker-users`; TST: the Unit and Architecture suites). SEC, RED and SRC read `dotnet/aspnetcore` at tag `v10.0.13`; every `SOURCE@` below is to that tag unless another repository is named.
@@ -363,6 +365,118 @@ Each as the seats stated it, with the options and costs they gave.
 **D16. The published CSP's oracle** (TST-4). An E2E variant that serves the built bundle from the API's `wwwroot` (`npm run build` into a temporary content root, API in Production), or the assessment's "published CSP: shown by hand on `docker compose`, date, commit". The CSP-violation oracle and functional-before-axe apply to either.
 
 **D17. Data-mutation audit now or carried** (SEC-13). Audit the four existing write endpoints now (one row each, "cheap"), or add an obligations row "data-mutation audit — carried, with reason".
+
+## Rulings and dispositions — 2026-10-24
+
+Added after the review, under `specs/review/process.md` rule 2. **A finding with no disposition is not a finding; it is an observation.** The scope decision came first and every finding below is read against it. Severity (above) and disposition (here) are different axes: a MUST FIX can be CUT when the surface it sits on is not being built.
+
+### The rulings
+
+Kyle's, 2026-10-24, one line each. The options and costs are in "Decisions for the owner" above.
+
+| | Ruling |
+|---|---|
+| **Scope** | The scope realist's middle cut, adopted whole, is the baseline. The rulings below override the lines of it they touch. |
+| **D7** | The argon2id password fallback is **deferred**. Trigger: an environment where a passkey is impractical, or the first lost-authenticator event. Meanwhile recovery is a second passkey (a hardware key) and host-side re-enrolment by the D2 mechanism re-armed. |
+| **D1** | No TLS. The published stack asserts HSTS absent. A reverse proxy is the shape for the day the API leaves loopback. |
+| **D2** | The setup code is an Aspire secret parameter. It is accepted only while no user exists. |
+| **D3** | The data-protection key ring lives on a named volume. |
+| **D4** | Stateless sessions: Identity's cookie, the security stamp rotated on logout, `ValidationInterval` in minutes, and no `sessions` table. |
+| **D5** | The backup command is owed before the first real balance, not built here. |
+| **D6** | No application role in this slice. The `audit_event` immutability DoD and `security.md` say it is a statement about code paths, not a database boundary. Trigger: real data, or anything other than this app reaching the database. |
+| **D8** | `127.0.0.1` and `[::1]` stay in `AllowedHosts`. The login page tells the user to open the app as `localhost`, from `location.hostname`, before any ceremony. The redirect is deferred. |
+| **D9** | No dev-server CSP; the slice documents why. Spike K is cut. Trigger: an XSS in the app's own markup, or the dev page ever carrying real data. |
+| **D10** | WCAG 2.2.1's 20-hour exception: 7 days, renewed on use, said in one sentence on the login page. |
+| **D11** | Step 2 ships the shared integration session helper; the session requirement on the existing endpoints is switched on in step 4 with the login page and the E2E helper. |
+| **D12** | Antiforgery is stated as defence in depth behind layer 2. The token alone is proven in integration; the browser test shows the three layers together and names the refusing layer. |
+| **D13** | No E2E in CI. The assessment carries date, commit and machine for each E2E-backed DoD item. |
+| **D14** | Spike I claim 3 is restated at EXECUTED from the browser seat's 2026-10-21 run in Firefox 155, with the date, and says the suite does not hold it. |
+| **D15** | Logout POSTs, then `location.assign('/')`. Expiry stays distinct: a dialog over the preserved page. |
+| **D16** | The published CSP is shown by an E2E variant serving the built bundle from the API. |
+| **D17** | Data-mutation audit is carried in the obligations table with its reason. Trigger: real data. |
+
+### What the rulings leave open
+
+Three consequences the seats did not price, because each follows from D7 and the seats wrote for the case where the password is kept. Each is dispositioned below with a proposal; Kyle confirms or overrides when the spec edits are reviewed.
+
+1. **DoD 5 loses its mechanism.** The middle cut's throttle was Identity's lockout plus a concurrency limiter of 1 on the password route. C3-8 removes the lockout and D7 removes the route. Without a hash nothing is memory-bound, but anonymous authentication endpoints still write an audit row per failure (C3-43) and still verify the setup code. **Proposal:** one global fixed-window limiter on the anonymous authentication endpoints, partitioned by policy name and never by address, rejecting with `429` and `Retry-After`. That gives DoD 5 something to show and bounds C3-43. The concurrency limiter, its measurement and the restart-loop gate go with the hash.
+2. **The integration session helper cannot log in with a password.** TST-3's `SignedInClient` signed in by password everywhere except the auth E2E. **Proposal:** the helper uses a test authentication scheme registered through `ConfigureTestServices`, never in the app's own composition, with a test that the published compose file and `Program.cs` carry no such scheme; the auth classes run the real passkey ceremony.
+3. **Recovery is the D2 mechanism re-armed.** So `reset-owner` (C3-32) is the recovery path, not an extra: it clears credentials and reopens enrolment under C3-3's rules, with an audit event. A parameter left in `.env.*` after enrolment becomes valid again after a reset, so a reset requires a fresh value.
+
+### Counts
+
+| | Count | Means |
+|---|---|---|
+| **FIX** | 44 | In this slice, at the step named. Several are a sentence in the spec. |
+| **CUT** | 6 | Dissolves with the password fallback (D7), the dev CSP (D9) or the sessions table (D4). |
+| **DEFER** | 3 | Not now; each carries the trigger that reopens it. |
+| **ACCEPT** | 0 | |
+
+**Where a finding splits**, the disposition is the one governing what this slice builds and the note names the other half: C3-5, C3-7, C3-24, C3-26, C3-27, C3-32, C3-39, C3-41, C3-50 and C3-51.
+
+### By finding
+
+| Finding | Disposition | At / trigger, and what it means under the rulings |
+|---|---|---|
+| `C3-1` | **FIX** | Step 0 (Spike J runs a JSON endpoint, the raw-body upload and a DELETE, header absent, each refused) and step 3: the slice owns the refusal in an endpoint filter on `/api`. DoD 2 gains the unsafe-method assertion. |
+| `C3-2` | **FIX** | DoD 4 rewritten before step 3, option (iii) per D12: (i) the token alone in integration, (ii) the three layers together in the browser, each refusal named by `ProblemDetails.title`, the cookie proven sent. |
+| `C3-3` | **FIX** | Step 1, channel per D2: a secret parameter, accepted only while no user exists, compared in fixed time, single-use, never in a query string, settable in tests, absent from the published compose file. Enrolment creates the user and stores the passkey in one transaction. `/enrol` answers `409` once a user exists. The window is reworded as bounded and attested. |
+| `C3-4` | **FIX** | Before step 1: the boundary paragraph in "What the slice is" and `security.md` "Threat model" (a process as the user, and an extension with `localhost` permission, are out of scope with the keyboard). |
+| `C3-5` | **FIX** | Steps 1–2 per D4 (b): no `sessions` table; `ExpireTimeSpan` per D10; `ValidationInterval` in minutes; stamp rotated on logout; DoD 2 adds "a logged-out cookie answers `401`"; a `revoke-sessions` command that rotates the stamp, audited. Split: `security.md` FR-3.4's "immediately" is reworded to "within the validation interval", the cost D4 accepted. |
+| `C3-6` | **FIX** | Step 2: `Strict`, `Always`, `HttpOnly` and `__Host-` names on every Identity cookie; one test over every `Set-Cookie`, asserted on the server-seen header. |
+| `C3-7` | **FIX** | Step 3, reduced per "What the rulings leave open" (1): one global window limiter on the anonymous auth endpoints, `429` with `Retry-After`, never keyed by address. Split: the concurrency limiter, the hash budget and the hasher-not-invoked test are **CUT** with D7; G-1 and G-2 go with them. |
+| `C3-8` | **FIX** | Step 2: `Lockout.AllowedForNewUsers = false`. Test: after N failed attempts the passkey still signs in. |
+| `C3-9` | **FIX** | Step 7: `.DisableForwardedHeaders()` on `api` in `AppHost.cs`; a published-stack check that a forged `X-Forwarded-For` is not what `audit_event` records. |
+| `C3-10` | **FIX** | Step 2: `ServerDomain = "localhost"` with a test on `rp.id`; UV required, written down; the passkey E2E also runs through the Vite proxy (G-5). The host list is D8. |
+| `C3-11` | **FIX** | Per D3: the key ring on a named volume (decided step 2, built step 7); `SetApplicationName`; DoD 3 asserts a session survives `docker compose restart api`; `security.md` says the key ring is plaintext on the host. |
+| `C3-12` | **FIX** | Step 2: `FallbackPolicy` plus `AllowAnonymous`; `.DisableCookieRedirect()`; DoD 2 reworded to an explicit allow-list of route names asserted by request over `EndpointDataSource` in Production and Development, naming the health path. |
+| `C3-13` | **FIX** | Per D11, with the helper of "What the rulings leave open" (2). One `AuthFixture`; auth tests in `tests/Integration`; `CrossSiteWriteTests` re-pinned with the reason. |
+| `C3-14` | **CUT** | D9: no dev-server CSP. The slice documents why (the API's headers never reach a script tag under Vite; the dev page holds invented data). G-10 goes with it. |
+| `C3-15` | **FIX** | Step 4: `autocomplete="username"`, and `one-time-code` on the setup field. The password tokens are cut with D7. |
+| `C3-16` | **FIX** | Step 2 per D10 (a): 7 days, renewed on use, said on the login page. |
+| `C3-17` | **FIX** | Step 4: one 401 handler; `App` kept mounted; the sign-in `<dialog>` over the page (D15); the token refetched after re-login; an antiforgery `400` retried once, then sign-in; a refused write not replayed. |
+| `C3-18` | **FIX** | Step 4: the per-outcome texts and focus, with "or sign in with your password" dropped (D7); the `127.0.0.1` warning before the ceremony (D8). |
+| `C3-19` | **FIX** | Steps 3–4, with the limiter of C3-7: the `429` title and a static "try again after" time. |
+| `C3-20` | **FIX** | DoD 6 and 7 reworded before step 7: axe in both colour schemes on each view; focus and text asserted for passkey success, failure, pending, throttle, expiry, re-login and sign-out; separate CSP and axe contexts if G-29 needs `BypassCSP`. |
+| `C3-21` | **FIX** | Step 3: the antiforgery cookie stays non-`Secure` over HTTP, stated in the slice and in `security.md`. |
+| `C3-22` | **FIX** | Steps 3–4: the token endpoint requires a session; the page fetches the token after every sign-in and holds it in memory; `HeaderName` set explicitly. |
+| `C3-23` | **FIX** | Step 2: `ValidateOrigin` names exactly the app's origins; DoD 4 includes a passkey login from another `localhost` port. |
+| `C3-24` | **DEFER** | Per D6. Trigger: real data, or anything other than this app reaching the database. The wording half is **FIX** at step 1: DoD 7 and `security.md` say the trigger refuses the application's code paths, not the connecting role (G-7 stays open and is named). |
+| `C3-25` | **CUT** | D7: no password, so no password policy. |
+| `C3-26` | **FIX** | Step 5: the TST-5 capture recipe at `Trace`, with canaries for the setup code, a passkey assertion, the session cookie and the antiforgery token; every field of every anonymous endpoint injected; run in Production configuration. Split: the redaction filter as code is **DEFER** per the middle cut, trigger: the test goes red. |
+| `C3-27` | **FIX** | Step 5: the contract test over the committed OpenAPI document (no credential-named schema property). Split: the data-mutation audit is **DEFER** per D17, an obligations row, trigger: real data. |
+| `C3-28` | **FIX** | Step 7 per D16: the built-bundle E2E with a CSP-violation oracle, functional assertions before axe. |
+| `C3-29` | **FIX** | Step 6: the hook test with its clean twin; the `python` fallback in the hook; the CI scan named as the backstop in DoD 8. |
+| `C3-30` | **FIX** | Per D13: an assessment line per E2E-backed DoD item; the published half of DoD 3 recorded "by hand, date, commit". |
+| `C3-31` | **FIX** | DoD 4: the Blob-typed `no-cors` POST and the `text/plain` cors POST added to the attack page. |
+| `C3-32` | **FIX** | Step 1 and step 7: `audit_event.actor` as a value, not a foreign key; a `reset-owner` command, audited and tested; it is D7's recovery path ("What the rulings leave open" (3)). Split: "keep the password fallback reachable" is **CUT** with D7. |
+| `C3-33` | **CUT** | Dissolves: with D7 there is no password hash, and with D4 no session rows; what a dump still holds (public keys, audit rows) is folded into D5's owed backup command. |
+| `C3-34` | **FIX** | Step 2: `AuthenticatorTimeout` 10 minutes, citing WebAuthn §15.1; no ceremony on page load. |
+| `C3-35` | **CUT** | D7: the password form's UI. |
+| `C3-36` | **FIX** | Step 4 per D15: a `Sign out` button that POSTs under the token, then `location.assign('/')`; the login view says "You are signed out"; the Identity and antiforgery cookies cleared. |
+| `C3-37` | **FIX** | Step 4: `document.title` per view; the `<h1>` takes focus on a view change after a user action. |
+| `C3-38` | **FIX** | Step 3: `Permissions-Policy` denies all except `publickey-credentials-get=(self)` and `publickey-credentials-create=(self)`. |
+| `C3-39` | **FIX** | Step 2: the replay model written down, and the challenge cookie given the C3-6 treatment. A per-credential nonce store is **DEFER**, trigger: G-8 shows platform passkeys report `signCount = 0`. |
+| `C3-40` | **FIX** | Step 3: the headers middleware first, asserted on every status; `SuppressXFrameOptionsHeader`; HSTS dropped from the header list and asserted absent (D1). |
+| `C3-41` | **FIX** | Step 3: no CORS registered; the `Origin` and `OPTIONS` test; `security.md` "CORS" corrected. "CORS" as a build item is **CUT** per the middle cut. |
+| `C3-42` | **FIX** | Covered by C3-6 (`__Host-` names) and C3-36 (POST logout); no extra work. |
+| `C3-43` | **FIX** | Step 5: bounded by C3-7's limiter, and said so. |
+| `C3-44` | **DEFER** | With one method (the passkey) the method is known. Trigger: D7's trigger, when the fallback is built. |
+| `C3-45` | **CUT** | D7: no custom hasher. G-16 and G-17 go with it. |
+| `C3-46` | **CUT** | D7: Geralt is not taken, so the platform has no native dependency. The .NET lockfile gap stays recorded under `security.md` "Supply chain". |
+| `C3-47` | **FIX** | Step 4: one E2E case telling "no cookie sent" from "ticket expired". |
+| `C3-48` | **DEFER** | Trigger: the first pure security type lands outside a measured project (the redaction filter, if C3-26's test goes red). |
+| `C3-49` | **FIX** | Per D14: DoD 3 says passkey E2E is Chromium-only by tooling; claim 3 restated from the 2026-10-21 run. |
+| `C3-50` | **FIX** | Step 4: the login screen's environment label, which `environments.md` requires before authentication. Split: a compose healthcheck is **DEFER**, trigger: the API leaves loopback, or a restart loop is ever observed. |
+| `C3-51` | **FIX** | Step 4: the dialog styled with the AA tokens; "Waiting for your passkey…" as text; `aria-disabled` styled by colour, not opacity. The banner half is **CUT** with D10 (a). |
+| `C3-52` | **FIX** | Step 4: the passkey button hidden where unsupported, with "This browser cannot use passkeys here." Under D7 that browser cannot sign in at all, and the page says so. |
+| `C3-53` | **FIX** | Step 1 design note: enrolment is setup code → username → passkey → done, each step a view with its focus rule. |
+
+Where a split finding has a DEFER half, the trigger is in the row; the count above uses the governing disposition only.
+
+### Gates under the rulings
+
+**Moot, not run:** G-1 and G-2 (no hash: D7); G-10 (no dev CSP: D9); G-16 and G-17 (no hasher: D7); G-18 and G-23 (no E2E in CI: D13); G-3 (no limiter is keyed by address: C3-7); G-4 (moot once `ServerDomain` is pinned: C3-10). **G-13** stays as written: a sentence in Spike I's result. **Open and still owed at their step:** G-5 (the one load-bearing claim nobody has run: the passkey through the Vite proxy) and G-6 in step 0 or step 1; G-7 (named in DoD 7 per D6); G-8 (decides C3-39's DEFER); G-9, G-11, G-12, G-14, G-15, G-19 through G-22, and G-24 through G-30 at the step their row names.
 
 
 ## Axis 2 — scope, buildability, teaching value
