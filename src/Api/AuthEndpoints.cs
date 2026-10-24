@@ -82,8 +82,10 @@ static class AuthEndpoints
             // throws, which would otherwise be a 500.
             return TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest, title: ProblemTitles.NoCeremony);
         }
+        // No detail: Identity's failure message can echo what the client sent ("got '<type>'"), and a
+        // secret pasted into the wrong field must not come back in an error body (DoD 7, step 5).
         if (!attested.Succeeded)
-            return TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest, title: ProblemTitles.PasskeyRefused, detail: attested.Failure.Message);
+            return TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest, title: ProblemTitles.PasskeyRefused);
 
         var user = new IdentityUser { Id = attested.UserEntity.Id, UserName = attested.UserEntity.Name };
         var spent = SetupCode.Sha256Hex(request.SetupCode);
@@ -114,7 +116,7 @@ static class AuthEndpoints
             case null: break;
             case ProblemTitles.AlreadyEnrolled: return TypedResults.Problem(statusCode: StatusCodes.Status409Conflict, title: ProblemTitles.AlreadyEnrolled);
             case ProblemTitles.SetupCodeRefused: return TypedResults.Problem(statusCode: StatusCodes.Status403Forbidden, title: ProblemTitles.SetupCodeRefused);
-            default: return TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Enrolment refused", detail: outcome);
+            default: return TypedResults.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Enrolment refused");
         }
 
         await signIn.SignInAsync(user, isPersistent: true);
@@ -147,7 +149,7 @@ static class AuthEndpoints
             // [SOURCE@dotnet/aspnetcore@v10.0.13 src/Identity/Core/src/PasskeyHandler.cs:404-468].
             var unknown = asserted.Failure.Message.Contains("does not belong to the specified user", StringComparison.Ordinal);
             return TypedResults.Problem(statusCode: StatusCodes.Status401Unauthorized,
-                title: unknown ? ProblemTitles.NotRegisteredHere : ProblemTitles.PasskeyRefused, detail: asserted.Failure.Message);
+                title: unknown ? ProblemTitles.NotRegisteredHere : ProblemTitles.PasskeyRefused);
         }
 
         // As PasskeySignInAsync does: store the new sign count, then sign in.
