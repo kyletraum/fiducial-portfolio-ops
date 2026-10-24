@@ -16,7 +16,7 @@ public class TimeZoneTests(AppFixture fixture) : IClassFixture<AppFixture>
     const string Chicago = "America/Chicago";
 
     Task<IBrowserContext> ContextAsync(string zone) =>
-        fixture.Browser.NewContextAsync(new() { BaseURL = fixture.WebUrl.ToString(), TimezoneId = zone, Locale = "en-US" });
+        fixture.NewSignedInContextAsync(new() { TimezoneId = zone, Locale = "en-US" });
 
     [Theory]
     // 23:30 local on the evening BEFORE the US change (CDT, UTC-5) - already 1 Nov in UTC -
@@ -57,9 +57,8 @@ public class TimeZoneTests(AppFixture fixture) : IClassFixture<AppFixture>
     [Fact]
     public async Task An_import_time_is_shown_in_the_viewers_zone_with_the_zone_named()
     {
-        using var api = new HttpClient { BaseAddress = fixture.ApiUrl };
-        var run = await (await api.PostAsync("/api/v1/imports?fileName=tz.csv",
-            new StringContent("x", null, "text/csv"), Ct)).Content.ReadFromJsonAsync<JsonElement>(Ct);
+        await using var api = await fixture.ApiAsync();
+        var run = await api.PostAsync("/api/v1/imports?fileName=tz.csv", "text/csv", "x");
         var started = run.GetProperty("startedAt").GetDateTimeOffset();
         // .NET on Windows resolves the IANA id through ICU, as the browser does.
         var local = TimeZoneInfo.ConvertTime(started, TimeZoneInfo.FindSystemTimeZoneById(Chicago));
@@ -83,12 +82,12 @@ public class TimeZoneTests(AppFixture fixture) : IClassFixture<AppFixture>
     [InlineData("Pacific/Pago_Pago")]  // UTC-11: ...and as the 14th here. Neither may happen.
     public async Task A_calendar_date_is_shown_as_written_in_every_zone(string zone)
     {
-        using var api = new HttpClient { BaseAddress = fixture.ApiUrl };
+        await using var api = await fixture.ApiAsync();
         var name = $"Dated {zone}";
-        var created = await (await api.PostAsJsonAsync("/api/v1/accounts",
-            new { institutionName = "Example Bank", displayName = name, openedOn = "2026-01-01" }, Ct)).Content.ReadFromJsonAsync<JsonElement>(Ct);
-        (await api.PostAsJsonAsync($"/api/v1/accounts/{created.GetProperty("id").GetGuid()}/balances",
-            new { asOfDate = "2026-10-15", balance = "1" }, Ct)).EnsureSuccessStatusCode();
+        var created = await api.PostJsonAsync("/api/v1/accounts",
+            new { institutionName = "Example Bank", displayName = name, openedOn = "2026-01-01" });
+        await api.PostJsonAsync($"/api/v1/accounts/{created.GetProperty("id").GetGuid()}/balances",
+            new { asOfDate = "2026-10-15", balance = "1" });
 
         var context = await ContextAsync(zone);
         var page = await context.NewPageAsync();

@@ -22,7 +22,7 @@ public class ImportAFileTests(AppFixture fixture) : IClassFixture<AppFixture>
     [Fact]
     public async Task A_file_imported_in_the_browser_appears_in_the_chart_and_importing_it_again_changes_nothing()
     {
-        var context = await fixture.Browser.NewContextAsync(new() { BaseURL = fixture.WebUrl.ToString() });
+        var context = await fixture.NewSignedInContextAsync();
         var page = await context.NewPageAsync();
         await page.GotoAsync("/");
         await Assertions.Expect(page.GetByText("API: reachable")).ToBeVisibleAsync();

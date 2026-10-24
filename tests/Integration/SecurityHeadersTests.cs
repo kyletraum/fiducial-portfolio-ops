@@ -22,28 +22,35 @@ public class SecurityHeadersTests
             b.UseEnvironment("Production")
              // Nothing listens on port 1. Aspire's retrying strategy is off so the 500 is immediate.
              .UseSetting("ConnectionStrings:portfolio", "Host=localhost;Port=1;Timeout=2")
-             .UseSetting("Aspire:Npgsql:EntityFrameworkCore:PostgreSQL:DisableRetry", "true");
+             .UseSetting("Aspire:Npgsql:EntityFrameworkCore:PostgreSQL:DisableRetry", "true")
+             // Signed in where a row asks: since step 4 an anonymous request is 401 before anything
+             // else runs, so the other statuses need a session to be reached.
+             .WithTestAuth();
             if (webRoot is not null)
                 b.UseSetting(WebHostDefaults.WebRootKey, webRoot);
         });
 
-    public static TheoryData<HttpStatusCode, string, string, string?, string?> Producers => new()
+    /// <summary>Each status the Api produces, and a request that produces it (round 2 TST-10).</summary>
+    public static TheoryData<HttpStatusCode, string, string, string?, string?, bool> Producers => new()
     {
-        { HttpStatusCode.OK, "GET", "/api/v1/system/health", null, null },
-        { HttpStatusCode.BadRequest, "POST", "/api/v1/accounts", "application/json", "{" },
-        { HttpStatusCode.Unauthorized, "GET", "/api/v1/auth/session", null, null },
-        { HttpStatusCode.Forbidden, "POST", "/api/v1/accounts", "application/json", "same-site" }, // layer 2
-        { HttpStatusCode.NotFound, "GET", "/api/v1/no-such-route", null, null },
-        { HttpStatusCode.UnsupportedMediaType, "POST", "/api/v1/imports", "text/plain", "a,b" },
-        { HttpStatusCode.InternalServerError, "GET", "/api/v1/accounts", null, null },
+        { HttpStatusCode.OK, "GET", "/api/v1/system/health", null, null, false },
+        { HttpStatusCode.BadRequest, "POST", "/api/v1/accounts", "application/json", "{", true }, // binding fails first
+        { HttpStatusCode.Unauthorized, "GET", "/api/v1/accounts", null, null, false },
+        { HttpStatusCode.Forbidden, "POST", "/api/v1/accounts", "application/json", "same-site", true }, // layer 2
+        { HttpStatusCode.Forbidden, "POST", "/api/v1/accounts", "application/json", "{}", true }, // no CSRF token
+        { HttpStatusCode.NotFound, "GET", "/api/v1/no-such-route", null, null, true },
+        { HttpStatusCode.UnsupportedMediaType, "POST", "/api/v1/imports", "text/plain", "a,b", true },
+        { HttpStatusCode.InternalServerError, "GET", "/api/v1/accounts", null, null, true },
     };
 
     [Theory]
     [MemberData(nameof(Producers))]
-    public async Task Every_status_carries_the_security_headers(HttpStatusCode status, string method, string path, string? type, string? body)
+    public async Task Every_status_carries_the_security_headers(HttpStatusCode status, string method, string path, string? type, string? body, bool signedIn)
     {
         await using var api = Api();
         using var request = new HttpRequestMessage(new HttpMethod(method), path);
+        if (signedIn)
+            request.Headers.Add(TestAuth.Header, "owner");
         if (body == "same-site")
         {
             request.Headers.Add("Sec-Fetch-Site", "same-site");

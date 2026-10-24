@@ -14,7 +14,7 @@ public class EnterABalanceTests(AppFixture fixture) : IClassFixture<AppFixture>
     [Fact]
     public async Task A_balance_entered_in_the_browser_appears_in_the_chart()
     {
-        var context = await fixture.Browser.NewContextAsync(new() { BaseURL = fixture.WebUrl.ToString() });
+        var context = await fixture.NewSignedInContextAsync();
         var page = await context.NewPageAsync();
         var today = DateTime.Now.ToString("yyyy-MM-dd");
         var opened = DateTime.Now.AddDays(-30).ToString("yyyy-MM-dd");

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Portfolio.Infrastructure;
@@ -6,8 +7,8 @@ using Portfolio.Infrastructure;
 namespace Portfolio.Api;
 
 /// <summary>
-/// Slice 03 step 2: Identity with passkeys, configured as slice-03.md specifies. Registered here;
-/// the session requirement (FallbackPolicy) and the CSRF filter's enforcement go on in step 4.
+/// Slice 03 steps 2 and 4: Identity with passkeys, configured as slice-03.md specifies, and the
+/// session requirement on every endpoint.
 /// </summary>
 static class AuthServices
 {
@@ -32,7 +33,9 @@ static class AuthServices
         var services = builder.Services;
 
         services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
-        services.AddAuthorization();
+        // Step 4, the switch (D11): every endpoint requires a session unless it says AllowAnonymous.
+        // Static files are served before authorization, so the page itself is not covered (step 3).
+        services.AddAuthorization(o => o.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
         services.AddIdentityCore<IdentityUser>(o =>
             {
                 // C3-8, restated by SRC-11: no passkey failure is counted today, but passkey sign-in

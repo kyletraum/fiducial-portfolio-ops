@@ -18,10 +18,12 @@ static class Endpoints
 
     public static void MapPortfolioApi(this WebApplication app)
     {
-        var v1 = app.MapGroup("/api/v1");
+        // Step 4 (D11): every unsafe request under /api/v1 carries a CSRF token, but for the anonymous
+        // ceremonies, which are marked exempt (R1).
+        var v1 = app.MapGroup("/api/v1").RequireCsrfToken();
 
         v1.MapGet("/system/health", () => TypedResults.Ok(new HealthResponse("ok")))
-            .WithName("GetHealth");
+            .WithName("GetHealth").AllowAnonymous();
 
         var accounts = v1.MapGroup("/accounts").WithTags("Accounts");
         accounts.MapGet("/", ListAccounts).WithName("ListAccounts");
