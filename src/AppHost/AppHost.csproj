@@ -28,12 +28,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.Docker" Version="13.6.1" />
+    <PackageReference Include="Aspire.Hosting.Docker" Version="13.6.4" />
     <!-- Lifts a TRANSITIVE dependency of Aspire.Hosting 13.6.1 (directly and via StreamJsonRpc)
          past GHSA-qhrr-8q5h-9q3h (fixed in 2.5.303; 2.5.307 is the latest 2.5.x). Remove once
          Aspire itself depends on >= 2.5.303. -->
     <PackageReference Include="MessagePack" Version="2.5.307" />
-    <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.6.1" />
-    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.6.1" />
+    <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.6.4" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.6.4" />
   </ItemGroup>
 </Project>
