@@ -10,9 +10,9 @@ namespace Portfolio.E2E;
 /// </summary>
 public class AuthBrowserTests(AppFixture fixture) : IClassFixture<AppFixture>
 {
-    async Task<(IBrowserContext Context, IPage Page)> SignInPageAsync(string? initScript = null, bool passkey = true)
+    async Task<(IBrowserContext Context, IPage Page)> SignInPageAsync(string? initScript = null, bool passkey = true, ColorScheme scheme = ColorScheme.Light)
     {
-        var context = await fixture.Browser.NewContextAsync(new() { BaseURL = fixture.WebUrl.ToString() });
+        var context = await fixture.Browser.NewContextAsync(new() { BaseURL = fixture.WebUrl.ToString(), ColorScheme = scheme });
         var page = await context.NewPageAsync();
         if (initScript is not null) await page.AddInitScriptAsync(initScript);
         if (passkey) await fixture.OwnersPasskeyAsync(context, page);
@@ -169,5 +169,42 @@ public class AuthBrowserTests(AppFixture fixture) : IClassFixture<AppFixture>
         await Expect(add.GetByRole(AriaRole.Status)).ToContainTextAsync("Added");
         await a.CloseAsync();
         await b.CloseAsync();
+    }
+
+    [Theory]
+    [InlineData(ColorScheme.Light)]
+    [InlineData(ColorScheme.Dark)]
+    public async Task Every_view_the_slice_adds_passes_axe_in_both_colour_schemes(ColorScheme scheme)
+    {
+        // DoD 6. The set-up view is checked in SetUpBrowserTests, the only stack with no owner yet.
+        var (context, page) = await SignInPageAsync(scheme: scheme);
+        await Axe.AssertCleanAsync(page, $"sign-in ({scheme})");
+
+        // The throttled state, with DoD 5's static "try again after" time (C3-19).
+        await page.RouteAsync("**/api/v1/auth/sign-in/options", route => route.FulfillAsync(new()
+        {
+            Status = 429,
+            ContentType = "application/problem+json",
+            Headers = new Dictionary<string, string> { ["Retry-After"] = "60" },
+            Body = """{"title":"Too many sign-in attempts. Try again in about a minute.","status":429}""",
+        }));
+        await PasskeyButton(page).ClickAsync();
+        await Expect(page.GetByRole(AriaRole.Alert)).ToContainTextAsync("Too many sign-in attempts");
+        await Expect(page.GetByRole(AriaRole.Alert)).ToContainTextAsync("You can try again after");
+        await Axe.AssertCleanAsync(page, $"throttled ({scheme})");
+        await page.UnrouteAsync("**/api/v1/auth/sign-in/options");
+
+        await SignInAsync(page);
+        await Axe.AssertCleanAsync(page, $"signed in ({scheme})");
+
+        // The expiry dialog, open over the page.
+        await context.ClearCookiesAsync();
+        var add = page.GetByRole(AriaRole.Form, new() { Name = "Add an account" });
+        await add.GetByLabel("Institution").FillAsync("Example Bank");
+        await add.GetByLabel("Account name").FillAsync("Axe");
+        await add.GetByRole(AriaRole.Button, new() { Name = "Add account" }).ClickAsync();
+        await Expect(page.GetByRole(AriaRole.Dialog, new() { Name = "Signed out" })).ToBeVisibleAsync();
+        await Axe.AssertCleanAsync(page, $"expiry dialog ({scheme})");
+        await context.CloseAsync();
     }
 }

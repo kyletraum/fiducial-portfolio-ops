@@ -67,6 +67,10 @@ public class AppFixture : IAsyncLifetime
 
         playwright = await Playwright.CreateAsync();
         Browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
+        // Every class starts its own whole stack, in parallel, so under a full run a passkey ceremony
+        // or a first load can outlast Playwright's 5-second default (two such flakes in slice 03 step 7,
+        // each passing alone). An assertion still fails; it waits longer before it does.
+        Assertions.SetDefaultExpectTimeout(15_000);
         if (EnrolOwner) await EnrolAsync();
     }
 

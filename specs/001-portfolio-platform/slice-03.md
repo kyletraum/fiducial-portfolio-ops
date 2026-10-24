@@ -992,6 +992,65 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
    >   - the logs.
    > - **Part b** is the published-stack run and DoD 6's checks.
 
+   > **BUILT 2026-10-24, part b: DoD 6, DoD 5's page half, and the published stack.**
+   > - **DoD 6, axe** in both colour schemes, in the dev E2E:
+   >   - the sign-in view, the throttled state, the signed-in page and the expiry dialog
+   >     (`AuthBrowserTests`);
+   >   - the set-up view (`SetUpBrowserTests`, while no owner exists yet).
+   >
+   >   All clean.
+   > - **DoD 5's page half:** a `429` now reads "… You can try again after HH:MM.", worked
+   >   out once from `Retry-After`, never a countdown.
+   > - **The E2E's default assertion timeout is now 15 seconds.** Two load flakes needed it,
+   >   each passing alone.
+   > - **`PublishedStackTests`** runs by hand against a deployed stack, and is skipped
+   >   otherwise (`D13`, `D16`).
+   >
+   > **The published run** [`EXECUTED 2026-10-24`, of the tree this commit records (the images were built from it),
+   > Windows, Docker Desktop, Chromium 1.63]:
+   > - **The deploy** applied migration 5 to the existing volume
+   >   `aspire-compose-075c33a6_portfolio-dev-pgdata` (invented data), and created
+   >   `aspire-compose-075c33a6_portfolio-dev-keys`.
+   > - **The built bundle under its CSP** (`PublishedStackTests`, in a context with no
+   >   `BypassCSP`):
+   >   - the document's CSP exactly equals the published string, the rest of the set is
+   >     present, and there is no HSTS;
+   >   - a deliberate inline script registered exactly one violation, the positive control;
+   >   - set-up through the page, an account, a balance and the chart, with no further
+   >     violations;
+   >   - axe clean in light and dark. **`G-29` raised:** no `BypassCSP` was needed;
+   >   - sign-out, then a passkey sign-in on port 8080. **`G-12` raised.**
+   > - **By hand:**
+   >   - `curl` shows the headers on `/`, with no `Strict-Transport-Security`;
+   >   - a slice-02 import through the session and token answered `201`;
+   >   - **the session survived `docker compose restart api`** (`200` before and after), so
+   >     the key ring is on its volume (DoD 3);
+   >   - a refused sign-in carrying `X-Forwarded-For: 203.0.113.9` was audited at the real
+   >     address, `::ffff:172.18.0.1`, the bridge gateway (`C3-9`). **`G-3` raised:** every
+   >     request from the host arrives from that one address;
+   >   - `docker compose … run --rm api revoke-sessions` printed its line, exited 0 and left
+   >     no container, and the saved session was then refused.
+   > - **Gates:**
+   >   - **`G-26` raised.** Over three deploys, `POSTGRES_PASSWORD` was unchanged and the
+   >     Migrator connected to the volume it initialised.
+   >   - **`G-27` raised.** The API's log driver is `local`.
+   >   - **`G-11` partly raised.** Port 8080 refuses on this machine's LAN address
+   >     (`192.168.87.248`) and answers on `127.0.0.1`. **A probe from a second LAN host is
+   >     still owed.**
+   > - **Found:**
+   >   - **The deploy keeps its setup code.** `aspire deploy` holds generated parameters in
+   >     its deployment state, `~/.aspire/deployments/<hash>/`. The current state is in
+   >     `production.json.migration`; `production.json` is a legacy fallback. So every
+   >     deploy writes the same code, and neither deleting it from `production.json` and
+   >     `.env.Production` nor passing `Parameters__setup-code` changed it.
+   >   - **The route that works,** now in the runbook: put a new `SETUP_CODE` in
+   >     `.env.<Environment>`, then `docker compose … up -d api`. The new code reached the
+   >     container. Never use `--clear-cache` on a stack with data: it regenerates the
+   >     database password too.
+   > - **Not run on the published stack:** `reset-owner`. It is shown in-process and as a
+   >   process in Integration, and on the published stack it would leave no owner and need
+   >   a fresh code.
+
 
 1. Spike H has run. Spike I's remainder (`G-5`) and Spike J run; `G-12` runs in step 7.
    Their claims are restated at `EXECUTED`, or replaced by what was found. Spike K is cut
