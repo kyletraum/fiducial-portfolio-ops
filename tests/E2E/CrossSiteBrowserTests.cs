@@ -50,8 +50,10 @@ public class CrossSiteBrowserTests(AppFixture fixture) : IClassFixture<AppFixtur
               { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"asOfDate":"2026-10-15","balance":"1"}' }));
             // no-cors cannot carry a non-safelisted Content-Type: the browser drops it and sends
             // text/plain - no preflight, so this one ARRIVES, and the API must refuse it.
+            // credentials: 'include' (slice 03): fetch's default sends no cookie cross-origin, and the
+            // attack worth refusing is the one that carries the session.
             await run('nocors', () => fetch('{{target}}/api/v1/imports?fileName=nocors.csv',
-              { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/csv' }, body: {{JsonSerializer.Serialize(Csv)}} }));
+              { method: 'POST', mode: 'no-cors', credentials: 'include', headers: { 'Content-Type': 'text/csv' }, body: {{JsonSerializer.Serialize(Csv)}} }));
             document.getElementById('form').submit();
             return out;
           };
@@ -86,6 +88,7 @@ public class CrossSiteBrowserTests(AppFixture fixture) : IClassFixture<AppFixtur
         context.Request += (_, r) => { if (r.Url.StartsWith(target)) lock (seen) seen.Add(new(r.Method, r.Url, null, "requested")); };
 
         var page = await context.NewPageAsync();
+        var mark = fixture.ApiLogMark;
         await page.GotoAsync($"http://{attackerHost}:{site.Port}/");
         // A string, parsed here: binding a JS object straight to a Dictionary came back empty.
         var outcome = JsonSerializer.Deserialize<Dictionary<string, string>>(
@@ -112,6 +115,18 @@ public class CrossSiteBrowserTests(AppFixture fixture) : IClassFixture<AppFixtur
             Assert.True(seen.Any(s => s.Url.Contains("fileName=form.csv") && s.Status == 403), Report());
             Assert.True(seen.Any(s => s.Url.Contains("fileName=nocors.csv") && s.Status == 403), Report());
         }
+
+        // slice 03, DoD 4: WHICH layer refused, and whether the session cookie arrived, read from the
+        // API's own record. A browser test sees only the status of a response its page cannot read,
+        // and Playwright reports no Cookie on such a request (Spike J, EXECUTED). From another port of
+        // localhost the Strict cookie is sent (same site); from attacker.localhost it is not.
+        var sameSite = attackerHost == "localhost";
+        var expected = $"Refused by cross-site: POST /api/v1/imports Sec-Fetch-Site={(sameSite ? "same-site" : "cross-site")} session-cookie={(sameSite ? "arrived" : "absent")}";
+        // The two writes that reach the API: the form post and the no-cors fetch. (A preflight's OPTIONS
+        // is refused too, for having no session, and grants no CORS either way.)
+        var refusals = await fixture.RefusalsSinceAsync(mark, l => l.Contains(": POST /api/v1/imports ", StringComparison.Ordinal), atLeast: 2);
+        Assert.True(refusals.Count >= 2 && refusals.All(l => l.Contains(expected, StringComparison.Ordinal)),
+            $"expected two lines of: {expected}{Environment.NewLine}found:{Environment.NewLine}{string.Join(Environment.NewLine, refusals)}");
 
         // And nothing was written, whatever the browser did.
         Assert.Equal(before, await WrittenAsync(api, account));

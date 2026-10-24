@@ -50,6 +50,7 @@ public static class CsrfTokens
             }
             catch (AntiforgeryValidationException)
             {
+                Refusals.Log(http, Refusals.CsrfToken);
                 return TypedResults.Problem(statusCode: StatusCodes.Status403Forbidden, title: ProblemTitles.CsrfTokenRefused);
             }
             return await next(context);

@@ -946,7 +946,52 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
      - `G-11` (`127.0.0.1` publishes, probed from the LAN) and `G-26` (the Postgres
        password stable across deploys) are raised here.
 
-## Definition of done
+   > **BUILT 2026-10-24, part a: the app model, the commands, the runbook, DoD 4's browser half.**
+   > - **Forwarded headers:** `.DisableForwardedHeaders()` on `api`. The published compose
+   >   file no longer carries `ASPNETCORE_FORWARDEDHEADERS_ENABLED`.
+   > - **The key ring:**
+   >   - in publish mode, a `ContainerMountAnnotation` mounts the named volume
+   >     `portfolio-dev-keys` **at `/home/app`**, and `DataProtection__KeyPath` is
+   >     `/home/app/keys`;
+   >   - the compose file declares the volume at the top level, and `docker compose config`
+   >     accepts it.
+   >
+   >   [`EXECUTED 2026-10-24`: `aspire publish`; `docker compose config`; `docker run`
+   >   against `api:latest`, where a fresh volume at `/home/app` is owned by UID 1654 and the
+   >   key directory is writable]
+   > - **The commands:**
+   >   - `OwnerCommands` is a service with `revoke-sessions` (rotate every stamp) and
+   >     `reset-owner` (delete the owner and their passkeys);
+   >   - each writes its audit event, so all six audit kinds are now asserted;
+   >   - `Program.cs` runs one and exits, before `app.Run()`.
+   >
+   >   `OwnerCommandsTests` show it: a copied cookie is refused after `revoke-sessions`;
+   >   after `reset-owner`, enrolment is open, the old code is refused and a fresh one
+   >   enrols; with no owner, nothing happens; and the built `Api.dll` runs a command and
+   >   exits without serving.
+   > - **DoD 4's browser half** (moved here from step 4):
+   >   - each refusing layer writes one line, `Refused by <layer>: <method> <path>
+   >     Sec-Fetch-Site=<v> session-cookie=<arrived|absent>`, with no query string and no
+   >     cookie value (`RefusalLogTests`);
+   >   - the E2E fixture follows the API's console through `ResourceLoggerService`.
+   >     **`G-21` raised:** watch by `IResource`, since watching by name follows nothing
+   >     when the id carries a replica suffix;
+   >   - `CrossSiteBrowserTests` assert `cross-site` with the cookie **arrived** from
+   >     another `localhost` port, and **absent** from `attacker.localhost`, through both
+   >     the API and the Vite proxy.
+   >
+   >   **Found:** the attack page's `no-cors` fetch sent no cookie at all, because
+   >   `fetch` defaults to `credentials: 'same-origin'`. It now asks for `include`, so the
+   >   attack refused is the one that carries the session.
+   > - **The runbook** is in the README, under "Signing in" and "Recovering". It covers:
+   >   - where the setup code is;
+   >   - what survives a restart, and what `down -v` destroys;
+   >   - the project name;
+   >   - both commands;
+   >   - that a fresh code is needed after a reset;
+   >   - the logs.
+   > - **Part b** is the published-stack run and DoD 6's checks.
+
 
 1. Spike H has run. Spike I's remainder (`G-5`) and Spike J run; `G-12` runs in step 7.
    Their claims are restated at `EXECUTED`, or replaced by what was found. Spike K is cut

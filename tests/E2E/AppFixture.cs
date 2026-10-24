@@ -2,6 +2,7 @@ using System.Text.Json;
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
 
 namespace Portfolio.E2E;
@@ -22,6 +23,8 @@ public class AppFixture : IAsyncLifetime
 
     DistributedApplication? app;
     IPlaywright? playwright;
+    readonly CancellationTokenSource stopping = new();
+    readonly List<string> apiLog = [];
     string storageState = "";
     JsonElement credential;
     int nextSignCount;
@@ -59,6 +62,8 @@ public class AppFixture : IAsyncLifetime
         WebUrl = app.GetEndpoint("web", "http");
         ApiUrl = app.GetEndpoint("api", "http");
         await WaitUntilServingAsync(WebUrl, timeout.Token);
+        _ = FollowApiLogAsync(app.Services.GetRequiredService<ResourceLoggerService>(),
+            app.Services.GetRequiredService<DistributedApplicationModel>().Resources.Single(r => r.Name == "api"));
 
         playwright = await Playwright.CreateAsync();
         Browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
@@ -88,6 +93,41 @@ public class AppFixture : IAsyncLifetime
         credential = await authenticator.CredentialAsync();
         nextSignCount = credential.GetProperty("signCount").GetInt32();
         await context.CloseAsync();
+    }
+
+    /// <summary>
+    /// The API's console, line by line, as Aspire captures it (gate G-21). DoD 4 reads from here what a
+    /// browser test cannot see: which layer refused a request, and whether the session cookie arrived.
+    /// </summary>
+    async Task FollowApiLogAsync(ResourceLoggerService logs, IResource api)
+    {
+        try
+        {
+            // By the resource, not its name: a project's resource id can carry a replica suffix, and
+            // WatchAsync("api") then follows nothing (EXECUTED: an empty log while the lines existed).
+            await foreach (var batch in logs.WatchAsync(api).WithCancellation(stopping.Token))
+                lock (apiLog) apiLog.AddRange(batch.Select(l => l.Content));
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    /// <summary>How many API log lines have been seen so far: a mark to read from.</summary>
+    public int ApiLogMark { get { lock (apiLog) return apiLog.Count; } }
+
+    /// <summary>
+    /// The refusal lines written since <paramref name="mark"/> that match, waiting up to ten seconds for
+    /// at least <paramref name="atLeast"/>: the log reaches the test a little after the response does.
+    /// </summary>
+    public async Task<List<string>> RefusalsSinceAsync(int mark, Func<string, bool> match, int atLeast)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (true)
+        {
+            List<string> found;
+            lock (apiLog) found = apiLog.Skip(mark).Where(l => l.Contains("Refused by ", StringComparison.Ordinal) && match(l)).ToList();
+            if (found.Count >= atLeast || DateTime.UtcNow > deadline) return found;
+            await Task.Delay(200);
+        }
     }
 
     /// <summary>A browser context already signed in as the owner.</summary>
@@ -145,6 +185,7 @@ public class AppFixture : IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
+        await stopping.CancelAsync();
         if (Browser is not null) await Browser.DisposeAsync();
         playwright?.Dispose();
         if (app is not null) await app.DisposeAsync();
