@@ -190,12 +190,24 @@ measured on this machine, not copied from a guide.
 > - **Claim 4: the browser half is `EXECUTED`.** The Vite proxy forwards `Origin`
 >   unchanged and rewrites only `Host`. [committee BRW F4]
 >
-> **Still owed, and run here:**
-> - **`G-5`, the one load-bearing claim nobody has run:** register a passkey and sign in
->   through the Vite port, with `ValidateOrigin` set to the app's origins, logging
->   `Request.Headers.Origin` on the options endpoint. It also settles whether the Vite
->   origin is stable across runs (`SRC-12`); the design does not depend on it, because
->   step 2 takes the origins from configuration.
+> **`G-5` RAN: a passkey registers and signs in through the Vite proxy, and the origin
+> check is live.** [`EXECUTED 2026-10-24`, `spikes/spike-i-proxy/RESULTS.md`]
+> - The setup was step 2's configuration: `ServerDomain` pinned, `ValidateOrigin` against
+>   configured origins, `__Host-`/`Strict`/`Secure` cookies, a persistent session, and the
+>   10-minute challenge.
+> - **Through the allowed Vite port:** registration `200`, sign-in `200`, `/me` `200`.
+> - **Refused by `ValidateOrigin`:** a second Vite port's registration (`400`) and sign-in
+>   (`401`), and sign-in on the API's own port (`401`).
+> - The proxy forwards `Origin` unchanged and rewrites `Host`, which the pinned
+>   `ServerDomain` makes harmless.
+> - The session cookie arrived `__Host-`, `Secure`, `Strict`, `HttpOnly`, expiring in
+>   7 days.
+> - **Found:** a refused registration still leaves a passkey in the authenticator. With
+>   Spike H's options endpoint it also left a user row with no passkey, which then masked a
+>   later sign-in. That confirms `C3-3`'s rule that nothing exists before the ceremony
+>   succeeds. Step 4's sign-in text treats "does not belong" as "not registered here".
+> - **Not shown:** whether Aspire's Vite port is stable across runs (`SRC-12`); the design
+>   does not depend on it.
 >
 > `G-12`, the same ceremony against the published port, runs in step 7, where the
 > published stack first exists (round 2, `SCO-10`).
@@ -520,6 +532,9 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
          `location.hostname` is not `localhost`, the page says so before the ceremony.
        - Where passkeys are unsupported, the button is hidden and the page says this
          browser cannot sign in here.
+       - A sign-in refused because the presented passkey is unknown here says so: "This
+         passkey isn't registered with this app." A refused enrolment can leave such a
+         passkey on the device. [`EXECUTED 2026-10-24` Spike I, §3]
      - **The E2E's producers (`TST-15`):**
        - pending: a route that holds the sign-in `POST`;
        - `NotAllowedError`, `SecurityError` and unsupported: init scripts that replace

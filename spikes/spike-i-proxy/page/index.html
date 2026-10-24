@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Spike I</title></head>
+<body>
+<!-- Spike I remainder (G-5). Served by Vite (the dev-server case) and by the API (direct).
+     Every call is a relative /api, as the platform's web client makes them. -->
+<script>
+  async function post(url, body) {
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+    return { status: r.status, text: await r.text() };
+  }
+  window.register = async (userName) => {
+    const opts = await post('/api/passkey/creation-options', JSON.stringify({ userName }));
+    if (opts.status !== 200) return 'creation-options ' + opts.status + ' ' + opts.text;
+    const publicKey = PublicKeyCredential.parseCreationOptionsFromJSON(JSON.parse(opts.text));
+    const cred = await navigator.credentials.create({ publicKey });
+    const r = await post('/api/passkey/register', JSON.stringify(cred.toJSON()));
+    return 'register ' + r.status + ' ' + r.text;
+  };
+  window.login = async () => {
+    const opts = await post('/api/passkey/request-options', '');
+    const publicKey = PublicKeyCredential.parseRequestOptionsFromJSON(JSON.parse(opts.text));
+    const cred = await navigator.credentials.get({ publicKey });
+    const r = await post('/api/passkey/login', JSON.stringify(cred.toJSON()));
+    return 'login ' + r.status + ' ' + r.text;
+  };
+  window.loginDiagnose = async () => {
+    const opts = await post('/api/passkey/request-options', '');
+    const publicKey = PublicKeyCredential.parseRequestOptionsFromJSON(JSON.parse(opts.text));
+    const cred = await navigator.credentials.get({ publicKey });
+    const r = await post('/api/passkey/login-diagnose', JSON.stringify(cred.toJSON()));
+    return 'login-diagnose ' + r.status + ' ' + r.text;
+  };
+  window.me = async () => { const r = await fetch('/api/me'); return 'me ' + r.status + ' ' + await r.text(); };
+</script>
+</body>
+</html>
