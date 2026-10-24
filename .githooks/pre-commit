@@ -5,4 +5,15 @@
 #
 # Installed by scripts/install-hooks.sh (sets core.hooksPath, which is LOCAL
 # config and therefore does not survive a fresh clone -- run the installer).
-exec python3 scripts/hygiene.py --staged
+#
+# The interpreter is chosen by RUNNING it, not by finding it (slice-03.md step 6).
+# On Windows, `python3` is often the Microsoft Store's stub: it is on PATH, and it
+# exits 49 having run nothing, so a presence check picks it and the hook refuses
+# every commit, clean or not.
+for python in python3 python; do
+    if "$python" -c '' >/dev/null 2>&1; then
+        exec "$python" scripts/hygiene.py --staged
+    fi
+done
+echo "pre-commit: no working Python found (tried python3, then python). Install Python 3." >&2
+exit 2

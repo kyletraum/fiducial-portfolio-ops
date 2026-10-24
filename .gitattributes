@@ -14,3 +14,5 @@ web/src/api/schema.d.ts text eol=lf
 # (`set -e` then fails on a stray carriage return). With core.autocrlf=true a Windows
 # checkout would write them CRLF.
 *.sh text eol=lf
+# The pre-commit hook is a shell script with no extension, so the rule above misses it.
+.githooks/* text eol=lf
