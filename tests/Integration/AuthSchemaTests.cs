@@ -21,7 +21,7 @@ public class AuthSchemaTests(PostgresFixture pg) : IClassFixture<PostgresFixture
              WHERE table_schema = 'public' AND table_name LIKE 'identity_user%'
             """);
 
-        Assert.Equal(["identity_user", "identity_user_claim", "identity_user_login", "identity_user_passkey", "identity_user_token"], tables);
+        Assert.Equal(["identity_user", "identity_user_claim", "identity_user_login", "identity_user_passkey", "identity_user_token"], tables ?? []);
     }
 
     [Fact]

@@ -27,8 +27,8 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 builder.Services.AddDbContext<PortfolioDbContext>(options =>
     PortfolioDbContext.Configure(options, builder.Configuration.GetConnectionString("portfolio")));
 builder.EnrichNpgsqlDbContext<PortfolioDbContext>();
-// The context is also Identity's store (slice 03): every host models the same Identity schema.
-PortfolioDbContext.AddIdentitySchema(builder.Services);
+// Slice 03: Identity with passkeys, whose store is the same context (step 1).
+builder.AddPortfolioAuthentication();
 
 var app = builder.Build();
 
@@ -37,6 +37,11 @@ app.UseStatusCodePages();
 
 // Before any endpoint runs: a write marked cross-site or same-site never reaches a handler.
 app.UseCrossSiteWriteRefusal();
+
+// Explicit, so they run here and not ahead of every middleware above, where WebApplication would
+// otherwise insert them (round 2 SRC-1). Step 3 writes the whole order down.
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {

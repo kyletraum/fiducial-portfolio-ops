@@ -87,6 +87,14 @@ var web = builder.AddViteApp("web", "../../web")
 
 api.PublishWithContainerFiles(web, "wwwroot");
 
+// Slice 03 step 2: the origins the Api's passkey check accepts (C3-23). Under `aspire run` the page
+// is the Vite dev server's, on a port Aspire allocates; published, the Api serves the page itself,
+// on the port the compose file publishes on loopback (SRC-12).
+if (builder.ExecutionContext.IsPublishMode)
+    api.WithEnvironment("Auth__AllowedOrigins", ReferenceExpression.Create($"http://localhost:{api.GetEndpoint("http").Property(EndpointProperty.Port)}"));
+else
+    api.WithEnvironment("Auth__AllowedOrigins", web.GetEndpoint("http"));
+
 builder.Build().Run();
 
 // S-34, deferred by slice 01 to "the first slice that runs an ingest batch" - without limits a
