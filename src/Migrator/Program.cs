@@ -16,6 +16,9 @@ builder.Services.AddDbContext<PortfolioDbContext>(options =>
 // Aspire's client integration adds health checks, tracing and a retrying execution strategy
 // to the context registered above, without owning its provider configuration.
 builder.EnrichNpgsqlDbContext<PortfolioDbContext>();
+// The context is also Identity's store; without this the Migrator would model a different
+// Identity schema than the snapshot holds, and MigrateAsync refuses pending model changes.
+PortfolioDbContext.AddIdentitySchema(builder.Services);
 
 using var host = builder.Build();
 await host.StartAsync();

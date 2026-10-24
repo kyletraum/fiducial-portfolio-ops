@@ -27,6 +27,8 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 builder.Services.AddDbContext<PortfolioDbContext>(options =>
     PortfolioDbContext.Configure(options, builder.Configuration.GetConnectionString("portfolio")));
 builder.EnrichNpgsqlDbContext<PortfolioDbContext>();
+// The context is also Identity's store (slice 03): every host models the same Identity schema.
+PortfolioDbContext.AddIdentitySchema(builder.Services);
 
 var app = builder.Build();
 

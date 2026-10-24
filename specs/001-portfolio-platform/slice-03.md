@@ -310,12 +310,19 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
 
 1. **Identity, data, and the setup-code rules.**
    - **Migration 5.** Identity's store inside `PortfolioDbContext`
-     (`IdentityUserContext<TUser>`, no roles), as one EF migration on Npgsql.
-     `PortfolioDbContext` overrides `SchemaVersion => IdentitySchemaVersions.Version3`:
-     the design-time factory and the Migrator have no `IdentityOptions`, and without the
-     override they model `Version1`, which has no passkey table (`SRC-4`). A test asserts
-     that the migrated database has that table. [`SOURCE@dotnet/aspnetcore@v10.0.13`
-     `src/Identity/EntityFrameworkCore/src/IdentityUserContext.cs:135-160`]
+     (`IdentityUserContext<TUser>`, no roles), as one EF migration on Npgsql. Every host
+     must model Identity's schema `Version3`. The design-time factory and the Migrator
+     have no `IdentityOptions`, and without it they model `Version1`, which has no
+     passkey table (`SRC-4`). A test asserts that the migrated database has that table.
+     - **Corrected at build:** round 2's fix, overriding the virtual `SchemaVersion`, does
+       nothing. Identity's `OnModelCreating` reads the version only from `IdentityOptions`
+       in the context's application services, and the method that applies it is
+       `internal`. [`EXECUTED 2026-10-24`: a context with the override modelled no passkey
+       table; `SOURCE@dotnet/aspnetcore@v10.0.13`
+       `src/Identity/EntityFrameworkCore/src/IdentityUserContext.cs:135-180`]
+     - **What does work:** every host registers the version
+       (`PortfolioDbContext.AddIdentitySchema`), and a context built outside a host (the
+       design-time factory, the test fixtures) gets a small provider of its own.
    - **`audit_event`.** Append-only, by migration 4's trigger pattern, refusing `UPDATE`,
      `DELETE` and `TRUNCATE` as `ingest_run` does; its test copies the `ingest_run` one.
      Its `actor` is a value, not a foreign key, so the owner can be reset (`C3-32`). The
@@ -326,16 +333,20 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
      `.env.<environment>` at **deploy**. `aspire publish` writes keys only.
      [`SOURCE@dotnet/aspire@v13.6.1`
      `src/Aspire.Hosting.Docker/DockerComposeEnvironmentResource.cs:548-578`]
-     - At least 128 bits. **Gate (`GT-W`):** Aspire's generated default can give that;
-       print one generated value's length and alphabet. Where the generator allows it,
-       the alphabet leaves out `0`/`O` and `1`/`l`/`I`; where it does not, that
-       readability rule is dropped, and this line says so.
+     - At least 128 bits: **29 characters from Aspire's lower-case alphabet**, which
+       already leaves out `i`, `l` and `o`, so no `0`/`O`/`1`/`l`/`I` can occur. That is
+       about 131 bits, and the readability rule holds. **`GT-W` raised:** the generator
+       draws with `RandomNumberGenerator.GetItems` [`SOURCE@dotnet/aspire@v13.6.1`
+       `src/Shared/PasswordGenerator.cs`], and an app-model test checks a generated value
+       against `^[a-hjkmnp-z]{29}$` [`EXECUTED 2026-10-24`].
      - It travels only in a `POST` body, never a query string. It is accepted only while
        no user exists, compared with `CryptographicOperations.FixedTimeEquals`, and
        counted by step 3's limiter.
      - **Single use survives a reset** (`SCO-4`, `TST-20`). The hash of every code that
-       has completed an enrolment is kept in an `app_setting` row, outside Identity's
-       rows, and a code whose hash is there is refused. Test: enrol with code A, run
+       has completed an enrolment is kept in **`used_setup_code`**, keyed by the hash and
+       append-only, outside Identity's rows. A code whose hash is there is refused. The
+       spec first said "an `app_setting` row", but that table is held to one row by a
+       CHECK; a table of its own makes "already spent" a primary-key fact. Test: enrol with code A, run
        `reset-owner`, and A is refused with nothing created; B succeeds; each step is
        audited.
      - **The window is bounded by single use, not by time.** Any member of
@@ -357,6 +368,37 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
      a view whose `<h1>` names the step count and takes focus on arrival. A failed
      ceremony leaves the user on the same step with values intact. They are built in
      step 4.
+
+   > **BUILT 2026-10-24 — the schema, the setup code's rules and its parameter.**
+   > - **Migration 5 (`AuthAndAudit`):**
+   >   - Identity's store at `Version3`: `identity_user`, `_claim`, `_login`, `_token` and
+   >     `_passkey`. The tables are renamed to the platform's snake_case, since Identity sets
+   >     `AspNetUsers` explicitly and the naming convention leaves an explicit name alone.
+   >   - `audit_event`, with `audit_event_kind`'s labels in snake_case to match Npgsql's
+   >     enum translator.
+   >   - `used_setup_code`.
+   >   - One `append_only()` trigger function refusing `UPDATE`, `DELETE` and `TRUNCATE` on
+   >     both new tables.
+   > - **`Domain.SetupCode`:** normalising (case, spaces, hyphens), fixed-time
+   >   comparison, and SHA-256. It sits in `Domain`, so the coverage floor measures it.
+   > - **The AppHost** generates the `setup-code` secret parameter, not persisted, and
+   >   passes it to the Api as `Enrolment__SetupCode`. The Api reads it from step 2.
+   >   [`EXECUTED 2026-10-24` `aspire publish` (CLI 13.6.4): the compose file reads
+   >   `"${SETUP_CODE}"`, and `.env` carries the key with no value]
+   > - **Tests:**
+   >   - **Integration:**
+   >     - the passkey table exists;
+   >     - a passkey round-trips through its `jsonb` column under the naming convention
+   >       (to the microsecond: the last tick of a `DateTimeOffset` is dropped);
+   >     - both new tables refuse all three rewrites;
+   >     - a code is recorded as spent once;
+   >     - an audit kind round-trips.
+   >   - **Unit:** `SetupCode`.
+   >   - **App model:** the generated value and its wiring.
+   > - **Every suite green:** Unit, Architecture and Integration (87), and all 15 local E2E
+   >   cases against the stack migrated to 5 [`EXECUTED 2026-10-24`].
+   > - **Owed elsewhere:** the full "enrol with A → `reset-owner` → A refused" test needs
+   >   step 2's endpoints and step 7's command, so it lands in those steps.
 2. **Authentication API.** Registered here, enforced in step 4.
    - **Passkey options (`C3-10`, `C3-23`, `C3-34`).**
      - `ServerDomain = "localhost"`, with a test that the options carry
