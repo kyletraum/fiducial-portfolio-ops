@@ -889,6 +889,29 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
 
    The CI scan is named in DoD 8 as the backstop, since `--no-verify` bypasses the hook by
    design.
+
+   > **BUILT 2026-10-24.**
+   > - **The hook** tries `python3`, then `python`, each run with `-c ''` first, and
+   >   otherwise exits 2 naming what it tried.
+   > - **`.gitattributes`** now pins `.githooks/*` to LF, as `*.sh` already was. The hook
+   >   has no extension, so the old rule missed it.
+   > - **`PreCommitHookTests`**, in `tests/Architecture` (required in CI):
+   >   - each case gets a fresh repository with git's global and system config shut out
+   >     and a local identity;
+   >   - the hook, scanner and installer are copied in, and installed by
+   >     `sh scripts/install-hooks.sh`, then `core.hooksPath` is asserted;
+   >   - the secret is built at run time;
+   >   - the three cases:
+   >     1. **refused**, with the scanner's text;
+   >     2. **clean**, with exit 0;
+   >     3. a `python3` that exits 49 first on `PATH`, beside a `python` wrapping a real
+   >        interpreter, so CI's Linux runs the fallback too. A clean commit still goes
+   >        through.
+   > - **Seen failing:** with the old hook put back, all three fail on this machine. The
+   >   refusal case fails because the scanner never ran, which is the false green the clean
+   >   twin exists for. [`EXECUTED 2026-10-24`]
+   > - **This clone** now has the hook, installed by the documented command, and the commit
+   >   that built this step went through it.
 7. **Tests and deploy.**
    - **The app model.** `.DisableForwardedHeaders()` on the `api` resource (`C3-9`).
      [`SOURCE@dotnet/aspire@v13.6.1`
