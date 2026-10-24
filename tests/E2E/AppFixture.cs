@@ -143,27 +143,6 @@ public class AppFixture : IAsyncLifetime
         }
     }
 
-    /// <summary>
-    /// "Healthy" is not "serving" for the web resource: it has no health check, so Aspire reports it
-    /// healthy once the Vite process runs, before the dev server listens. A test that navigated in
-    /// that gap got net::ERR_EMPTY_RESPONSE (ImportAFileTests, 2026-10-24; it passed alone).
-    /// </summary>
-    static async Task WaitUntilServingAsync(Uri url, CancellationToken ct)
-    {
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-        while (true)
-        {
-            try
-            {
-                using var response = await http.GetAsync(url, ct);
-                if (response.IsSuccessStatusCode) return;
-            }
-            catch (HttpRequestException) { }
-            catch (TaskCanceledException) when (!ct.IsCancellationRequested) { }
-            await Task.Delay(TimeSpan.FromMilliseconds(250), ct);
-        }
-    }
-
     public async ValueTask DisposeAsync()
     {
         if (Browser is not null) await Browser.DisposeAsync();
