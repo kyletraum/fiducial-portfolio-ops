@@ -9,6 +9,11 @@ using Portfolio.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+// Slice 03 step 5 (DoD 7): the request-start and -finish lines carry the full query string, and
+// a secret pasted into a URL would be written down. Off below Warning whatever configuration
+// says: a filter added here comes after configuration's and wins at the same category. Each
+// request is still a span, whose url.query OpenTelemetry already redacts.
+builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
 builder.Services.AddProblemDetails();
 
 // One clock, injected, so tests can pin it (slice-02.md "Dates and time"). The data layer's

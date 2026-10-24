@@ -832,6 +832,46 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
      required in CI, and reads the committed OpenAPI document. It scans **response**
      schemas for credential-like property names, and asserts that the authentication
      operations are present, so the scan is not vacuous.
+
+   > **BUILT 2026-10-24.**
+   > - **The audit events** were written in step 2. Their rows are scanned here for secrets
+   >   too.
+   > - **`SecretsStayOutTests` (DoD 7):**
+   >   - **The secrets:** the setup code, a passkey assertion's signature and client data,
+   >     the session cookie and the CSRF token. They are driven through enrolment, sign-in,
+   >     a failed and a malformed sign-in, sign-out and a `500` that carries the cookie.
+   >   - **The canary** goes into every field of every anonymous endpoint and into a query
+   >     string, and each request reached its handler, with no `429`.
+   >   - **What is scanned,** at `Trace` in Production:
+   >     - every log entry's message, structured values, scopes and exception chain;
+   >     - every span's tags, events and status, from the OpenTelemetry in-memory exporter;
+   >     - every non-2xx body;
+   >     - every `audit_event` row.
+   >   - **The forms looked for:** raw, URL-encoded, and base64 and base64url at all three
+   >     byte alignments.
+   >   - **The guards:** an ASP.NET Core `Trace` line and the health span must be present,
+   >     and `EnableSensitiveDataLogging` must be off (`G-22` and `G-24` raised).
+   >   - **Seen failing:** a committed twin logs a secret at `Debug` plain, inside a base64
+   >     blob, and URL-encoded in a scope, and the scan finds all three.
+   > - **It went red once.** That was its job, and it decided the "filter only if red"
+   >   rule. ASP.NET Core's `Microsoft.AspNetCore.Hosting.Diagnostics` "Request starting"
+   >   and "Request finished" lines carry the full query string, so a secret pasted into a
+   >   URL would be logged. [`EXECUTED 2026-10-24`: 12 lines]
+   >   - **Kyle's ruling:** that category is off below `Warning` in code, whatever
+   >     configuration says. A code filter comes after configuration's and wins at the same
+   >     category, and the test sets that category to `Trace` to prove it.
+   >   - Each request is still a span, whose `url.query` OpenTelemetry already redacted.
+   >   - Nothing else was found: no log, span, body or audit row held any secret.
+   > - **Also changed:** the auth refusals no longer copy Identity's failure message into
+   >   `detail`. One of those messages echoes what the client sent ("got '<type>'").
+   > - **`NoCredentialInResponsesTests`**, in `tests/Architecture`:
+   >   - it reads the committed document and follows `$ref`s from every response;
+   >   - it requires the auth operations to be present, and at least 30 properties to be
+   >     scanned;
+   >   - the one exception, `CsrfTokenResponse.token`, is named with its reason;
+   >   - its twin shows a nested `passwordHash` is flagged.
+   > - **Not written:** the redaction filter. Nothing but the query-string lines needed
+   >   one.
 6. **The pre-commit hook (`C3-29`, `TST-16`).** Installed by `scripts/install-hooks.sh`.
    - **The interpreter is chosen by running it, not by finding it.** On this machine
      `python3` is the Microsoft Store stub: it exists and exits 49, so today's hook refuses
