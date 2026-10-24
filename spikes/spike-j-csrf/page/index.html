@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Spike J</title></head>
+<body>
+<!-- Spike J: the app's own page (same origin as the API). The driver calls these from
+     page.EvaluateAsync, so cookies and the token travel as the real web client's would. -->
+<script>
+  let token = null;
+  // call(method, url, { body, type, send: 'none' | 'token' | 'wrong' | <a token string> })
+  window.call = async (method, url, opt = {}) => {
+    const headers = {};
+    if (opt.type) headers['Content-Type'] = opt.type;
+    const send = opt.send ?? 'none';
+    if (send === 'token') headers['X-CSRF-TOKEN'] = token;
+    else if (send === 'wrong') headers['X-CSRF-TOKEN'] = 'CfDJ8-not-a-token';
+    else if (send !== 'none') headers['X-CSRF-TOKEN'] = send;
+    const r = await fetch(url, { method, headers, body: opt.body });
+    const text = await r.text();
+    let title = '';
+    try { title = JSON.parse(text).title ?? ''; } catch {}
+    return { status: r.status, title, text: text.slice(0, 160) };
+  };
+  window.fetchToken = async () => {
+    const r = await fetch('/api/antiforgery/token');
+    if (r.status !== 200) return { status: r.status };
+    token = (await r.json()).token;
+    return { status: 200, length: token.length };
+  };
+  window.currentToken = () => token;
+</script>
+</body>
+</html>

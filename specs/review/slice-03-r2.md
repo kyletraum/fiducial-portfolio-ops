@@ -158,7 +158,7 @@ DEFER items T adds to the obligations table were already dispositioned in round 
 | Gate | Claim at INFERRED | Raise by |
 |---|---|---|
 | GT-3 | Identity accepts a `none`-format attestation from a C# software authenticator (only if R2 (a)) | the first `SoftAuthenticator` registration in step 2 |
-| GT-6 | Playwright's request headers show the cookies Chromium sent, and restored `StorageState` `Secure` cookies are sent to `http://localhost` | one line in the step 4 helper |
+| GT-6 | Playwright's request headers show the cookies Chromium sent, and restored `StorageState` `Secure` cookies are sent to `http://localhost` | one line in the step 4 helper. **First half false for a `no-cors` request** (`EXECUTED 2026-10-24`, Spike J): DoD 4 reads the API's record instead. The `StorageState` half is still owed |
 | GT-9 | Chromium's CSP violations reach `page.Console`; CDP init scripts are not blocked by the page's CSP | Q's positive control |
 | GT-10 | `FixedWindowRateLimiter` takes no `TimeProvider` | read the 10.0.13 source when the step 3 test is written |
 | GT-12/13 | Virtual-authenticator timing and failure modes; the test builder can set the API's environment | the step 4 producers |

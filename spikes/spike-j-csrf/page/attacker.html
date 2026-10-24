@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Spike J attacker</title></head>
+<body>
+<!-- Spike J: a page on another localhost port, the same site as the app, so the browser sends
+     the Strict session cookie with its request. A no-cors POST: the page cannot read the
+     response (it is opaque), which is the G-19 question: can Playwright read it? -->
+<script>
+  window.attack = async (target) => {
+    const r = await fetch(target, { method: 'POST', mode: 'no-cors', credentials: 'include',
+      headers: { 'Content-Type': 'text/plain' }, body: 'name,amount\nx,1' });
+    return 'opaque to the page: type=' + r.type + ' status=' + r.status;
+  };
+</script>
+</body>
+</html>
