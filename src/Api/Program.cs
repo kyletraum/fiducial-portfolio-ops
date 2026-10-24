@@ -36,8 +36,17 @@ builder.EnrichNpgsqlDbContext<PortfolioDbContext>();
 builder.AddPortfolioAuthentication();
 builder.Services.AddCsrfTokens();
 SignInRateLimit.AddSignInRateLimit(builder.Services, builder.Configuration);
+builder.Services.AddScoped<OwnerCommands>();
 
 var app = builder.Build();
+
+// `docker compose run --rm api revoke-sessions` (or reset-owner): run the command and exit, with no
+// web server started (slice-03.md step 7).
+if (OwnerCommands.ModeFrom(args) is { } mode)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    return await scope.ServiceProvider.GetRequiredService<OwnerCommands>().RunAsync(mode, Console.Out);
+}
 
 // The order is slice-03.md step 3's, and each place is load-bearing (round 2 SRC-1, TST-5, TST-9):
 // - The headers first, so every later response carries them, refusals and errors included.
@@ -68,6 +77,7 @@ app.MapPortfolioApi();
 app.MapDefaultEndpoints();
 
 app.Run();
+return 0;
 
 // For WebApplicationFactory in the tests.
 public partial class Program;

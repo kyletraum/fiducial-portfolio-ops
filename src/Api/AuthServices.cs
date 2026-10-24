@@ -10,12 +10,15 @@ namespace Portfolio.Api;
 /// Slice 03 steps 2 and 4: Identity with passkeys, configured as slice-03.md specifies, and the
 /// session requirement on every endpoint.
 /// </summary>
-static class AuthServices
+public static class AuthServices
 {
     /// <summary>Every Identity cookie, by scheme, and the name it is issued under.</summary>
+    /// <summary>The session cookie's name.</summary>
+    public const string SessionCookie = "__Host-portfolio";
+
     static readonly (string Scheme, string Cookie)[] IdentityCookies =
     [
-        (IdentityConstants.ApplicationScheme, "__Host-portfolio"),
+        (IdentityConstants.ApplicationScheme, SessionCookie),
         (IdentityConstants.TwoFactorUserIdScheme, "__Host-portfolio-challenge"), // the passkey ceremony's state
         (IdentityConstants.ExternalScheme, "__Host-portfolio-external"),
         (IdentityConstants.TwoFactorRememberMeScheme, "__Host-portfolio-remember"),
@@ -81,7 +84,12 @@ static class AuthServices
             // SRC-2: passkey sign-in would issue a browser-session cookie; the session is persistent.
             o.Events.OnSigningIn = ctx => { ctx.Properties.IsPersistent = true; return Task.CompletedTask; };
             // An API answers 401/403. DisableCookieRedirect would still set Location (SRC-15).
-            o.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
+            o.Events.OnRedirectToLogin = ctx =>
+            {
+                Refusals.Log(ctx.HttpContext, Refusals.NoSession);
+                ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            };
             o.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
         });
 
