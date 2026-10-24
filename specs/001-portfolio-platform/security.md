@@ -150,7 +150,7 @@ laptop is the primary self-hosted threat, this is the control that matters most.
   `localhost` and the expected origins are named. Identity's default is to take
   the RP ID from the `Host` header, and to accept any origin equal to the
   request's own `Origin`. [`SOURCE@dotnet/aspnetcore@v10.0.13`
-  `src/Identity/Core/src/PasskeyHandler.cs:51-55,651-675`]
+  `src/Identity/Core/src/PasskeyHandler.cs:651-678`]
 - **Sessions:** `HttpOnly`, `Secure`, `SameSite=Strict` cookies. No token in
   `localStorage` or `sessionStorage`, where any script can read it.
   *(slice 03)* None of the three is the framework default: cookie authentication
@@ -161,28 +161,36 @@ laptop is the primary self-hosted threat, this is the control that matters most.
   only. Sessions are Identity's stateless ticket. Sign-out rotates the security
   stamp, so a copied cookie stops working **within the validation interval** (one
   minute), not instantly. The vendor's suggestion to keep the CSRF token in
-  `localStorage` is overruled by this line. [`SOURCE@dotnet/aspnetcore@v10.0.13`
+  `localStorage` is overruled by this line. The cookie is persistent (7 days,
+  sliding), set by the application: Identity's passkey sign-in otherwise issues a
+  browser-session cookie. [`SOURCE@dotnet/aspnetcore@v10.0.13`
+  `src/Identity/Core/src/SignInManager.cs:642-683`] [`SOURCE@dotnet/aspnetcore@v10.0.13`
   `src/Http/Http.Abstractions/src/CookieBuilder.cs:117`,
   `src/Antiforgery/src/Internal/DefaultAntiforgery.cs:256-262`,
   `src/Identity/Core/src/SecurityStampValidator.cs:138-162`]
 - **CSRF tokens** on every state-changing request. *(slice 03)* **The application
   refuses; the framework only validates.** ASP.NET Core's antiforgery middleware
   never refuses a JSON or raw-body minimal API, and never checks `DELETE`. The
-  refusal is the application's own endpoint filter.
+  refusal is the application's own endpoint filter. The anonymous enrolment and
+  sign-in routes are exempt, because no token can exist before sign-in; they rely
+  on the content-type and `Sec-Fetch-Site` layers, the origin check and the
+  limiter.
   [`SOURCE@dotnet/aspnetcore@v10.0.13` `src/Antiforgery/src/AntiforgeryMiddleware.cs:25-51`]
 - **CORS** ~~restricted to the known frontend origin; no wildcard.~~ *(slice 03)*
   **None at all.** The app is same-origin, so any allowed origin would be an origin
   that can read. CORS withholds headers; it never refuses a request, so it is not a
   defence layer. [`SOURCE@dotnet/aspnetcore@v10.0.13`
-  `src/Middleware/CORS/src/Infrastructure/CorsMiddleware.cs:116-130`]
+  `src/Middleware/CORS/src/Infrastructure/CorsMiddleware.cs:150-190`]
 - **Rate limiting** on report execution, projection runs and authentication.
   *(slice 03)* Authentication only, so far: one global limiter on the anonymous
   authentication endpoints, answering `429`. It is never partitioned by remote
   address, which on loopback is one value for every caller and, with forwarded
-  headers on, is whatever the caller claims. **Identity's lockout is off**: passkey
-  sign-in runs the lockout check, so five failures from any local process would
-  deny the only user. [`SOURCE@dotnet/aspnetcore@v10.0.13`
-  `src/Identity/Core/src/SignInManager.cs:659-673`]
+  headers on, is whatever the caller claims. **Identity's lockout is off.** Today
+  no passkey failure is counted: only the password and two-factor paths call
+  `AccessFailedAsync`. But passkey sign-in does run the lockout check, so the
+  deferred password path, once built, could lock the only user out of their
+  passkey. [`SOURCE@dotnet/aspnetcore@v10.0.13`
+  `src/Identity/Core/src/SignInManager.cs:497-499,659-673`]
 - Response DTOs are **explicit types**, never domain entities serialised
   directly - the mechanism by which a credential field most often leaks after
   someone adds it to an entity.
@@ -195,13 +203,18 @@ laptop is the primary self-hosted threat, this is the control that matters most.
     `publickey-credentials-get=(self)` and `publickey-credentials-create=(self)`.
     A deny-all policy switches WebAuthn off for the app itself.
     [`DOCS@2026-10-21` MDN `Permissions-Policy`]
-  - The headers come from one middleware placed first in the pipeline, so error
-    and refusal responses carry them too.
+  - The headers come from one middleware placed first in the pipeline. It writes
+    them in `Response.OnStarting`, because the exception handler clears headers
+    set earlier. Authentication and authorization are called explicitly after it,
+    so error and refusal responses carry them too. A host-filter `400` is the
+    exception: it refuses before the pipeline runs. [`EXECUTED 2026-10-24` round 2
+    SRC probes; `SOURCE@dotnet/aspnetcore@v10.0.13`
+    `src/Middleware/Diagnostics/src/ExceptionHandler/ExceptionHandlerMiddlewareImpl.cs:291-293`]
 - *(slice 03)* **Forwarded headers are off.** Aspire's publish default trusts
   `X-Forwarded-For` and `X-Forwarded-Proto` from any client, so it is disabled until
-  a real proxy exists. [`SOURCE@dotnet/aspire`
-  `src/Aspire.Hosting/ProjectResourceBuilderExtensions.cs`; `EXECUTED` the generated
-  compose file]
+  a real proxy exists. [`SOURCE@dotnet/aspire@v13.6.1`
+  `src/Aspire.Hosting/ProjectResourceBuilderExtensions.cs:633-643,960-964`;
+  `EXECUTED` the generated compose file]
 - *(slice 03)* **The data-protection key ring** is the root of trust for every
   cookie and token. It lives on a named volume, plaintext on the host, and relies on
   disk encryption, as the KEK above does. [`DOCS@2026-10-21` data-protection default

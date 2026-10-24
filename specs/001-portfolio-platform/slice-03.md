@@ -29,6 +29,10 @@ where a passkey is impractical, or the first lost authenticator. Sixteen further
 written to those rulings. Where a sentence below cites `C3-n`, `Dn` or `G-n`, that is the
 review's finding, decision or gate.
 
+**Reviewed again, 2026-10-24** ([`../review/slice-03-r2.md`](../review/slice-03-r2.md)).
+Three seats read this rewrite. Their findings are applied below, cited by seat (`SRC-n`,
+`TST-n`, `SCO-n`), with Kyle's rulings `R1`–`R4`.
+
 **Bound by Kyle's ruling of 2026-10-18** ([`slice-02.md`](slice-02.md), "What the slice is
 not"): no real balance enters the platform before a slice that builds `security.md`'s tier.
 **This is that slice.** Completing it meets the ruling's prerequisite. It does not itself
@@ -176,7 +180,7 @@ measured on this machine, not copied from a guide.
 >   Chromium 153 and Firefox 155: at `http://127.0.0.1` every `rp.id` throws
 >   `SecurityError` before a request leaves the page. The server half is that the RP ID
 >   is `ServerDomain ?? Request.Host.Host`, so step 2 pins it.
->   [`SOURCE@dotnet/aspnetcore@v10.0.13` `src/Identity/Core/src/PasskeyHandler.cs:51-55`;
+>   [`SOURCE@dotnet/aspnetcore@v10.0.13` `src/Identity/Core/src/PasskeyHandler.cs:677-678`;
 >   committee BRW F1–F3]
 > - **Claim 3: `EXECUTED`** in Chromium 153 and Firefox 155. `Secure`, `HttpOnly`,
 >   `SameSite=Strict` and `__Host-` cookies are stored and sent back from
@@ -189,9 +193,12 @@ measured on this machine, not copied from a guide.
 > **Still owed, and run here:**
 > - **`G-5`, the one load-bearing claim nobody has run:** register a passkey and sign in
 >   through the Vite port, with `ValidateOrigin` set to the app's origins, logging
->   `Request.Headers.Origin` on the options endpoint.
-> - **`G-12`:** the same ceremony against the published port 8080, not only Kestrel
->   direct.
+>   `Request.Headers.Origin` on the options endpoint. It also settles whether the Vite
+>   origin is stable across runs (`SRC-12`); the design does not depend on it, because
+>   step 2 takes the origins from configuration.
+>
+> `G-12`, the same ceremony against the published port, runs in step 7, where the
+> published stack first exists (round 2, `SCO-10`).
 
 **Answered:** the app is reached as `localhost` only. `127.0.0.1` and `[::1]` stay in
 `AllowedHosts`, and the sign-in page warns the user before any ceremony (`D8`). The
@@ -239,9 +246,11 @@ each with the header absent, and sees each refused. It also checks that a token 
 after sign-in validates with the filter placed after `UseAuthentication` (`G-20`), and
 reads a `403` body from Playwright on a response the page itself cannot read (`G-19`).
 
-**The result decides:** where the token comes from (an endpoint that requires a session, or
-a cookie the page reads), and that it travels in `X-CSRF-TOKEN` on every unsafe request,
-the upload included.
+**Already decided, so the spike confirms rather than chooses:**
+- The token comes from an endpoint that requires a session (`C3-22`).
+- It travels in `X-CSRF-TOKEN`, set as `AntiforgeryOptions.HeaderName`, since the default
+  is `RequestVerificationToken`, on every unsafe request, the upload included.
+- The allow-listed anonymous routes are exempt from the filter (round 2, `R1`).
 
 ### Spike K — cut (`D9`)
 
@@ -261,108 +270,220 @@ The published policy is built in step 3 and shown in step 7 (`D16`).
 
 ## The build (outline; refined after the spikes, as slice 02's was)
 
-1. **Identity, data and enrolment.**
-   - **Migration 5:** Identity's `Version3` store inside `PortfolioDbContext`
-     (`IdentityUserContext<TUser>`, no roles), as one EF migration on Npgsql. Spike H did
-     not run `Version3` through the Migrator, so this is where step 1 can balloon.
-   - **`audit_event`:** append-only, by migration 4's trigger pattern, refusing `UPDATE`,
-     `DELETE` and `TRUNCATE` as `ingest_run` does. Its `actor` is a value, not a foreign
-     key, so `reset-owner` can clear the user (`C3-32`). The trigger binds the
-     application's code paths; the connecting role can still remove it (`D6`, `G-7`).
-   - **Enrolment (`C3-3`, `D2`).** The setup code is an Aspire secret parameter:
-     user-secrets under `aspire run`, the git-ignored `.env.*` at publish.
-     - It is at least 128 bits, from an alphabet without `0`/`O` or `1`/`l`/`I`, and
-       printed grouped for reading. It travels only in a `POST` body, never in a query
-       string.
-     - It is accepted only while no user exists, compared with
-       `CryptographicOperations.FixedTimeEquals`, and counted by step 3's limiter.
-     - The order is: setup code → creation options (no user yet) → attestation → the
-       user and the passkey created in one transaction → signed in. Nothing exists before
-       the ceremony succeeds.
-     - Once a user exists, the enrolment endpoints answer `409`.
-     - Its hash is stored with the user, and `reset-owner` reopens enrolment only for a
-       value that differs from it, so a code left in `.env.*` cannot be used twice.
-     - Tests can set it (`UseSetting`; `WithEnvironment` in the test builder), and a test
-       asserts the published compose file carries none.
-     - The enrolment is an `audit_event` with time and connection address, shown on the
-       first sign-in.
-   - **The window is bounded and attested, not closed.** Any member of `docker-users` can
-     read the parameter (`C3-4`). Three events reopen enrolment without anyone asking: a
-     fresh volume, `down -v`, and moving the repository directory, because the compose
-     project name hashes the AppHost path. The API then presents "no owner enrolled", not
-     a sign-in page. [`SOURCE@dotnet/aspire` `DockerComposeEnvironmentResource.cs`;
-     `EXECUTED` committee OPS, `docker volume ls`]
+**Merge order.** Each step merges with `main` green, as slices 01 and 02 did. Two switches
+are deliberately held back until the sign-in page exists: the session requirement
+(`FallbackPolicy`) and the antiforgery filter's enforcement. Both land in step 4 (`D11`;
+round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
+
+1. **Identity, data, and the setup-code rules.**
+   - **Migration 5.** Identity's store inside `PortfolioDbContext`
+     (`IdentityUserContext<TUser>`, no roles), as one EF migration on Npgsql.
+     `PortfolioDbContext` overrides `SchemaVersion => IdentitySchemaVersions.Version3`:
+     the design-time factory and the Migrator have no `IdentityOptions`, and without the
+     override they model `Version1`, which has no passkey table (`SRC-4`). A test asserts
+     that the migrated database has that table. [`SOURCE@dotnet/aspnetcore@v10.0.13`
+     `src/Identity/EntityFrameworkCore/src/IdentityUserContext.cs:135-160`]
+   - **`audit_event`.** Append-only, by migration 4's trigger pattern, refusing `UPDATE`,
+     `DELETE` and `TRUNCATE` as `ingest_run` does; its test copies the `ingest_run` one.
+     Its `actor` is a value, not a foreign key, so the owner can be reset (`C3-32`). The
+     trigger binds the application's code paths; the connecting role can still remove it
+     (`D6`, `G-7`).
+   - **The setup code (`C3-3`, `D2`).** An Aspire secret parameter whose default the
+     AppHost generates. It reaches user-secrets under `aspire run`, and the git-ignored
+     `.env.<environment>` at **deploy**. `aspire publish` writes keys only.
+     [`SOURCE@dotnet/aspire@v13.6.1`
+     `src/Aspire.Hosting.Docker/DockerComposeEnvironmentResource.cs:548-578`]
+     - At least 128 bits. **Gate (`GT-W`):** Aspire's generated default can give that;
+       print one generated value's length and alphabet. Where the generator allows it,
+       the alphabet leaves out `0`/`O` and `1`/`l`/`I`; where it does not, that
+       readability rule is dropped, and this line says so.
+     - It travels only in a `POST` body, never a query string. It is accepted only while
+       no user exists, compared with `CryptographicOperations.FixedTimeEquals`, and
+       counted by step 3's limiter.
+     - **Single use survives a reset** (`SCO-4`, `TST-20`). The hash of every code that
+       has completed an enrolment is kept in an `app_setting` row, outside Identity's
+       rows, and a code whose hash is there is refused. Test: enrol with code A, run
+       `reset-owner`, and A is refused with nothing created; B succeeds; each step is
+       audited.
+     - **The window is bounded by single use, not by time.** Any member of
+       `docker-users` can read the parameter (`C3-4`). Three events reopen enrolment
+       without anyone asking:
+       - a fresh volume;
+       - `down -v`;
+       - moving the repository directory, because `aspire deploy` names the compose
+         project by a hash of the AppHost path.
+
+       A `docker compose up` run by hand takes the directory name instead, and the
+       runbook says which one it uses. [`SOURCE@dotnet/aspire@v13.6.1`
+       `src/Aspire.Hosting.Docker/DockerComposeEnvironmentResource.cs:616-632`;
+       `EXECUTED` committee OPS, `docker volume ls`]
+     - Tests set it (`UseSetting`; a test-builder parameter). Asserting that the published
+       compose file carries no literal is local-only, over the app model in publish mode
+       (`TST-3`).
    - **The set-up views (`C3-53`):** setup code → username → passkey → done. Each step is
      a view whose `<h1>` names the step count and takes focus on arrival. A failed
-     ceremony leaves the user on the same step with values intact.
-2. **Authentication API.**
-   - **Passkey options (`C3-10`, `C3-23`, `C3-34`).** `ServerDomain = "localhost"`, with a
-     test that the options carry `rp.id == "localhost"` whatever the `Host` header says.
-     `ValidateOrigin` accepts exactly the app's origins, the Vite port under `aspire run`
-     and `http://localhost:8080` published, and rejects `crossOrigin`. User verification
-     stays `required`, written down so a change to `preferred` is visible.
-     `AuthenticatorTimeout` is 10 minutes. [`DOCS@2026-10-21` WebAuthn Level 3 §15.1]
+     ceremony leaves the user on the same step with values intact. They are built in
+     step 4.
+2. **Authentication API.** Registered here, enforced in step 4.
+   - **Passkey options (`C3-10`, `C3-23`, `C3-34`).**
+     - `ServerDomain = "localhost"`, with a test that the options carry
+       `rp.id == "localhost"` whatever the `Host` header says.
+     - `ValidateOrigin` compares against **origins from configuration**: the AppHost
+       passes the web endpoint's URL under `aspire run`, and the published origin from the
+       same parameter as `API_PORT`. Aspire allocates the Vite port, and the published
+       port is a `.env` value (`SRC-12`, `TST-8`). The override replaces Identity's
+       default check, so it must also reject `crossOrigin` itself.
+       [`SOURCE@dotnet/aspnetcore@v10.0.13` `src/Identity/Core/src/PasskeyHandler.cs:651-675`]
+     - User verification stays `required`, written down so a change to `preferred` is
+       visible.
+     - `AuthenticatorTimeout` **and the `TwoFactorUserId` challenge cookie are both 10
+       minutes** (`R3`). Identity's default for the cookie is 5 minutes, and a ceremony
+       that outlives it throws. [`DOCS@2026-10-24` WebAuthn Level 3 §15.1;
+       `SOURCE@dotnet/aspnetcore@v10.0.13`
+       `src/Identity/Core/src/IdentityCookiesBuilderExtensions.cs:98-108`]
+   - **The enrolment and sign-in endpoints** (`SCO-7`: here, after the options they need).
+     - Enrolment creates the user and stores the passkey inside one explicit
+       `Database.BeginTransactionAsync`, with the no-user check inside it, so two
+       concurrent enrolments cannot both pass (`SRC-18`). Once a user exists, the
+       enrolment endpoints answer `409`.
+     - Both finish endpoints catch the "no ceremony underway" case: an expired, missing or
+       replayed challenge cookie. They answer `400` with a `ProblemDetails.title` of their
+       own, not the framework's `500` (`SRC-3`). [`SOURCE@dotnet/aspnetcore@v10.0.13`
+       `src/Identity/Core/src/SignInManager.cs:555-563,706-724`]
+     - One anonymous `GET` reports whether an owner is enrolled, and the environment
+       label, so the page can choose set-up or sign-in before authentication (`SCO-13`).
    - **Cookies (`C3-6`, `C3-21`).** Every Identity cookie is `SameSite=Strict`,
      `SecurePolicy=Always` and `HttpOnly`, with a `__Host-` name. That includes
-     `Identity.TwoFactorUserId`, which carries the passkey challenge. The antiforgery
-     cookie is the one exception: `Strict` and `HttpOnly`, but not `Secure`, because
-     antiforgery throws on a non-HTTPS request when it is. One test covers every
-     `Set-Cookie`, asserted on the server-seen `Cookie` header, not on Playwright's
-     `BrowserContext.cookies(url)` (`G-14`). [`SOURCE@dotnet/aspnetcore@v10.0.13`
-     `src/Http/Http.Abstractions/src/CookieBuilder.cs:117`,
-     `src/Antiforgery/src/Internal/DefaultAntiforgery.cs:256-262`; `EXECUTED` committee
-     BRW F6]
+     `Identity.TwoFactorUserId`, which carries the passkey challenge.
+     - The antiforgery cookie is the one exception: `Strict` and `HttpOnly`, but neither
+       `Secure` nor `__Host-`, because antiforgery throws on a non-HTTPS request when it
+       is `Secure`.
+     - One test covers every `Set-Cookie`, the antiforgery cookie's lack of a prefix
+       included (`TST-24`). [`SOURCE@dotnet/aspnetcore@v10.0.13`
+       `src/Http/Http.Abstractions/src/CookieBuilder.cs:117`,
+       `src/Antiforgery/src/Internal/DefaultAntiforgery.cs:256-262`; `EXECUTED`
+       committee BRW F6]
    - **Sessions (`D4`, `D10`, `C3-5`, `C3-16`).** Identity's stateless cookie,
-     `ExpireTimeSpan` 7 days with sliding expiration: WCAG 2.2.1's 20-hour exception. The
-     sign-in page says "You stay signed in for 7 days after you last use the app, or
-     until you sign out." There is no absolute cap; a stolen cookie in use is answered by
-     `revoke-sessions`. `ValidationInterval` is one minute, and sign-out rotates the
-     security stamp, so a copied cookie is refused within a minute of sign-out. That lag
-     is what `D4` accepted. [`SOURCE@dotnet/aspnetcore@v10.0.13`
-     `src/Identity/Core/src/SecurityStampValidator.cs:138-162`]
-   - **No lockout (`C3-8`).** `Lockout.AllowedForNewUsers = false`. Passkey sign-in runs
-     Identity's `PreSignInCheck`, so a lockout would let any local `curl` deny the only
-     user. Test: after repeated failures, the passkey still signs in.
-     [`SOURCE@dotnet/aspnetcore@v10.0.13` `src/Identity/Core/src/SignInManager.cs:659-673`]
-   - **Authorization (`C3-12`).** `FallbackPolicy = RequireAuthenticatedUser()`, with
-     `AllowAnonymous` on exactly the named routes, and `.DisableCookieRedirect()` on the
-     `/api` group. [`SOURCE@dotnet/aspnetcore@v10.0.13`
-     `src/Security/Authorization/Core/src/AuthorizationPolicy.cs:189-197`]
-   - **Sign-out** is a `POST` under the token (`C3-36`).
-   - **The replay model, written down (`C3-39`).** The challenge lives for 5 minutes in
-     the data-protected `TwoFactorUserId` cookie, with no server-side nonce. A replayed
-     exchange is caught only by the sign counter, which runs only when a counter is
-     non-zero. `G-8` decides whether a per-credential nonce is needed.
-   - **The key ring (`D3`, `C3-11`).** `PersistKeysToFileSystem` to a path on a named
-     volume, plus `SetApplicationName("portfolio")`. The keys are plaintext on the host,
-     and rely on disk encryption, as the envelope-encryption KEK does.
-   - **Test sessions (`D11`, `C3-13`).** Integration's shared `SignedInClient`
-     authenticates through a test scheme registered only by `ConfigureTestServices`. An
-     architecture test asserts that nothing under `src/` registers it and that the
-     published compose file carries no switch for it. The auth classes run the real
-     ceremony, on one `AuthFixture : PostgresFixture`. The session requirement on the
-     existing endpoints is switched on in step 4, not here.
+     `ExpireTimeSpan` 7 days.
+     - **Persistent:** passkey sign-in hard-codes `isPersistent: false`, which gives a
+       browser-session cookie, so the application cookie's `OnSigningIn` sets
+       `IsPersistent = true`, for enrolment's sign-in too (`SRC-2`). A test asserts that
+       `Set-Cookie` carries `Expires` about 7 days out.
+       [`SOURCE@dotnet/aspnetcore@v10.0.13`
+       `src/Identity/Core/src/SignInManager.cs:642-683`,
+       `src/Security/Authentication/Cookies/src/CookieAuthenticationHandler.cs:328-334`]
+     - `ValidationInterval` is one minute, read from configuration so the E2E can set it
+       to zero. Every successful stamp check re-bases the ticket, so the session slides to
+       within a minute of the last request that carries the cookie (`SRC-16`). The
+       sign-in page says "You stay signed in for 7 days after you last use the app, or
+       until you sign out."
+     - **Sign-out calls `UpdateSecurityStampAsync`**, because `SignOutAsync` alone does
+       not rotate it. That signs out every browser, and a copied cookie is refused within
+       a minute (`SRC-16`), the lag `D4` accepted.
+     - There is no absolute cap; a stolen cookie in use is answered by `revoke-sessions`.
+       [`SOURCE@dotnet/aspnetcore@v10.0.13`
+       `src/Identity/Core/src/SecurityStampValidator.cs:136-162`]
+   - **Lockout off (`C3-8`, restated by `SRC-11`).** `Lockout.AllowedForNewUsers = false`.
+     Today no passkey failure is counted: only the password and two-factor paths call
+     `AccessFailedAsync`. The setting exists so the deferred password path cannot lock
+     the passkey. The test is the twin: with lockout set on the user, the passkey still
+     signs in. [`SOURCE@dotnet/aspnetcore@v10.0.13`
+     `src/Identity/Core/src/SignInManager.cs:497-499,659-673`]
+   - **Authorization, prepared, not yet switched on.** Each anonymous route carries
+     `AllowAnonymous`. The application cookie's `OnRedirectToLogin` and
+     `OnRedirectToAccessDenied` answer a bare `401` and `403` everywhere, since
+     `.DisableCookieRedirect()` still sets `Location` (`SRC-15`).
+   - **Sign-out** is a `POST` under the token (`C3-36`). It clears the Identity cookies and
+     the antiforgery cookie (round 1's clause, restored: `SCO-12`).
+   - **The replay model, written down (`C3-39`).** The challenge lives for 10 minutes
+     (`R3`) in the data-protected `TwoFactorUserId` cookie, with no server-side nonce. A
+     replayed exchange is caught only by the sign counter, which runs only when a counter
+     is non-zero. `G-8` decides whether a per-credential nonce is needed. Whoever captured
+     the exchange also holds the session cookie that followed.
+   - **The key ring (`D3`, `C3-11`).** `PersistKeysToFileSystem` to a path from
+     configuration, plus `SetApplicationName("portfolio")`. Under `aspire run` the path is
+     the user profile; in the container it is a named volume (step 7). The keys are
+     plaintext on the host, and rely on disk encryption, as the envelope-encryption KEK
+     does.
+   - **Test harness (`R2`, `TST-2`, `TST-6`, `TST-7`, `SRC-9`, `SRC-10`).**
+     - **`SoftAuthenticator`** in `tests/Integration`. It generates an ES256 key; builds
+       `clientDataJSON` with the configured origin; builds `authenticatorData` with flags
+       and counter; CBOR-encodes a `none` attestation; and signs assertions. It has
+       hostile variants: a foreign origin, `crossOrigin`, UV off, a replayed counter, and
+       malformed CBOR. **Gate (`GT-3`):** Identity accepts its attestation. The first
+       registration raises it.
+     - **`AuthFixture : PostgresFixture`**, with the auth classes in `tests/Integration`.
+       Its client uses `https://localhost`, because .NET's cookie container never sends a
+       `Secure` cookie back over `http://localhost`. `IsHttps` is therefore true in these
+       tests and false in production; the E2E covers the plain-HTTP path. Replayed cookies
+       are sent by hand. [`EXECUTED 2026-10-24` round 2 TST and SRC probes]
+     - **`SignedInClient`**, for every other HTTP test class. It authenticates through a
+       test scheme that accepts only requests carrying `X-Test-User`, and answers
+       `NoResult` otherwise. A policy scheme selects it, so it is consulted at all (`SRC-10`).
+       Its principal's `NameIdentifier` is the real user's id, because antiforgery binds
+       the token to that claim. The four HTTP classes (`ImportApiTests`,
+       `CrossSiteWriteTests`, `ClockTests`, `BalanceIdempotencyTests`) move onto it here.
+     - **The guard against the test scheme leaking** (`TST-3`):
+       - On the unmodified Production and Development factories, the registered schemes
+         and the default schemes are exactly Identity's.
+       - An architecture test asserts that no `src/*.csproj` references `tests/`.
 3. **CSRF, CORS, the limiter, headers.**
-   - **The antiforgery filter (`C3-1`)** on the `/api` group, per Spike J. It sits after
-     `UseAuthentication` and `UseAuthorization` (`G-20`) and refuses with `403` and a
-     `ProblemDetails.title` of its own. The token endpoint requires a session (`C3-22`).
+   - **The pipeline, in order** (`SRC-1`, `SRC-8`, `TST-5`, `TST-9`, `TST-10`):
+     1. the headers middleware, writing in `Response.OnStarting`, so a `500` keeps them;
+     2. `UseExceptionHandler`, `UseStatusCodePages`;
+     3. the cross-site refusal;
+     4. `UseFileServer`;
+     5. **explicit** `UseAuthentication()`, `UseAuthorization()`;
+     6. `UseRateLimiter()`;
+     7. the endpoints, with the antiforgery filter on `/api`.
+
+     Calling `UseAuthentication` and `UseAuthorization` explicitly matters.
+     `WebApplication` otherwise inserts them ahead of every user middleware, which takes
+     the headers off a `401`. A fallback policy also covers a static file served after
+     them, so the SPA would answer `401`.
+
+     Host filtering wraps the whole pipeline, so its `400` carries no security headers.
+     That is accepted, because it refuses before any application code runs.
+
+     An Integration test on a temporary web root checks the order: anonymous `GET /` and
+     an asset answer `200`; `GET /` carries the exact published CSP; anonymous `/api`
+     answers `401`.
+
+     [`EXECUTED 2026-10-24` round 2 SRC probes A, B and C; `SOURCE@dotnet/aspnetcore@v10.0.13`
+     `src/DefaultBuilder/src/WebApplicationBuilder.cs:434-453`,
+     `src/Security/Authorization/Policy/src/AuthorizationMiddleware.cs:97-150`,
+     `src/Middleware/Diagnostics/src/ExceptionHandler/ExceptionHandlerMiddlewareImpl.cs:291-293`]
+   - **The antiforgery filter (`C3-1`)** is built and tested here, per Spike J. It
+     refuses with `403` and a `ProblemDetails.title` of its own.
+     - **The allow-listed anonymous routes are exempt** (`R1`). They are covered instead
+       by layers 1 and 2, `ValidateOrigin`, the limiter and the `Strict` challenge cookie.
+     - The token endpoint requires a session (`C3-22`). `SignedInClient` gains a handler
+       that fetches the token and sends `X-CSRF-TOKEN` on unsafe methods.
+     - **The filter's enforcement on the existing endpoints is switched on in step 4**,
+       with the session requirement.
    - **CORS: none registered** (`C3-41`). A test sends `Origin: http://attacker.localhost`
      and the Vite origin across DoD 2's enumeration, plus `OPTIONS` to each `POST` path,
      and asserts that no response carries `Access-Control-Allow-Origin`.
-   - **The limiter (`C3-7`, `C3-19`, `C3-43`).** One fixed-window limiter covering the
-     anonymous authentication endpoints (enrolment, passkey options, passkey sign-in). It
-     is global, partitioned by policy name and never by the remote address.
-     `RejectionStatusCode` is `429`. `OnRejected` writes a `ProblemDetails` titled "Too
-     many sign-in attempts. Try again in about a minute." with `Retry-After`, and logs
-     neither a partition key nor a body. The numbers are chosen at build and recorded
-     here. [`SOURCE@dotnet/aspnetcore@v10.0.13`
-     `src/Middleware/RateLimiting/src/RateLimiterOptions.cs:41` (the default rejection is
-     `503`)]
-   - **Headers (`C3-38`, `C3-40`)** come from one middleware placed first in
-     `Program.cs`, so every status carries them:
+   - **The limiter (`C3-7`, `C3-19`, `C3-43`; `SRC-14`, `SCO-9`, `TST-12`, `TST-13`).**
+     - `AddFixedWindowLimiter("auth", …)` plus `RequireRateLimiting("auth")` on the
+       anonymous authentication endpoints, not `GlobalLimiter`. It is one limiter for
+       every caller, never keyed by address.
+     - Its permit limit and window are bound from configuration, and the production
+       numbers are recorded here at build.
+     - `RejectionStatusCode` is `429`. `OnRejected` writes a `ProblemDetails` titled "Too
+       many sign-in attempts. Try again in about a minute.", with `Retry-After` from the
+       lease, which is the window length. It logs neither a partition key nor a body.
+     - Tests that sign in more than once, and DoD 7's canary sweep, run with the limit
+       raised and assert that no response was `429`.
+
+     [`SOURCE@dotnet/aspnetcore@v10.0.13`
+     `src/Middleware/RateLimiting/src/RateLimiterOptionsExtensions.cs:56-70`,
+     `RateLimiterOptions.cs:41`; `SOURCE@dotnet/runtime@v10.0.13`
+     `src/libraries/System.Threading.RateLimiting/src/System/Threading/RateLimiting/FixedWindowRateLimiter.cs:209-216`]
+   - **Headers (`C3-38`, `C3-40`):**
      - `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`;
-     - `X-Frame-Options: DENY`, with `AntiforgeryOptions.SuppressXFrameOptionsHeader`
-       set so antiforgery adds no second value;
+     - `X-Frame-Options: DENY`, with `AntiforgeryOptions.SuppressXFrameOptionsHeader` set
+       so antiforgery adds no second value;
      - `Permissions-Policy` denying everything except
        `publickey-credentials-get=(self)` and `publickey-credentials-create=(self)`;
      - **no HSTS**, and its absence asserted (`D1`).
@@ -370,13 +491,24 @@ The published policy is built in step 3 and shown in step 7 (`D16`).
      The page served from `wwwroot` gets the published CSP, Spike K's string above.
      `frame-ancestors` works only as a header, which is why the API sets it.
      [`EXECUTED` committee BRW F16]
-4. **Web.** **The error boundaries stay per section** (`edb9504`).
-   - **Views (`C3-15`, `C3-37`, `C3-50`).** Sign-in, set-up, and the portfolio. Each sets
-     `document.title`, and its `<h1>` takes focus when the view changes after a user
-     action. The fields carry `autocomplete="username"`, and `one-time-code` on the setup
-     code. The sign-in view shows the environment label before authentication, as
-     `environments.md` requires.
-   - **The passkey button (`C3-18`, `C3-52`, `D8`).**
+4. **Web, and the switch.** **The error boundaries stay per section** (`edb9504`).
+   - **The switch (`D11`).** `FallbackPolicy = RequireAuthenticatedUser()` and the
+     antiforgery filter's enforcement go on together with the sign-in page and the E2E's
+     signed-in helper, in one change. DoD 2's allow-list test lands with them.
+     [`SOURCE@dotnet/aspnetcore@v10.0.13`
+     `src/Security/Authorization/Core/src/AuthorizationPolicy.cs:189-197`]
+   - **The E2E signed-in helper (`TST-25`)** enrols once per `AppFixture`, with the setup
+     code as a test-builder parameter. It signs in once, and opens each context from the
+     saved `StorageState`. **Gate (`GT-6`):** restored `Secure` cookies are sent to
+     `http://localhost`. The E2E's bare `HttpClient` helpers become `fetch` calls inside
+     the signed-in page, which carry the cookie and the token (`TST-6`).
+   - **Views (`C3-15`, `C3-37`, `C3-50`).** Sign-in, set-up, and the portfolio, chosen
+     from step 2's anonymous state `GET`. Each sets `document.title`, and its `<h1>`
+     takes focus when the view changes after a user action. The fields carry
+     `autocomplete="username"`, and `one-time-code` on the setup code. The sign-in view
+     shows the environment label before authentication, as `environments.md` requires.
+   - **The passkey button (`C3-18`, `C3-34`, `C3-52`, `D8`).**
+     - It never starts a ceremony on page load or on field focus (`SCO-12`).
      - Before the ceremony: a hint saying what the browser will ask for, and that it allows
        up to 10 minutes.
      - During: the button stays enabled but `aria-disabled`, re-entry is guarded by an
@@ -388,6 +520,11 @@ The published policy is built in step 3 and shown in step 7 (`D16`).
          `location.hostname` is not `localhost`, the page says so before the ceremony.
        - Where passkeys are unsupported, the button is hidden and the page says this
          browser cannot sign in here.
+     - **The E2E's producers (`TST-15`):**
+       - pending: a route that holds the sign-in `POST`;
+       - `NotAllowedError`, `SecurityError` and unsupported: init scripts that replace
+         `navigator.credentials.get` or remove `PublicKeyCredential` (`GT-9`, `GT-12`);
+       - success: one real ceremony.
    - **Expiry (`C3-17`, `C3-47`).**
      - One `401` handler sets a single signed-out state. Sections render no alert of their
        own for a `401`, and keep their data on screen.
@@ -395,65 +532,97 @@ The published policy is built in step 3 and shown in step 7 (`D16`).
      - After signing in again, the page refetches the token first, then invalidates
        queries, returns focus, and announces "Signed in again."
      - A refused write is not replayed. Its form keeps the input and says why.
-     - An antiforgery `400` means: refetch the token, retry once, then sign in.
+     - **A `403` whose title is the antiforgery filter's** means: refetch the token, retry
+       once, then sign in. The page keys on the title, never the status, since layer 2
+       also answers `403` (`SRC-6`, `SCO-5`).
      - The footer's health line does not say "unreachable" on expiry.
-     - One E2E case tells "no cookie sent" from "ticket expired".
+     - E2E: with `ValidationInterval` zero, copy context A's cookies to B, sign out in A,
+       and B's next request is a `401` with the cookie sent: "ticket expired". Clearing
+       B's cookies gives "no cookie sent". The two must be told apart (`TST-15`).
    - **Sign-out (`D15`).** The header shows "Signed in as <name>" and a `Sign out` button
      that `POST`s, then calls `location.assign('/')`. The sign-in view then says "You are
      signed out", from a one-shot flag.
    - **The token** is held in module memory, fetched after every sign-in, and discarded on
-     sign-out and on a `401` (`C3-22`).
+     sign-out and on a `401` (`C3-22`). That is a client convention: the token binds to
+     the user, not the session (`SRC-18`).
    - **Styling (`C3-51`).** The dialog uses the AA tokens. "Waiting…" is text, not only
      a spinner, since reduced motion removes the spinner. `aria-disabled` buttons are
      styled by colour, not opacity.
-   - **The session requirement on the existing endpoints is switched on here**, with the
-     E2E's signed-in helper (`D11`).
 5. **Logging and audit.**
-   - **Events:** enrolment, sign-in succeeded, sign-in failed, sign-out, sessions revoked,
-     owner reset.
-     - Each records actor, time, subject, environment and connection address. The address
-       is the real one only after step 7's forwarded-headers fix (`C3-9`).
-     - A failed sign-in records "unknown user" unless the name matches the one user.
-     - The step 3 limiter bounds the rows (`C3-43`).
-   - **DoD 7's test (`C3-26`).**
-     - Capture: every category at `Trace`, with a known benign line asserted present so a
-       silent provider cannot pass, and the OpenTelemetry in-memory exporter for traces
-       (`G-22`).
-     - Canaries: the setup code, a passkey assertion, the session cookie value and the
+   - **Events:** enrolment, sign-in succeeded, sign-in failed, sign-out. Each records
+     actor, time, subject, environment and connection address. The address is the real
+     one only after step 7's forwarded-headers fix (`C3-9`). The step 3 limiter bounds the
+     rows (`C3-43`). The two command events, sessions revoked and owner reset, are
+     asserted in step 7, where the commands are built (`SCO-6`).
+   - **DoD 7's test (`C3-26`, `TST-14`).**
+     - **Capture:** every category at `Trace`, with the `Microsoft.AspNetCore` and
+       `Microsoft.EntityFrameworkCore` levels pinned through settings. What is captured:
+       - each entry's formatted message, every structured state value, every scope value
+         and the full exception chain;
+       - every Activity's tags, events and status, through the OpenTelemetry in-memory
+         exporter (`G-22`);
+       - every non-2xx body.
+     - **Non-empty guard:** at least one `Microsoft.AspNetCore.Hosting` line and one span
+       for `GET /api/v1/system/health` must be present.
+     - **Canaries:** the setup code, a passkey assertion, the session cookie value and the
        antiforgery token. They are driven through enrolment, sign-in, a failed sign-in, a
-       malformed assertion and a `500`, and injected into every field of every anonymous
-       endpoint and into a query string. Each must be absent raw, URL-encoded and in
-       base64.
-     - Configuration: Production, with `EnableSensitiveDataLogging` asserted off (`G-24`)
-       and the `Microsoft.AspNetCore` level pinned in the test.
-     - Seen failing once, by logging a canary at `Debug`.
+       malformed assertion (from `SoftAuthenticator`) and a `500` (from DoD 6's producer).
+       They are injected into every field of every anonymous endpoint and into a query
+       string, with the limiter raised, and each must reach its handler.
+     - **Matching:** raw, URL-encoded, and base64 and base64url at each of the three byte
+       alignments.
+     - **Configuration:** Production, with `EnableSensitiveDataLogging` asserted off
+       (`G-24`).
+     - **Seen failing:** a committed test logs one canary at `Debug` and asserts the scan
+       finds it.
      - **The redaction filter is written only if this test goes red** (the middle cut).
-   - **The contract test (`C3-27`)** runs over the committed OpenAPI document and asserts
-     that no schema property has a credential-like name.
-6. **The pre-commit hook (`C3-29`).** Installed by `scripts/install-hooks.sh`. The test in
-   `tests/Architecture`:
-   - builds a temporary repository, runs the installer, and asserts `core.hooksPath`;
-   - stages a secret-shaped value, and asserts both a non-zero exit and the scanner's
-     refusal text;
-   - commits a clean file, and asserts exit 0. That clean twin is what tells "refused the
-     secret" from "cannot run the scanner".
+   - **The contract test (`C3-27`, `TST-19`)** sits in `tests/Architecture`, which is
+     required in CI, and reads the committed OpenAPI document. It scans **response**
+     schemas for credential-like property names, and asserts that the authentication
+     operations are present, so the scan is not vacuous.
+6. **The pre-commit hook (`C3-29`, `TST-16`).** Installed by `scripts/install-hooks.sh`.
+   - **The interpreter is chosen by running it, not by finding it.** On this machine
+     `python3` is the Microsoft Store stub: it exists and exits 49, so today's hook refuses
+     even a clean commit. [`EXECUTED 2026-10-24` round 2 TST]
+   - **The test in `tests/Architecture`:**
+     - builds a temporary repository with the hook, scanner and installer copied in;
+     - isolates git config (`GIT_CONFIG_GLOBAL` empty, `GIT_CONFIG_NOSYSTEM=1`) and sets
+       a local identity;
+     - builds the secret-shaped value at runtime, so the test's own source does not trip
+       the scanner.
+   - **Three cases:**
+     - the secret is refused: a non-zero exit and the scanner's refusal text;
+     - a clean file commits with exit 0;
+     - with a `python3` shim that exits 49 first on `PATH`, a clean file still commits.
 
-   The hook falls back to `python` where `python3` is absent, as on this machine. The CI
-   scan is named in DoD 8 as the backstop, since `--no-verify` bypasses the hook by
+   The CI scan is named in DoD 8 as the backstop, since `--no-verify` bypasses the hook by
    design.
 7. **Tests and deploy.**
-   - **The app model.** `.DisableForwardedHeaders()` on the `api` resource (`C3-9`), and the
-     key-ring volume through `PublishAsDockerComposeService` (`D3`).
-     [`SOURCE@dotnet/aspire` `src/Aspire.Hosting/ProjectResourceBuilderExtensions.cs`]
-   - **Two commands.** `revoke-sessions` (rotate the stamp) and `reset-owner` (clear the
-     credentials and reopen enrolment) run as `docker compose run --rm api <mode>`. Each
-     is audited and tested.
+   - **The app model.** `.DisableForwardedHeaders()` on the `api` resource (`C3-9`).
+     [`SOURCE@dotnet/aspire@v13.6.1`
+     `src/Aspire.Hosting/ProjectResourceBuilderExtensions.cs:633-643,960-964`] The key
+     ring goes on a named volume, declared through a `ContainerMountAnnotation` (or
+     `ConfigureComposeFile`). A volume added only in `PublishAsDockerComposeService` is
+     never declared, and `docker compose config` rejects it. It is mounted under
+     `/home/app`, which the image's `app` user (UID 1654) owns; a fresh volume at a new
+     path is root-owned and unwritable (`SRC-7`). [`EXECUTED 2026-10-24` round 2 SRC:
+     `docker compose config`; `docker run` against `api:latest`;
+     `SOURCE@dotnet/aspire@v13.6.1`
+     `src/Aspire.Hosting.Docker/DockerComposePublishingContext.cs:100-127`]
+   - **Two commands (`TST-22`).** `revoke-sessions` (rotate the stamp) and `reset-owner`
+     (clear the credentials and reopen enrolment) run as `docker compose run --rm api
+     <mode>`.
+     - Their bodies are a service. Integration invokes it through `factory.Services`, and
+       one process-level test runs the built API with a mode.
+     - Each writes its audit event, asserted as a per-action delta.
    - **The runbook says:**
      - a redeploy now keeps sessions;
      - `down -v` destroys the key ring with the data, and reopens enrolment;
-     - logs live in `docker logs` (100 MB, lost on recreate) (`G-27`).
+     - logs live in `docker logs` (100 MB, lost on recreate) (`G-27`);
+     - which compose project name it uses (step 1).
    - **The published stack:**
-     - passkey sign-in by a Playwright script against `docker compose`;
+     - passkey sign-in by a Playwright script against `docker compose`, which raises
+       `G-12`;
      - the headers, including HSTS's absence, by `curl`;
      - a forged `X-Forwarded-For` is not what `audit_event` records;
      - a session survives `docker compose restart api`;
@@ -464,21 +633,35 @@ The published policy is built in step 3 and shown in step 7 (`D16`).
 
 ## Definition of done
 
-1. Spike H has run. Spike I's remainder (`G-5`, `G-12`) and Spike J run. Their claims are
-   restated at `EXECUTED`, or replaced by what was found. Spike K is cut (`D9`).
-2. **No endpoint answers without a session except an explicit allow-list of route names**
-   (`C3-12`):
-   - The list names the anonymous health route and the enrolment and passkey sign-in
-     routes. Static files are anonymous by design.
-   - It is asserted by request, over `EndpointDataSource`, in both Production and
-     Development configuration. Every name on the list must exist.
-   - Every unsafe-method endpoint carries the antiforgery filter, `DELETE` included.
-   - A cookie from a signed-out session answers `401` on every endpoint, once the
-     validation interval has passed.
-3. Enrolment and sign-in work with a passkey, both under `aspire run` through the Vite proxy
-   and in the published stack. The E2E uses a CDP virtual authenticator, in Chromium only,
-   by tooling. The published half is run by hand and recorded with date and commit. A
-   session survives `docker compose restart api`.
+1. Spike H has run. Spike I's remainder (`G-5`) and Spike J run; `G-12` runs in step 7.
+   Their claims are restated at `EXECUTED`, or replaced by what was found. Spike K is cut
+   (`D9`).
+2. **No endpoint answers without a session except an explicit allow-list** (`C3-12`, `TST-4`).
+   - There are two lists, one per environment, keyed by endpoint name, or by route pattern
+     where an endpoint has no name.
+     - **Production:** the health route, the anonymous state `GET`, the enrolment routes
+       and the passkey sign-in routes.
+     - **Development:** adds `/health` and `/alive`. `/openapi` stays behind the session
+       (`R4`).
+   - Static files are anonymous because they are served before authorization (step 3's
+     order), as the temporary-web-root test shows.
+   - The lists are asserted by request over `EndpointDataSource`, on the **unmodified**
+     Production and Development factories, with no test scheme (`TST-2`). An anonymous
+     request answers `401` with no `Location` header. Every name on each list must exist.
+   - Every unsafe-method endpoint **off** the allow-list carries the antiforgery filter.
+     Every one **on** it does not (`R1`). This is asserted from a table of method, sample
+     URL, content type and valid body per endpoint, and an unsafe endpoint with no row
+     fails the test (`TST-17`). A `DELETE` is shown refused by a filter-level test on a
+     test-only route, since the API has none.
+   - A cookie copied before sign-out still answers `200` at +30 seconds and `401` at +61
+     seconds, on a pinned clock (`TST-18`).
+3. Enrolment and sign-in work with a passkey:
+   - in Integration, through `SoftAuthenticator`, with its hostile variants refused;
+   - under `aspire run` through the Vite proxy, by the E2E with a CDP virtual
+     authenticator, in Chromium only by tooling;
+   - in the published stack, run by hand and recorded with date and commit.
+
+   A session survives `docker compose restart api`.
 4. **A same-site attacker with a valid session in the browser cannot write** (`C3-2`, `D12`).
    - **Integration:** with a valid session, `Sec-Fetch-Site: same-origin` and an accepted
      content type, a write whose token is missing, foreign or another user's is refused,
@@ -486,36 +669,62 @@ The published policy is built in step 3 and shown in step 7 (`D16`).
      `403`.
    - **Browser:** a signed-in context, attacked from another `localhost` port.
      - Each refusal is identified by its `ProblemDetails.title`, not its status.
-     - The cookie is proven sent; a `401` fails the test.
      - "Nothing written" is read from the signed-in page.
-     - The cases include a `Blob`-typed `no-cors` `POST`, a `text/plain` cors `POST`
-       (`C3-31`) and a passkey sign-in attempt (`C3-23`).
-   - **Stated:** the token's job is same-origin script. The same-site story is layers 1
-     and 2, which a browser reaches first.
-5. The anonymous authentication endpoints are throttled. The trip is asserted (`429`,
-   `Retry-After`, the title), never the reset. The page shows the title and a static "try
-   again after" time.
+     - The cases include a `Blob`-typed `no-cors` `POST` and a `text/plain` cors `POST`
+       (`C3-31`).
+     - **For each same-site case the cookie is proven sent**, and a `401` there fails the
+       test. For the cross-site (`attacker.localhost`) cases the `Strict` cookie is proven
+       **not** sent (`TST-9`). Both are read from Playwright's request headers (`GT-6`).
+   - **Not in the browser:** a passkey sign-in from another port is refused by layer 2
+     before the origin check is reached. `ValidateOrigin` is shown in Integration by
+     `SoftAuthenticator`'s foreign-origin variant (`C3-23`, `TST-9`).
+   - **Stated** (`D12`): the token is defence in depth behind layer 2. What it refuses on
+     its own is a client that sends no `Sec-Fetch-Site`, or a write after a later change
+     removes layer 2 (`SCO-16`).
+5. The anonymous authentication endpoints are throttled.
+   - The trip test owns its window (an hour, 3 permits) on its own factory. It asserts
+     `429`, a numeric `Retry-After` and the title, and that the refused request reached no
+     handler. It never asserts the reset.
+   - A second test pins the production numbers from configuration (`TST-12`).
+   - The page shows the title and a static "try again after" time.
 6. **Headers and CSP (`C3-20`, `C3-28`, `C3-40`):**
-   - Every status the API produces carries the security headers: `200`, `400`, `401`,
-     `403`, `404`, `415` and `500`. HSTS is absent.
+   - Every status the API produces carries the security headers, with HSTS absent. One
+     theory runs on the Production factory, over a producer per status (`TST-10`):
+     - `200`: the health route;
+     - `400`: malformed JSON;
+     - `401`: anonymous, on the unmodified factory;
+     - `403`: same-site, and token-less;
+     - `404`: an unknown account;
+     - `415`: a `text/plain` upload;
+     - `500`: a closed-port connection string.
+
+     A host-filter `400` is the stated exception (step 3).
    - The published page's CSP has no `unsafe-inline` and no `unsafe-eval`. It is shown by
-     the built-bundle E2E: zero "Refused to" console messages, with functional assertions
-     ahead of axe.
-   - axe reports 0 in both colour schemes on the sign-in view, the set-up view, the
-     throttled state, the expiry dialog and the signed-in page.
+     the built-bundle E2E, in a context **without** `BypassCSP`:
+     - the document's `Content-Security-Policy` equals the published string exactly;
+     - **a deliberate inline script registers one violation first**, a positive control;
+     - the functional path then runs with zero further violations (`TST-11`).
+   - axe runs in a **separate** context, if `G-29` needs `BypassCSP` (`SCO-12`). It reports
+     0 in both colour schemes on the sign-in view, the set-up view, the throttled state,
+     the expiry dialog and the signed-in page.
    - Focus and the exact status text are asserted after passkey success, failure and
      pending, the throttle, expiry, signing in again, and sign-out.
 7. **No secret reaches a log, a trace or an error response** (step 5's test). `audit_event`
-   holds the six event kinds, each asserted by shape and by count, and no secret. It
-   refuses `UPDATE`/`DELETE`/`TRUNCATE` from the application's code paths. **That is not a
-   boundary against the connecting role**, which can remove the trigger (`D6`, `G-7`).
+   holds the six event kinds, each asserted by shape and as a per-action delta, and no
+   secret. It refuses `UPDATE`/`DELETE`/`TRUNCATE` from the application's code paths.
+   **That is not a boundary against the connecting role**, which can remove the trigger
+   (`D6`, `G-7`).
 8. The pre-commit hook is installed by the documented command, refuses a staged
-   secret-shaped value, and commits a clean one. The CI scan is the backstop.
+   secret-shaped value, commits a clean one, and still runs where `python3` is a stub. The
+   CI scan is the backstop.
 9. Slice 01's and slice 02's DoD items still hold. The suites are green in CI, including the
    two time-zone jobs, which are required checks on `main` since 2026-10-20.
-   `CrossSiteWriteTests` is re-pinned to the new refusal order, with the reason stated
-   (`C3-13`). The E2E-backed items (3, 4's browser half, and 6's browser assertions) are
-   evidenced in the assessment with date, commit and machine (`D13`).
+   - The 36 Integration cases that need a session run on `SignedInClient`, and the 13 E2E
+     cases on the signed-in helper (`TST-1`).
+   - `CrossSiteWriteTests` is re-pinned to step 3's pipeline order, with the reason stated
+     (`C3-13`).
+   - The E2E-backed items (3's browser half, 4's browser half, and 6's browser assertions)
+     are evidenced in the assessment with date, commit and machine (`D13`).
 10. Each obligation below is done, or recorded as not done with a reason.
 
 ## Obligations this slice carries
@@ -529,11 +738,23 @@ The published policy is built in step 3 and shown in step 7 (`D16`).
 | Kyle, 2026-10-24 (`D6`) | `security.md` "Database": the non-superuser application role | **Deferred.** Trigger: real data, or anything other than this app reaching the database |
 | Kyle, 2026-10-24 (`D5`) | A backup command before a migration runs on a volume that matters | **Owed before the first real balance.** A dump then holds the passkey records and the audit log |
 | Kyle, 2026-10-24 (`D17`) | `security.md` "Audit": data mutation, reports, projections, exports | **Carried.** Authentication events only here, over invented data. Trigger: real data |
-| Committee `C3-48` | Coverage floors for security types | **Carried.** Trigger: the first pure security type outside a measured project |
+| The review, 2026-10-24 | Deferred by the dispositions | **Carried, each with its trigger** (round 2, `SCO-11`). See the list below |
 | slice-02 assessment | Finer error boundaries, and a web unit-test runner | **Carried, not built.** Not this slice's technique; Kyle's call |
 | slice-02 assessment | The import's plan-to-write race | **Carried.** Not this slice's technique |
 | slice-02 assessment | The bundle (638 kB), the network split (`S-25a`) | **Carried** |
 | Planning `D-043` | `C-389`, value-weighted coverage, discharged there | **Carried here as an open question**, Kyle's to rule, for the first slice holding real balances |
+
+The items deferred by the review, each with the trigger that reopens it:
+
+| Item | Trigger |
+|---|---|
+| The authentication method in audit (`C3-44`) | `D7`'s trigger |
+| A compose healthcheck (`C3-50`) | The API leaves loopback, or a restart loop is observed |
+| A per-credential nonce (`C3-39`) | `G-8` shows that platform passkeys report `signCount = 0` |
+| Coverage floors for security types (`C3-48`) | The first pure security type outside a measured project |
+| A `sessions` table (`D4`) | More than one session to revoke |
+| A `127.0.0.1` → `localhost` redirect (`D8`) | The pre-ceremony warning is ever missed in use |
+| Firefox in the E2E (`D14`) | Playwright gains a virtual authenticator for Firefox |
 
 ## The gate — slice 01's rule, unchanged
 
