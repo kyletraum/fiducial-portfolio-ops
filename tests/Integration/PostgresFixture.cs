@@ -44,6 +44,9 @@ public class PostgresFixture : IAsyncLifetime
     public PortfolioDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<PortfolioDbContext>();
+        // No host here, so Identity's schema version has to be supplied (slice 03, migration 5);
+        // without it the model would differ from the snapshot and MigrateAsync would refuse.
+        PortfolioDbContext.WithIdentitySchema(options);
         options.UseNpgsql(ConnectionString, npgsql =>
             {
                 PortfolioDbContext.Npgsql(npgsql);

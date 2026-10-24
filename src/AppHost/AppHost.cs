@@ -54,8 +54,19 @@ var migrator = builder.AddProject<Projects.Migrator>("migrator")
         // a one-shot, and the Api waits for it to EXIT (service_completed_successfully).
         service.DependsOn["postgres"] = new() { Condition = "service_healthy" });
 
+// Slice 03 step 1 (D2): the first-run setup code, a secret parameter the AppHost generates.
+// 29 characters from Aspire's lower-case alphabet, which already leaves out i, l and o: about
+// 131 bits, and nothing to misread (gate GT-W, from aspire@v13.6.1 src/Shared/PasswordGenerator.cs).
+// Not persisted: under `aspire run` a fresh code is generated on every start, and `aspire deploy`
+// writes the resolved value to .env.<environment>. The Api accepts it only while no user exists,
+// and refuses any code already spent (used_setup_code), so a stale value cannot enrol anyone.
+var setupCode = builder.AddParameter("setup-code",
+    new GenerateParameterDefault { MinLength = 29, Lower = true, Upper = false, Numeric = false, Special = false },
+    secret: true);
+
 var api = builder.AddProject<Projects.Api>("api")
     .WithReference(db)
+    .WithEnvironment("Enrolment__SetupCode", setupCode)
     .WaitForCompletion(migrator)
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints()
