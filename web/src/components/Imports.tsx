@@ -1,6 +1,6 @@
 // slice-02.md step 4: upload a balance file, see what it did, see what every import did.
 import { useId, useRef, useState, type FormEvent } from 'react';
-import { ApiError, MAX_UPLOAD_BYTES, importTypeFor, useImportFile, useImports, type ImportRun } from '../api/queries';
+import { ApiError, isSignedOut, MAX_UPLOAD_BYTES, importTypeFor, useImportFile, useImports, type ImportRun } from '../api/queries';
 import { formatMoment } from '../money';
 
 const FORMAT_LABEL: Record<string, string> = { 'import:csv': 'CSV', 'import:ofx': 'OFX' };
@@ -99,7 +99,8 @@ export function ImportForm() {
 export function ImportHistory() {
   const runs = useImports();
   if (runs.isPending) return <p>Loading imports…</p>;
-  if (runs.isError) return <p role="alert" className="form-error">Could not load imports: {runs.error.message}</p>;
+  if (runs.isError && !isSignedOut(runs.error)) return <p role="alert" className="form-error">Could not load imports: {runs.error.message}</p>;
+  if (!runs.data) return null; // signed out before the first load: the sign-in dialog says so
   if (runs.data.length === 0) return <p>No imports yet.</p>;
   return (
     <div className="table-scroll" tabIndex={0} role="region" aria-labelledby="import-history-caption">

@@ -9,8 +9,8 @@ namespace Portfolio.Api;
 
 /// <summary>
 /// Slice 03 step 2: first-run enrolment by setup code, passkey sign-in, sign-out. Every route is
-/// under /api/v1/auth. The anonymous ones carry AllowAnonymous now, so step 4's FallbackPolicy
-/// leaves them open; the two that need a session say so.
+/// under /api/v1/auth, so the group's CSRF filter covers sign-out. The anonymous ones carry
+/// AllowAnonymous, so the FallbackPolicy leaves them open, and are exempt from the filter (R1).
 /// </summary>
 static class AuthEndpoints
 {
@@ -39,7 +39,7 @@ static class AuthEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status401Unauthorized);
 
         auth.MapGet("/csrf-token", CsrfTokens.Issue).WithName("GetCsrfToken").RequireAuthorization();
-        auth.MapPost("/sign-out", SignOut).WithName("SignOut").RequireAuthorization().RequireCsrfToken()
+        auth.MapPost("/sign-out", SignOut).WithName("SignOut").RequireAuthorization()
             .ProducesProblem(StatusCodes.Status403Forbidden);
         auth.MapGet("/session", GetSession).WithName("GetSession").RequireAuthorization();
     }

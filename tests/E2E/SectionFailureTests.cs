@@ -19,7 +19,7 @@ public class SectionFailureTests(AppFixture fixture) : IClassFixture<AppFixture>
     [Fact]
     public async Task A_section_that_throws_is_replaced_by_a_notice_and_the_rest_of_the_page_still_works()
     {
-        var context = await fixture.Browser.NewContextAsync(new() { BaseURL = fixture.WebUrl.ToString() });
+        var context = await fixture.NewSignedInContextAsync();
         var page = await context.NewPageAsync();
         var pageErrors = new List<string>();
         page.PageError += (_, e) => pageErrors.Add(e);

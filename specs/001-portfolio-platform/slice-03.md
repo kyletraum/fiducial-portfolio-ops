@@ -732,6 +732,74 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
    - **Styling (`C3-51`).** The dialog uses the AA tokens. "Waiting…" is text, not only
      a spinner, since reduced motion removes the spinner. `aria-disabled` buttons are
      styled by colour, not opacity.
+
+   > **BUILT 2026-10-24: the switch is on.**
+   > - **Server:**
+   >   - `FallbackPolicy = RequireAuthenticatedUser()`;
+   >   - the CSRF filter on the whole `/api/v1` group, with the ceremonies exempt;
+   >   - `GetHealth` anonymous, and the Development `/health` and `/alive` too, since the
+   >     AppHost probes them;
+   >   - `/openapi` behind the session (`R4`).
+   > - **DoD 2 (`AllowListTests`):**
+   >   - Production and Development, unmodified, enumerated over `EndpointDataSource`:
+   >     only the allow-list answers without a session, with no `Location` header, and
+   >     every name on the list exists;
+   >   - a table of bodies shows every unsafe endpoint off the list refused for its
+   >     token, and none on the list;
+   >   - **seen failing:** making `ListAccounts` anonymous fails both environments.
+   > - **Web:**
+   >   - `apiFetch` behind the typed client and the upload: the token on unsafe requests;
+   >     one retry on the filter's title; and a `401` outside `/auth/` sets the one
+   >     signed-out state;
+   >   - `AuthGate` with the set-up view (three steps), the sign-in view, the expiry
+   >     `<dialog>`, and the header's account line;
+   >   - one `PasskeyButton` for every outcome;
+   >   - sections render no alert of their own for a `401`.
+   > - **E2E:**
+   >   - **The fixture** sets the setup code as the AppHost parameter, enrols once, and
+   >     keeps the browser state and the passkey. It sets the validation interval to zero
+   >     and raises the limiter.
+   >   - **Copies of the passkey** get counters 1,000 apart, or a second copy would be
+   >     refused as a clone.
+   >   - **The existing tests** run from the stored state, and their bare `HttpClient`
+   >     calls became `fetch` from a signed-in page. **`GT-6`'s second half is raised**:
+   >     restored `Secure` cookies are sent to `http://localhost`, or none of them would
+   >     pass.
+   >   - **`AuthBrowserTests`** (9) and **`SetUpBrowserTests`** (1), on a fixture with no
+   >     owner. [`EXECUTED 2026-10-24`, all 25 E2E cases green]
+   >     - **Sign-in:** title, environment, lifetime and time allowed shown, then focus on
+   >       the portfolio's `h1`.
+   >     - **Pending:** while a route holds the sign-in `POST`, "Waiting…" is shown and
+   >       the button is `aria-disabled` and keeps focus.
+   >     - **Failures:** `NotAllowedError` and `SecurityError` each get their own text,
+   >       with focus back on the button.
+   >     - **Unsupported:** with no `PublicKeyCredential`, the page says so and shows no
+   >       button.
+   >     - **An unknown passkey** is named as such.
+   >     - **Sign-out:** "You are signed out", with focus on `Sign in`.
+   >     - **Expiry**, both as "ticket expired" and as "no cookie sent":
+   >       - the dialog opens over the page, with no alert storm;
+   >       - the typed input is kept, with "signed out before this was saved";
+   >       - signing in again closes it and announces "Signed in again.";
+   >       - the same write then succeeds.
+   >     - **Set-up:**
+   >       - a wrong code is refused at the passkey step;
+   >       - going back, the code pasted grouped and in capitals enrols;
+   >       - each step's heading takes focus;
+   >       - a fresh browser is then offered sign-in.
+   > - **Found:**
+   >   - **The announcement had to move.** "Signed in again." first lived in the dialog,
+   >     which unmounts the moment the session is back, so it was never announced. It now
+   >     sits on the gate.
+   >   - **The stranger passkey's user handle.** A test passkey's handle has to be UTF-8,
+   >     as Identity's are; random bytes make Identity fail the lookup another way.
+   > - **Moved to step 7:**
+   >   - **DoD 4's browser half**, which reads which layer refused, and whether the cookie
+   >     arrived, from the API's own log (`G-21`);
+   >   - **DoD 6's checks:** axe in both colour schemes over these views, and the CSP
+   >     against the built bundle.
+   >
+   >   Both sit with the published-stack work, where the built bundle exists.
 5. **Logging and audit.**
    - **Events:** enrolment, sign-in succeeded, sign-in failed, sign-out. Each records
      actor, time, subject, environment and connection address. The address is the real

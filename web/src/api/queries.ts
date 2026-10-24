@@ -2,6 +2,7 @@
 // schema.d.ts, so a contract change fails `tsc` here rather than at runtime.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
+import { apiFetch } from './session';
 import type { components } from './schema';
 
 export type Account = components['schemas']['AccountResponse'];
@@ -26,9 +27,16 @@ export class ApiError extends Error {
 }
 
 function fail(response: Response, error: unknown): never {
+  // A 401 is the session ending (step 4): the sign-in dialog says so once, sections say nothing,
+  // and a refused write keeps its input and says why. It is never replayed.
+  if (response.status === 401)
+    throw new ApiError(401, 'You were signed out before this was saved. Sign in, then send it again.');
   const problem = (error ?? {}) as { title?: string; errors?: Record<string, string[]> };
   throw new ApiError(response.status, problem.title ?? `Request failed (HTTP ${response.status}).`, problem.errors);
 }
+
+/** A section shows no alert of its own for this: the sign-in dialog is the one message. */
+export const isSignedOut = (error: unknown) => error instanceof ApiError && error.status === 401;
 
 const keys = {
   accounts: ['accounts'] as const,
@@ -162,11 +170,11 @@ export function useImportFile() {
       const type = importTypeFor(file.name);
       if (!type) throw new ApiError(415, 'Choose a .csv or .ofx file.');
       if (file.size > MAX_UPLOAD_BYTES) throw new ApiError(413, `The file is larger than 1 MiB (${file.size.toLocaleString()} bytes).`);
-      const response = await fetch(`/api/v1/imports?fileName=${encodeURIComponent(file.name)}`, {
+      const response = await apiFetch(new Request(`/api/v1/imports?fileName=${encodeURIComponent(file.name)}`, {
         method: 'POST',
         headers: { 'Content-Type': type },
         body: file,
-      });
+      }));
       const body: unknown = await response.json().catch(() => ({}));
       if (response.status === 201) return body as ImportRun;
       return fail(response, body);

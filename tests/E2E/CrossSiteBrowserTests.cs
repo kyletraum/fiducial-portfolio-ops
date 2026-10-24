@@ -73,12 +73,13 @@ public class CrossSiteBrowserTests(AppFixture fixture) : IClassFixture<AppFixtur
     public async Task A_page_on_another_site_cannot_write(string attackerHost, string targetName)
     {
         var target = (targetName == "api" ? fixture.ApiUrl : fixture.WebUrl).GetLeftPart(UriPartial.Authority);
-        using var api = new HttpClient { BaseAddress = fixture.ApiUrl };
+        await using var api = await fixture.ApiAsync();
         var account = await NewAccountAsync(api);
         var before = await WrittenAsync(api, account);
 
         await using var site = AttackerSite.Start(AttackPage(target, account));
-        var context = await fixture.Browser.NewContextAsync();
+        // Signed in (slice 03): the attack runs in a browser that holds a valid session.
+        var context = await fixture.NewSignedInContextAsync(new() { BaseURL = null });
         var seen = new List<Seen>();
         context.Response += (_, r) => { if (r.Url.StartsWith(target)) lock (seen) seen.Add(new(r.Request.Method, r.Url, r.Status, null)); };
         context.RequestFailed += (_, r) => { if (r.Url.StartsWith(target)) lock (seen) seen.Add(new(r.Method, r.Url, null, r.Failure)); };
@@ -117,22 +118,20 @@ public class CrossSiteBrowserTests(AppFixture fixture) : IClassFixture<AppFixtur
         await context.CloseAsync();
     }
 
-    static async Task<Guid> NewAccountAsync(HttpClient api)
+    static async Task<Guid> NewAccountAsync(SignedInApi api)
     {
-        var created = await api.PostAsJsonAsync("/api/v1/accounts",
-            new { institutionName = "Example Bank", displayName = "Target", openedOn = "2026-01-01" }, Ct);
-        created.EnsureSuccessStatusCode();
-        var id = (await created.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetGuid();
-        (await api.PostAsJsonAsync($"/api/v1/accounts/{id}/sources", new { sourceSystem = "import:csv", sourceId = $"EX-{Guid.NewGuid():N}" }, Ct))
-            .EnsureSuccessStatusCode();
+        var created = await api.PostJsonAsync("/api/v1/accounts",
+            new { institutionName = "Example Bank", displayName = "Target", openedOn = "2026-01-01" });
+        var id = created.GetProperty("id").GetGuid();
+        await api.PostJsonAsync($"/api/v1/accounts/{id}/sources", new { sourceSystem = "import:csv", sourceId = $"EX-{Guid.NewGuid():N}" });
         return id;
     }
 
     /// <summary>Imports recorded, and balances on the target account.</summary>
-    static async Task<(int Runs, int Balances)> WrittenAsync(HttpClient api, Guid account)
+    static async Task<(int Runs, int Balances)> WrittenAsync(SignedInApi api, Guid account)
     {
-        var runs = await api.GetFromJsonAsync<JsonElement>("/api/v1/imports?limit=500", Ct);
-        var balances = await api.GetFromJsonAsync<JsonElement>($"/api/v1/accounts/{account}/balances", Ct);
+        var runs = await api.GetJsonAsync("/api/v1/imports?limit=500");
+        var balances = await api.GetJsonAsync($"/api/v1/accounts/{account}/balances");
         return (runs.GetArrayLength(), balances.GetArrayLength());
     }
 
