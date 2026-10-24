@@ -22,8 +22,9 @@ public class ClockTests(PostgresFixture pg) : IClassFixture<PostgresFixture>
         var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b
             .UseEnvironment("Production")
             .UseSetting("ConnectionStrings:portfolio", pg.ConnectionString)
-            .ConfigureTestServices(s => s.AddSingleton<TimeProvider>(new FixedClock(now))));
-        return (factory, factory.CreateClient());
+            .ConfigureTestServices(s => s.AddSingleton<TimeProvider>(new FixedClock(now)))
+            .WithTestAuth());
+        return (factory, factory.CreateSignedInClient());
     }
 
     [Theory]

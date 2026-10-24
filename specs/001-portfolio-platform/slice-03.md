@@ -502,6 +502,64 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
        - On the unmodified Production and Development factories, the registered schemes
          and the default schemes are exactly Identity's.
        - An architecture test asserts that no `src/*.csproj` references `tests/`.
+
+   > **BUILT 2026-10-24: registered, not yet enforced.**
+   > - **The routes**, under `/api/v1/auth`:
+   >   - `GET /state` (anonymous): enrolled or not, and the environment;
+   >   - `POST /enrolment/options` and `POST /enrolment`;
+   >   - `POST /sign-in/options` and `POST /sign-in`;
+   >   - `POST /sign-out` and `GET /session`, which require a session.
+   >
+   >   The anonymous ones carry `AllowAnonymous`. `GET /session` was added for step 4's
+   >   "Signed in as <name>".
+   > - **Titles are contract.** Every refusal title is a constant in `ProblemTitles`, which
+   >   the page will key on.
+   > - **Sign-in departs from the text above.** It runs `PerformPasskeyAssertionAsync`,
+   >   then stores the new sign count, then `SignInAsync(…, isPersistent: true)`.
+   >   `PasskeySignInAsync` returns a bare `Failed`, and the page needs "this passkey isn't
+   >   registered with this app" (Spike I §3) apart from other refusals. This is round 2's
+   >   own alternative (`SRC-2`). Two consequences:
+   >   - Identity's lockout check is never run on the passkey path, so the lockout twin
+   >     holds by construction, and its test documents it.
+   >   - `OnSigningIn` still makes any sign-in persistent.
+   > - **Enrolment:**
+   >   - the options are made for a user who does not exist yet;
+   >   - the finish creates the user and stores the passkey in one transaction, under
+   >     `pg_advisory_xact_lock`, re-checking both "no owner" and "code not spent";
+   >   - a refused registration leaves no user and the code unspent.
+   > - **Not yet:** clearing the antiforgery cookie on sign-out, which step 3 introduces.
+   > - **The harness:**
+   >   - `SoftAuthenticator` (ES256, a `none` attestation, CTAP2-canonical CBOR, DER
+   >     signatures), built from Identity's own parsers. **`GT-3` raised:** Identity accepted
+   >     its attestation and assertions.
+   >   - `AuthFixture` on `https://localhost`.
+   >   - `TestAuth`: the header-only scheme behind a policy scheme.
+   >   - The guards: the app's scheme set and defaults asserted in Production and
+   >     Development, and an architecture test that no app project references a test
+   >     project.
+   >   - The four HTTP classes now run signed in.
+   > - **Shown** [`EXECUTED 2026-10-24`, `tests/Integration/AuthApiTests.cs`, 24 cases]:
+   >   - **Enrolment:**
+   >     - it creates the owner with a passkey, spends the code, audits it and signs in;
+   >     - a wrong, empty or unconfigured code is refused (`403`);
+   >     - once an owner exists, enrolment answers `409`;
+   >     - a spent code is refused after the owner is reset, and a fresh one enrols;
+   >     - a foreign origin, `crossOrigin`, UV off and malformed CBOR are each refused
+   >       with nothing created.
+   >   - **The RP ID** is `localhost` for any `Host`.
+   >   - **No ceremony underway** answers `400`, not `500`.
+   >   - **Sign-in:**
+   >     - a fresh browser signs in;
+   >     - an unknown passkey is told "isn't registered with this app";
+   >     - a foreign origin, `crossOrigin`, UV off, a non-advancing counter and truncated
+   >       data are each refused;
+   >     - a replay with its challenge cookie is caught by the counter;
+   >     - a lockout set on the user does not stop the passkey.
+   >   - **Cookies and sessions:**
+   >     - every cookie is `__Host-`, `Secure`, `HttpOnly`, `Strict`, `Path=/`, with no
+   >       `Domain`;
+   >     - the session expires about 7 days out;
+   >     - a cookie copied before sign-out still answers `200` at +30 s and `401` at +61 s.
 3. **CSRF, CORS, the limiter, headers.**
    - **The pipeline, in order** (`SRC-1`, `SRC-8`, `TST-5`, `TST-9`, `TST-10`):
      1. the headers middleware, writing in `Response.OnStarting`, so a `500` keeps them;

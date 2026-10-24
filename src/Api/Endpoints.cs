@@ -30,6 +30,7 @@ static class Endpoints
         accounts.MapPost("/{id:guid}/balances", RecordBalance).WithName("RecordBalance").ProducesValidationProblem(Unprocessable422);
 
         v1.MapImportApi(accounts);
+        v1.MapAuthApi();
 
         v1.MapGet("/net-worth", GetNetWorth).WithName("GetNetWorth").WithTags("Net worth").ProducesValidationProblem(Unprocessable422);
     }

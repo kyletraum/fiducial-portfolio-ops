@@ -18,7 +18,7 @@ public class BalanceIdempotencyTests(PostgresFixture pg) : IClassFixture<Postgre
     public ValueTask InitializeAsync()
     {
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-            b.UseEnvironment("Production").UseSetting("ConnectionStrings:portfolio", pg.ConnectionString));
+            b.UseEnvironment("Production").UseSetting("ConnectionStrings:portfolio", pg.ConnectionString).WithTestAuth());
         return ValueTask.CompletedTask;
     }
 
@@ -35,7 +35,7 @@ public class BalanceIdempotencyTests(PostgresFixture pg) : IClassFixture<Postgre
     public async Task The_same_amount_again_is_200_with_the_existing_row_and_writes_nothing()
     {
         var account = await NewAccountAsync(pg, new DateOnly(2026, 1, 1));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateSignedInClient();
 
         var first = await PostAsync(client, account, "100.00");
         var again = await PostAsync(client, account, "100.0000"); // the same amount, written differently
@@ -51,7 +51,7 @@ public class BalanceIdempotencyTests(PostgresFixture pg) : IClassFixture<Postgre
     public async Task A_different_amount_still_restates()
     {
         var account = await NewAccountAsync(pg, new DateOnly(2026, 1, 1));
-        using var client = factory.CreateClient();
+        using var client = factory.CreateSignedInClient();
 
         var first = await PostAsync(client, account, "100");
         var changed = await PostAsync(client, account, "110");
