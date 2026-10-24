@@ -253,10 +253,31 @@ published stack needs no TLS for this slice (`D1`).
 >   `text/csv` upload needs no special case. [`SOURCE@dotnet/aspnetcore@v10.0.13`
 >   `src/Antiforgery/src/Internal/DefaultAntiforgeryTokenStore.cs:44-74`]
 
-**The spike runs:** the filter against a JSON endpoint, the raw-body upload and a `DELETE`,
-each with the header absent, and sees each refused. It also checks that a token issued
-after sign-in validates with the filter placed after `UseAuthentication` (`G-20`), and
-reads a `403` body from Playwright on a response the page itself cannot read (`G-19`).
+> **RAN: the slice's filter refuses; the framework's own middleware does not.**
+> [`EXECUTED 2026-10-24`, `spikes/spike-j-csrf/RESULTS.md`]
+> - **`C3-1` observed.** With only `UseAntiforgery()` and `RequireAntiforgeryToken`
+>   metadata, a JSON `POST`, a `DELETE` and a raw `text/csv` upload with no token, or a
+>   wrong one, all answered `200` and **wrote**.
+> - **The slice's filter refused `403`, writing nothing,** for:
+>   - a `POST`, `PUT` or `DELETE` with no token or a wrong token;
+>   - the raw upload with no token;
+>   - a token sent only in a form body (`SuppressReadingTokenFromFormBody`).
+>
+>   With the token in `X-CSRF-TOKEN`, each succeeded, the form-urlencoded upload
+>   included.
+> - **The exempt sign-in route (`R1`)** worked with no token. Sign-out without a token was
+>   refused.
+> - **The token binds to the user (`G-20`, `C3-22`).** A token issued after sign-in
+>   validated through the filter, which runs after authentication. Alice's token was
+>   refused for Bob, and Bob's token was refused once he had signed out.
+> - **`G-19` is false, and so is `GT-6` for this case.** For a `no-cors` write from
+>   another `localhost` port, Playwright reports the response's status (`403` or `200`),
+>   but cannot read its body ("No data found") or its headers. It reports no `Cookie`,
+>   `Origin` or `Sec-Fetch-*` on the request either.
+> - **The server saw the `Strict` session cookie arrive and authenticate** from that port,
+>   with `Sec-Fetch-Site: same-site`. DoD 4's browser half therefore reads "which layer
+>   refused" and "the cookie arrived" from the **API's own record** of each request (`G-21`),
+>   not from the browser.
 
 **Already decided, so the spike confirms rather than chooses:**
 - The token comes from an endpoint that requires a session (`C3-22`).
@@ -683,13 +704,20 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
      and nothing is written. Layer 2 alone, with a valid token but `same-site`, answers
      `403`.
    - **Browser:** a signed-in context, attacked from another `localhost` port.
-     - Each refusal is identified by its `ProblemDetails.title`, not its status.
+     - **Each refusal's layer, and whether the session cookie arrived, are read from the
+       API's own record of the request**, not from the browser. Every refusal logs its
+       layer and whether the request was authenticated, and the E2E reads those lines
+       through the test builder's resource log (`G-21`, now load-bearing here).
+       - The reason: Playwright sees only the status of a response the attacking page
+         cannot read. It cannot read the body or the headers, and it reports no `Cookie`
+         on the request. [`EXECUTED 2026-10-24` Spike J]
+       - Playwright's status is still asserted alongside.
      - "Nothing written" is read from the signed-in page.
      - The cases include a `Blob`-typed `no-cors` `POST` and a `text/plain` cors `POST`
        (`C3-31`).
-     - **For each same-site case the cookie is proven sent**, and a `401` there fails the
-       test. For the cross-site (`attacker.localhost`) cases the `Strict` cookie is proven
-       **not** sent (`TST-9`). Both are read from Playwright's request headers (`GT-6`).
+     - **For each same-site case the cookie is proven to have arrived**, and a `401` there
+       fails the test. For the cross-site (`attacker.localhost`) cases the `Strict` cookie
+       is proven **not** to have arrived (`TST-9`).
    - **Not in the browser:** a passkey sign-in from another port is refused by layer 2
      before the origin check is reached. `ValidateOrigin` is shown in Integration by
      `SoftAuthenticator`'s foreign-origin variant (`C3-23`, `TST-9`).
