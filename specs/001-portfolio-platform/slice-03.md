@@ -624,6 +624,54 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
      The page served from `wwwroot` gets the published CSP, Spike K's string above.
      `frame-ancestors` works only as a header, which is why the API sets it.
      [`EXECUTED` committee BRW F16]
+
+   > **BUILT 2026-10-24.**
+   > - **The pipeline** is the order above, written once in `Program.cs` with the reason for
+   >   each place.
+   > - **`SecurityHeaders`:**
+   >   - written in `OnStarting`;
+   >   - the CSP goes on every response, not only the page's. A JSON body ignores it, and
+   >     one rule is simpler than two;
+   >   - the `Permissions-Policy` denies sixteen features and allows the two passkey ones
+   >     for `self`.
+   > - **`CsrfTokens`:**
+   >   - the filter, `RequireCsrfToken()`;
+   >   - the `Exempt` marker on the four anonymous ceremony routes (`R1`);
+   >   - `GET /api/v1/auth/csrf-token`, which requires a session;
+   >   - the cookie is `portfolio-csrf`: `Strict` and `HttpOnly`, but neither `Secure` nor
+   >     `__Host-`.
+   > - **What the filter guards now:** sign-out only. That is the one unsafe route that
+   >   already requires a session, and sign-out also clears the token's cookie. The
+   >   `/api/v1` group gets it in step 4 (`D11`). The test client already sends a token on
+   >   every unsafe request, ready for that.
+   > - **`SignInRateLimit`:**
+   >   - **the recorded production numbers: 10 requests a minute** on the four ceremony
+   >     routes, which is five attempts. Bound from `RateLimits:SignIn`;
+   >   - `429` with `Retry-After` and the title;
+   >   - the state check is not limited.
+   > - **CORS:** none registered.
+   > - **Shown** [`EXECUTED 2026-10-24`]:
+   >   - **`SecurityHeadersTests`:**
+   >     - every status from `200` to `500` carries the headers, with no HSTS;
+   >     - the page and an asset are served `200` before authentication, under the exact
+   >       CSP;
+   >     - a `401` carries no `Location`.
+   >   - **`CsrfFilterTests`**, on a minimal app:
+   >     - JSON `POST`, `PUT`, `DELETE` and a raw `text/csv` body are each refused with no
+   >       token or a wrong one, writing nothing, and accepted with the token;
+   >     - a token in the form body alone is not read;
+   >     - another user's token is refused, and so is a signed-out one;
+   >     - an exempt route and a `GET` need none.
+   >   - **`SignInRateLimitTests`:**
+   >     - the window is shared by the ceremony routes;
+   >     - the 4th request in a 1-hour, 3-permit window answers `429`, with
+   >       `Retry-After: 3600` and the title;
+   >     - the production numbers are pinned.
+   >   - **`CorsTests`:** every mapped endpoint, with two origins, and a preflight to every
+   >     `POST`. None answers `Access-Control-Allow-Origin`.
+   > - **Found:** ASP.NET Core 10.0.13's `RouteHandlerAnalyzer` throws (`AD0001`) on a
+   >   method group from another assembly passed to `MapGet` in the test project. The test
+   >   uses a lambda instead.
 4. **Web, and the switch.** **The error boundaries stay per section** (`edb9504`).
    - **The switch (`D11`).** `FallbackPolicy = RequireAuthenticatedUser()` and the
      antiforgery filter's enforcement go on together with the sign-in page and the E2E's

@@ -142,6 +142,10 @@ public sealed record CompleteEnrolmentRequest(
 
 public sealed record SessionResponse(string UserName);
 
+public sealed record CsrfTokenResponse(
+    [property: Description("Send it as the X-CSRF-TOKEN header on every unsafe request. Bound to the signed-in user: fetch a new one after every sign-in.")]
+    string Token);
+
 /// <summary>
 /// The ProblemDetails titles the authentication routes answer with. Part of the contract: the page
 /// tells one refusal from another by its title, never its status (slice-03.md step 4).
@@ -153,4 +157,6 @@ public static class ProblemTitles
     public const string NoCeremony = "No passkey ceremony is underway";
     public const string PasskeyRefused = "Passkey not accepted";
     public const string NotRegisteredHere = "This passkey isn't registered with this app";
+    public const string CsrfTokenRefused = "CSRF token missing or invalid";
+    public const string TooManySignInAttempts = "Too many sign-in attempts. Try again in about a minute.";
 }

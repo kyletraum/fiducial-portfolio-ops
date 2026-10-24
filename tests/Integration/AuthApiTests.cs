@@ -287,7 +287,7 @@ public class AuthApiTests(AuthFixture db) : IClassFixture<AuthFixture>, IAsyncLi
         var thief = Client(api, cookies: false);
         var audited = await AuditCountAsync("sign_out", "owner");
 
-        Assert.Equal(HttpStatusCode.NoContent, (await browser.PostAsync("/api/v1/auth/sign-out", null, Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await SignOutAsync(browser)).StatusCode);
         clock.Now += TimeSpan.FromSeconds(30);
         Assert.Equal(HttpStatusCode.OK, (await GetWithCookie(thief, "/api/v1/auth/session", copied)).StatusCode); // the lag D4 accepted
         clock.Now += TimeSpan.FromSeconds(31);

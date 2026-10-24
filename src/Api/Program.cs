@@ -29,19 +29,27 @@ builder.Services.AddDbContext<PortfolioDbContext>(options =>
 builder.EnrichNpgsqlDbContext<PortfolioDbContext>();
 // Slice 03: Identity with passkeys, whose store is the same context (step 1).
 builder.AddPortfolioAuthentication();
+builder.Services.AddCsrfTokens();
+SignInRateLimit.AddSignInRateLimit(builder.Services, builder.Configuration);
 
 var app = builder.Build();
 
+// The order is slice-03.md step 3's, and each place is load-bearing (round 2 SRC-1, TST-5, TST-9):
+// - The headers first, so every later response carries them, refusals and errors included.
+// - The cross-site refusal before anything reads the request.
+// - Static files BEFORE authentication: a fallback policy (step 4) also covers a file served after
+//   it, and the page would answer 401.
+// - Authentication and authorization called explicitly. Otherwise WebApplication inserts them ahead
+//   of every middleware here, and a 401 would leave without the headers.
+// Host filtering wraps all of this: its 400 refuses before any of it runs, and carries no headers.
+app.UseSecurityHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
-
-// Before any endpoint runs: a write marked cross-site or same-site never reaches a handler.
 app.UseCrossSiteWriteRefusal();
-
-// Explicit, so they run here and not ahead of every middleware above, where WebApplication would
-// otherwise insert them (round 2 SRC-1). Step 3 writes the whole order down.
+app.UseFileServer();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {
@@ -53,8 +61,6 @@ if (app.Environment.IsDevelopment())
 app.MapPortfolioApi();
 
 app.MapDefaultEndpoints();
-
-app.UseFileServer();
 
 app.Run();
 

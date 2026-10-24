@@ -4,10 +4,12 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc.Testing.Handlers;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Net.Http.Json;
 
 namespace Portfolio.Integration;
 
@@ -29,24 +31,60 @@ namespace Portfolio.Integration;
 public static class TestAuth
 {
     public const string Header = "X-Test-User";
-    const string TestScheme = "Test", Selector = "TestOrIdentity";
+    const string Selector = "TestOrIdentity";
 
     public static IWebHostBuilder WithTestAuth(this IWebHostBuilder builder) =>
         builder.ConfigureTestServices(services =>
         {
             services.AddAuthentication()
-                .AddScheme<AuthenticationSchemeOptions, Handler>(TestScheme, _ => { })
+                .AddTestScheme()
                 .AddPolicyScheme(Selector, Selector, o => o.ForwardDefaultSelector = ctx =>
                     ctx.Request.Headers.ContainsKey(Header) ? TestScheme : IdentityConstants.ApplicationScheme);
             services.PostConfigure<AuthenticationOptions>(o => o.DefaultScheme = Selector);
         });
 
-    /// <summary>A client whose every request is signed in as <paramref name="userName"/>.</summary>
+    /// <summary>The header-only scheme alone, for a test app with no Identity (the CSRF filter's).</summary>
+    public static AuthenticationBuilder AddTestScheme(this AuthenticationBuilder builder) =>
+        builder.AddScheme<AuthenticationSchemeOptions, Handler>(TestScheme, _ => { });
+
+    public const string TestScheme = "Test";
+
+    /// <summary>
+    /// A client whose every request is signed in as <paramref name="userName"/>, and whose every
+    /// unsafe request carries a CSRF token issued to that user, with its cookie (step 3). The token
+    /// is fetched once, on the first unsafe request.
+    /// </summary>
     public static HttpClient CreateSignedInClient(this WebApplicationFactory<Program> factory, string userName = "owner")
     {
-        var client = factory.CreateClient();
+        // Outermost first: the token handler's own fetch passes through the cookie handler, so the
+        // antiforgery cookie it is issued with is kept and sent with every later request.
+        var client = factory.CreateDefaultClient(new CsrfTokenHandler(userName), new CookieContainerHandler());
         client.DefaultRequestHeaders.Add(Header, userName);
         return client;
+    }
+
+    sealed class CsrfTokenHandler(string userName) : DelegatingHandler
+    {
+        string? token;
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var method = request.Method;
+            if (method != HttpMethod.Get && method != HttpMethod.Head && method != HttpMethod.Options && method != HttpMethod.Trace)
+            {
+                token ??= await FetchAsync(request.RequestUri!, ct);
+                request.Headers.TryAddWithoutValidation("X-CSRF-TOKEN", token);
+            }
+            return await base.SendAsync(request, ct);
+        }
+
+        async Task<string> FetchAsync(Uri like, CancellationToken ct)
+        {
+            using var fetch = new HttpRequestMessage(HttpMethod.Get, new Uri(like, "/api/v1/auth/csrf-token"));
+            fetch.Headers.Add(Header, userName);
+            using var response = (await base.SendAsync(fetch, ct)).EnsureSuccessStatusCode();
+            return (await response.Content.ReadFromJsonAsync<Api.CsrfTokenResponse>(ct))!.Token;
+        }
     }
 
     sealed class Handler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)

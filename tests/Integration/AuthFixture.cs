@@ -28,7 +28,9 @@ public class AuthFixture : PostgresFixture
             b.UseEnvironment("Production")
              .UseSetting("ConnectionStrings:portfolio", ConnectionString)
              .UseSetting("Enrolment:SetupCode", setupCode)
-             .UseSetting("Auth:AllowedOrigins", Origin);
+             .UseSetting("Auth:AllowedOrigins", Origin)
+             // These tests run many ceremonies a minute; the limiter's own tests set it (TST-13).
+             .UseSetting("RateLimits:SignIn:PermitLimit", "100000");
             if (clock is not null)
                 b.ConfigureTestServices(s => s.AddSingleton(clock));
         });
@@ -64,4 +66,13 @@ static class Ceremony
         await client.PostAsync("/api/v1/auth/sign-in", Json(authenticator.Assert(await SignInOptionsAsync(client), variant)), Ct);
 
     public static StringContent Json(string json) => new(json, System.Text.Encoding.UTF8, "application/json");
+
+    /// <summary>Signs out as the page will: with the signed-in user's CSRF token.</summary>
+    public static async Task<HttpResponseMessage> SignOutAsync(HttpClient client)
+    {
+        var token = (await client.GetFromJsonAsync<Api.CsrfTokenResponse>("/api/v1/auth/csrf-token", Ct))!.Token;
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/sign-out");
+        request.Headers.Add("X-CSRF-TOKEN", token);
+        return await client.SendAsync(request, Ct);
+    }
 }
