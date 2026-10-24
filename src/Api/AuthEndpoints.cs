@@ -19,17 +19,28 @@ static class AuthEndpoints
         var auth = v1.MapGroup("/auth").WithTags("Authentication");
 
         auth.MapGet("/state", GetState).WithName("GetAuthState").AllowAnonymous();
-        auth.MapPost("/enrolment/options", BeginEnrolment).WithName("BeginEnrolment").AllowAnonymous()
+
+        // The anonymous ceremonies: no token can exist before sign-in, so they are exempt from the
+        // CSRF filter (R1), and are covered instead by layers 1 and 2, ValidateOrigin, the Strict
+        // challenge cookie and the sign-in limiter.
+        var ceremonies = auth.MapGroup("").AllowAnonymous()
+            .WithMetadata(new CsrfTokens.Exempt())
+            .RequireRateLimiting(SignInRateLimit.Policy)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+        ceremonies.MapPost("/enrolment/options", BeginEnrolment).WithName("BeginEnrolment")
             .Produces(StatusCodes.Status200OK, contentType: "application/json")
             .ProducesProblem(StatusCodes.Status403Forbidden).ProducesProblem(StatusCodes.Status409Conflict);
-        auth.MapPost("/enrolment", CompleteEnrolment).WithName("CompleteEnrolment").AllowAnonymous()
+        ceremonies.MapPost("/enrolment", CompleteEnrolment).WithName("CompleteEnrolment")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden).ProducesProblem(StatusCodes.Status409Conflict);
-        auth.MapPost("/sign-in/options", BeginSignIn).WithName("BeginSignIn").AllowAnonymous()
+        ceremonies.MapPost("/sign-in/options", BeginSignIn).WithName("BeginSignIn")
             .Produces(StatusCodes.Status200OK, contentType: "application/json");
-        auth.MapPost("/sign-in", CompleteSignIn).WithName("CompleteSignIn").AllowAnonymous()
+        ceremonies.MapPost("/sign-in", CompleteSignIn).WithName("CompleteSignIn")
             .ProducesProblem(StatusCodes.Status400BadRequest).ProducesProblem(StatusCodes.Status401Unauthorized);
-        auth.MapPost("/sign-out", SignOut).WithName("SignOut").RequireAuthorization();
+
+        auth.MapGet("/csrf-token", CsrfTokens.Issue).WithName("GetCsrfToken").RequireAuthorization();
+        auth.MapPost("/sign-out", SignOut).WithName("SignOut").RequireAuthorization().RequireCsrfToken()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
         auth.MapGet("/session", GetSession).WithName("GetSession").RequireAuthorization();
     }
 
@@ -159,6 +170,8 @@ static class AuthEndpoints
             await db.SaveChangesAsync(ct);
         }
         await signIn.SignOutAsync();
+        // The token belongs to this user; a fresh one comes with the next sign-in (C3-36).
+        http.Response.Cookies.Delete(CsrfTokens.CookieName);
         return TypedResults.NoContent();
     }
 
