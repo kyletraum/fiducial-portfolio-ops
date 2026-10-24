@@ -76,6 +76,8 @@ later; they are simply not the number the gate reads.
 |---|---|---|---|---|
 | 2026-10-21 | 0 · commission | — | 0.4 | Planning `D-043` decoupled the projects, so slices are commissioned here; `slice-03.md` written with Kyle's 2026-10-19 rulings as its commission, Spikes H-K; docs pointing at a planning decision file updated |
 | 2026-10-21 | H · spike | — | 0.9 | Identity's in-box passkeys end to end in Chromium (CDP virtual authenticator) on pg 18.3: register, sign in, /me 401->200; 127.0.0.1 refused by the browser; EF in-memory can't hold passkeys; argon2id: Geralt 108 ms (139 ms Linux @512 MB) at 64 MiB t=3, chosen over Sodium.Core and Konscious |
+| 2026-10-24 | 0 · review | — | 1.5 | Committee review dispositioned: Kyle ruled D1-D17 (password fallback deferred; middle cut adopted) and confirmed three D7 consequences; 44 FIX / 6 CUT / 3 DEFER; `slice-03.md` and `security.md` rewritten to the rulings, Spike K cut. Agent hours estimated, no timer |
+| 2026-10-24 | 0 · review | — | 0.8 | Round 2 on the rewrite, three seats in parallel (SRC, TST, SCO; ~21 min wall-clock): 60 findings -> 31; Kyle ruled R1-R4; all applied to `slice-03.md`/`security.md` (build order, pipeline order, persistent cookie, 10-min challenge cookie, Version3 override, SoftAuthenticator). Agent hours estimated |
 
 <!-- Slice 03 rows above. Total at its gate. -->
 

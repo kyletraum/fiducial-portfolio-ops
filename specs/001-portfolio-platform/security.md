@@ -16,6 +16,8 @@
 > - **`:85` — ANSWERS THE WRONG THREAT.** *A stolen database volume yields nothing without the KEK; a stolen laptop is the primary threat.* A Compose `file:` secret is a **plaintext file on the same disk as the volume**. Envelope encryption defeats volume exfiltration; full-disk encryption is the answer to the named threat. The scheme also defines **no table** for its data keys, so KEK rotation cannot record which KEK wrapped which key.
 > - **Missing.** Query strings are logged verbatim by ASP.NET Core and an OAuth code has no distinguishing shape, so the shape-based redaction test passes while the credential sits in the log. Redact by **parameter name** on the callback route.
 >
+> - **Corrected by slice 03, 2026-10-24.** The "API", "Frontend", "Audit" and "Credentials → Rules" sections, and the "Out of scope" line under "Threat model", were commissioned by `slice-03.md` and corrected from `../review/slice-03-committee.md`. Each correction is marked *(slice 03)* where it stands.
+>
 > Anything *not* listed above is **unreviewed, not verified**. Where a claim
 > about an external system carries a strength marker (`EXECUTED`,
 > `SOURCE@<ref>`, `DOCS@<date>`, `INFERRED` — see `../review/process.md`), that
@@ -60,6 +62,15 @@ the machine is owned while the application runs, the data is readable. Defending
 that is not achievable for a local application and pretending otherwise would be
 worse than saying so.
 
+*(slice 03)* "At the keyboard" is wider than it reads. **A process running as the
+user, and a browser extension holding a `localhost` permission, are equivalent to the
+keyboard.** The first can read the data-protection key ring and mint a session; the
+second runs inside the page, same-origin. The tier refuses browser-delivered attacks,
+clients without the user's session, and processes outside the user's security context;
+it does not refuse those two. On a single-user machine, membership of `docker-users` is
+root-equivalent for the stack. [`EXECUTED 2026-10-21`, committee OPS;
+`DOCS@2026-10-21` ASP.NET Core data-protection default settings]
+
 ---
 
 ## Credentials
@@ -92,7 +103,13 @@ laptop is the primary self-hosted threat, this is the control that matters most.
 - **Credentials never reach logs, traces, error messages or crash dumps**
   (FR-3.3), enforced by a redaction filter in the logging pipeline **and** a
   test asserting that known secret-shaped values do not appear in captured
-  output.
+  output. *(slice 03)* **The test is the control; the filter is written when the
+  test goes red.** Secrets such as a session cookie, a passkey assertion or a setup
+  code are shapeless, so the test injects known canaries rather than matching
+  shapes. It captures every category at `Trace` in Production configuration, traces
+  included, and checks raw, URL-encoded and base64 forms. Any filter redacts by
+  **property name**; request bodies are never logged. Secrets travel only in `POST`
+  bodies and cookies, never in a query string.
 - **`audit_event.detail` never contains a secret** - tested.
 - Revocation takes effect immediately, without a restart (FR-3.4).
 - Every use is audited (FR-3.5).
@@ -126,24 +143,97 @@ laptop is the primary self-hosted threat, this is the control that matters most.
 - **Authentication:** passkey/WebAuthn preferred - no shared secret to steal or
   phish - with argon2id password as the fallback for environments where a
   passkey is impractical. Decide before the hardening step; both are specified so
-  the choice is not made by default.
+  the choice is not made by default. *(slice 03)* **Decided: passkey only.** The
+  fallback is deferred until an environment where a passkey is impractical, or
+  the first lost authenticator. Recovery meanwhile is a second passkey, or
+  `reset-owner` from the host, which reopens enrolment. The RP ID is pinned to
+  `localhost` and the expected origins are named. Identity's default is to take
+  the RP ID from the `Host` header, and to accept any origin equal to the
+  request's own `Origin`. [`SOURCE@dotnet/aspnetcore@v10.0.13`
+  `src/Identity/Core/src/PasskeyHandler.cs:651-678`]
 - **Sessions:** `HttpOnly`, `Secure`, `SameSite=Strict` cookies. No token in
   `localStorage` or `sessionStorage`, where any script can read it.
-- **CSRF tokens** on every state-changing request.
-- **CORS** restricted to the known frontend origin; no wildcard.
+  *(slice 03)* None of the three is the framework default: cookie authentication
+  ships `SameSite=Lax` and `SecurePolicy=SameAsRequest`, which emits no `Secure`
+  over `http://localhost`. All three are therefore set on every Identity cookie,
+  not one "session cookie". **The antiforgery cookie cannot be `Secure` over plain
+  HTTP**, because antiforgery throws when it is, so it stays `Strict` and `HttpOnly`
+  only. Sessions are Identity's stateless ticket. Sign-out rotates the security
+  stamp, so a copied cookie stops working **within the validation interval** (one
+  minute), not instantly. The vendor's suggestion to keep the CSRF token in
+  `localStorage` is overruled by this line. The cookie is persistent (7 days,
+  sliding), set by the application: Identity's passkey sign-in otherwise issues a
+  browser-session cookie. [`SOURCE@dotnet/aspnetcore@v10.0.13`
+  `src/Identity/Core/src/SignInManager.cs:642-683`] [`SOURCE@dotnet/aspnetcore@v10.0.13`
+  `src/Http/Http.Abstractions/src/CookieBuilder.cs:117`,
+  `src/Antiforgery/src/Internal/DefaultAntiforgery.cs:256-262`,
+  `src/Identity/Core/src/SecurityStampValidator.cs:138-162`]
+- **CSRF tokens** on every state-changing request. *(slice 03)* **The application
+  refuses; the framework only validates.** ASP.NET Core's antiforgery middleware
+  never refuses a JSON or raw-body minimal API, and never checks `DELETE`. The
+  refusal is the application's own endpoint filter. The anonymous enrolment and
+  sign-in routes are exempt, because no token can exist before sign-in; they rely
+  on the content-type and `Sec-Fetch-Site` layers, the origin check and the
+  limiter.
+  [`SOURCE@dotnet/aspnetcore@v10.0.13` `src/Antiforgery/src/AntiforgeryMiddleware.cs:25-51`]
+- **CORS** ~~restricted to the known frontend origin; no wildcard.~~ *(slice 03)*
+  **None at all.** The app is same-origin, so any allowed origin would be an origin
+  that can read. CORS withholds headers; it never refuses a request, so it is not a
+  defence layer. [`SOURCE@dotnet/aspnetcore@v10.0.13`
+  `src/Middleware/CORS/src/Infrastructure/CorsMiddleware.cs:150-190`]
 - **Rate limiting** on report execution, projection runs and authentication.
+  *(slice 03)* Authentication only, so far: one global limiter on the anonymous
+  authentication endpoints, answering `429`. It is never partitioned by remote
+  address, which on loopback is one value for every caller and, with forwarded
+  headers on, is whatever the caller claims. **Identity's lockout is off.** Today
+  no passkey failure is counted: only the password and two-factor paths call
+  `AccessFailedAsync`. But passkey sign-in does run the lockout check, so the
+  deferred password path, once built, could lock the only user out of their
+  passkey. [`SOURCE@dotnet/aspnetcore@v10.0.13`
+  `src/Identity/Core/src/SignInManager.cs:497-499,659-673`]
 - Response DTOs are **explicit types**, never domain entities serialised
   directly - the mechanism by which a credential field most often leaks after
   someone adds it to an entity.
 - Security headers: HSTS where TLS terminates, `X-Content-Type-Options: nosniff`,
   `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`.
+  *(slice 03)*
+  - **No HSTS on `localhost`, ever.** One accepted header pins every `localhost`
+    port to HTTPS for its `max-age`. [`DOCS@2026-10-21` RFC 6797 §8.1, §8.3]
+  - The `Permissions-Policy` denies everything except
+    `publickey-credentials-get=(self)` and `publickey-credentials-create=(self)`.
+    A deny-all policy switches WebAuthn off for the app itself.
+    [`DOCS@2026-10-21` MDN `Permissions-Policy`]
+  - The headers come from one middleware placed first in the pipeline. It writes
+    them in `Response.OnStarting`, because the exception handler clears headers
+    set earlier. Authentication and authorization are called explicitly after it,
+    so error and refusal responses carry them too. A host-filter `400` is the
+    exception: it refuses before the pipeline runs. [`EXECUTED 2026-10-24` round 2
+    SRC probes; `SOURCE@dotnet/aspnetcore@v10.0.13`
+    `src/Middleware/Diagnostics/src/ExceptionHandler/ExceptionHandlerMiddlewareImpl.cs:291-293`]
+- *(slice 03)* **Forwarded headers are off.** Aspire's publish default trusts
+  `X-Forwarded-For` and `X-Forwarded-Proto` from any client, so it is disabled until
+  a real proxy exists. [`SOURCE@dotnet/aspire@v13.6.1`
+  `src/Aspire.Hosting/ProjectResourceBuilderExtensions.cs:633-643,960-964`;
+  `EXECUTED` the generated compose file]
+- *(slice 03)* **The data-protection key ring** is the root of trust for every
+  cookie and token. It lives on a named volume, plaintext on the host, and relies on
+  disk encryption, as the KEK above does. [`DOCS@2026-10-21` data-protection default
+  settings: "keys should be persisted in a folder that's a Docker volume"]
 
 ---
 
 ## Frontend
 
 - **Strict CSP:** no `unsafe-inline`, no `unsafe-eval`, explicit script and
-  style sources, `frame-ancestors 'none'`.
+  style sources, `frame-ancestors 'none'`. *(slice 03)* **On the published page,
+  set by the API as a header.** `frame-ancestors` is ignored in a `<meta>` tag. The
+  policy is `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'
+  data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action
+  'self'; object-src 'none'`. [`EXECUTED 2026-10-21` committee BRW F15, F16,
+  Chromium 153 and Firefox 155] **The Vite dev server sets no CSP.** Its page holds
+  only invented data, and a dev policy would need a nonce that is static for the
+  server's lifetime, which makes it no boundary. Trigger to add one: an XSS in the
+  app's own markup, or the dev page ever carrying real data.
 - **No secrets in the bundle.** Anything shipped to the browser is public.
 - **All provider-authored text is escaped on render** (FR-1.5). Transaction
   descriptions and merchant names come from outside; they are never inserted as
@@ -204,6 +294,18 @@ mutation, report execution, projection runs, exports, and authentication events.
 
 Every entry carries actor, time, subject and environment. Entries are never
 updated or deleted, and never contain secret values.
+
+*(slice 03)*
+- **Built so far: authentication events only.** These are enrolment, sign-in
+  succeeded and failed, sign-out, sessions revoked, and owner reset. The rest of the
+  list above is carried until the first real balance.
+- The actor is recorded as a value, not as a foreign key, so the owner can be reset
+  without rewriting history.
+- **"Never updated or deleted" is, for now, a statement about the application's code
+  paths.** A trigger refuses `UPDATE`, `DELETE` and `TRUNCATE`, but the application
+  still connects as the database superuser, which can remove the trigger. The
+  non-superuser role under "Database" is what would make it a boundary. It is
+  deferred until real data, or anything other than this app reaching the database.
 
 ---
 

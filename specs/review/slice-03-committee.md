@@ -397,7 +397,7 @@ Kyle's, 2026-10-24, one line each. The options and costs are in "Decisions for t
 
 ### What the rulings leave open
 
-Three consequences the seats did not price, because each follows from D7 and the seats wrote for the case where the password is kept. Each is dispositioned below with a proposal; Kyle confirms or overrides when the spec edits are reviewed.
+Three consequences the seats did not price, because each follows from D7 and the seats wrote for the case where the password is kept. Each is dispositioned below with a proposal. **Kyle confirmed all three as proposed, 2026-10-24**, before the spec edits were written.
 
 1. **DoD 5 loses its mechanism.** The middle cut's throttle was Identity's lockout plus a concurrency limiter of 1 on the password route. C3-8 removes the lockout and D7 removes the route. Without a hash nothing is memory-bound, but anonymous authentication endpoints still write an audit row per failure (C3-43) and still verify the setup code. **Proposal:** one global fixed-window limiter on the anonymous authentication endpoints, partitioned by policy name and never by address, rejecting with `429` and `Retry-After`. That gives DoD 5 something to show and bounds C3-43. The concurrency limiter, its measurement and the restart-loop gate go with the hash.
 2. **The integration session helper cannot log in with a password.** TST-3's `SignedInClient` signed in by password everywhere except the auth E2E. **Proposal:** the helper uses a test authentication scheme registered through `ConfigureTestServices`, never in the app's own composition, with a test that the published compose file and `Program.cs` carry no such scheme; the auth classes run the real passkey ceremony.
@@ -476,7 +476,7 @@ Where a split finding has a DEFER half, the trigger is in the row; the count abo
 
 ### Gates under the rulings
 
-**Moot, not run:** G-1 and G-2 (no hash: D7); G-10 (no dev CSP: D9); G-16 and G-17 (no hasher: D7); G-18 and G-23 (no E2E in CI: D13); G-3 (no limiter is keyed by address: C3-7); G-4 (moot once `ServerDomain` is pinned: C3-10). **G-13** stays as written: a sentence in Spike I's result. **Open and still owed at their step:** G-5 (the one load-bearing claim nobody has run: the passkey through the Vite proxy) and G-6 in step 0 or step 1; G-7 (named in DoD 7 per D6); G-8 (decides C3-39's DEFER); G-9, G-11, G-12, G-14, G-15, G-19 through G-22, and G-24 through G-30 at the step their row names.
+**Moot, not run:** G-1 and G-2 (no hash: D7); G-10 (no dev CSP: D9); G-16 and G-17 (no hasher: D7); G-18 and G-23 (no E2E in CI: D13); G-3 (no limiter is keyed by address: C3-7); G-4 (moot once `ServerDomain` is pinned: C3-10); G-6 (the setup code is a parameter, not a console line: D2). **G-13** stays as written: a sentence in Spike I's result. **Open and still owed at their step:** G-5 (the one load-bearing claim nobody has run: the passkey through the Vite proxy) in step 0; G-7 (named in DoD 7 per D6); G-8 (decides C3-39's DEFER); G-9, G-11, G-12, G-14, G-15, G-19 through G-22, and G-24 through G-30 at the step their row names.
 
 
 ## Axis 2 — scope, buildability, teaching value
