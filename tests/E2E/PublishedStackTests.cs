@@ -122,7 +122,7 @@ public class PublishedStackTests : IAsyncLifetime
         await Expect(page.GetByText("Signed in as owner")).ToBeVisibleAsync();
 
         if (Environment.GetEnvironmentVariable("PORTFOLIO_STATE_OUT") is { Length: > 0 } stateOut)
-            await File.WriteAllTextAsync(stateOut, await context.StorageStateAsync());
+            await File.WriteAllTextAsync(stateOut, await context.StorageStateAsync(), TestContext.Current.CancellationToken);
         _ = authenticator; // held for the context's lifetime: it is the passkey
         await context.CloseAsync();
     }
