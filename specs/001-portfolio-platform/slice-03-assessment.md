@@ -1,7 +1,11 @@
 # Slice 03 — the assessment
 
-**Status: AWAITING KYLE (§5 and §6).** Written 2026-10-25 against `main` at `9694f0b` (PR #85
-merged). The default at the end of this slice is **STOP** (`slice-03.md`, "The gate").
+**Status: DECIDED, 2026-10-25 (Kyle): STOP.** Written 2026-10-25 against `main` at `9694f0b`
+(PR #85 merged); Kyle's sections 5 and 6 recorded the same day. **Eight** techniques are
+ticked (§5), against a limb that needs three. The limb permits overriding the default; it does
+not require it, and Kyle chose the default. The STOP box was typed `- x ]` and is recorded as
+a tick. **The spec ends here.** A fourth slice, or the first real balance, needs its own
+commission, written and dated in this repository.
 
 **Who wrote which part.** Sections 1–4 and 7 are facts, assembled by the agent session that
 did the build. Each can be checked against a commit, a test run or `LOG.md`, and none
@@ -185,39 +189,39 @@ any is now **Kyle's**, understood well enough to use without the agent, only Kyl
 
 Tick the ones that are genuinely yours; strike the rest. **Fewer than three means STOP.**
 
-- [ ] **Passkeys end to end on a framework's in-box handler, with no library.** The RP ID
+- [x] **Passkeys end to end on a framework's in-box handler, with no library.** The RP ID
       and origins are pinned, enrolment creates nothing before the ceremony succeeds, and
       a software authenticator with hostile variants drives it in CI.
       `565016f`, `f0e3b3e`, `56488f8`.
-- [ ] **"The framework validates; the application refuses."** CSRF in a single-page app
+- [x] **"The framework validates; the application refuses."** CSRF in a single-page app
       with an app-owned filter and a token bound to the user. It is proven by a control in
       which the framework alone let the attack write.
       `d27dfca`, `2b8f6ae`, `fc8975d`.
-- [ ] **Default-deny authorization, asserted by request over every endpoint.** An
+- [x] **Default-deny authorization, asserted by request over every endpoint.** An
       allow-list, a body table for unsafe endpoints, and the test seen failing.
       `fc8975d`.
-- [ ] **What revocation means for a stateless session.** Security-stamp rotation, with the
+- [x] **What revocation means for a stateless session.** Security-stamp rotation, with the
       validation interval as the revocation lag, a persistent cookie that the framework
       would not have issued, and a host command for a stolen cookie.
       `565016f`, `4ee95d0`.
-- [ ] **Leak-testing by canary rather than by shape.** Secrets driven through every flow,
+- [x] **Leak-testing by canary rather than by shape.** Secrets driven through every flow,
       scanned in every encoding across logs, spans, bodies and audit rows, with a guard
       against a silent capture and a committed failing twin. It found a real path.
       `1cb41da`.
-- [ ] **Reading from the server what the browser hides.** A refusal line per layer, read in
+- [x] **Reading from the server what the browser hides.** A refusal line per layer, read in
       the E2E through Aspire's resource logger, because Playwright cannot see an opaque
       response or the cookie on it.
       `4ee95d0`, `d27dfca`.
-- [ ] **An accessible asynchronous sign-in.** Focus where the browser hands it back, a
+- [x] **An accessible asynchronous sign-in.** Focus where the browser hands it back, a
       dialog over a preserved page on expiry, one message rather than an alert storm, and
       each ceremony outcome named.
       `fc8975d`, `9694f0b`.
-- [ ] **"The published artifact is not the thing you ran."** Forwarded headers on by
+- [x] **"The published artifact is not the thing you ran."** Forwarded headers on by
       default, a volume's ownership decided by its mount point, and a deploy that keeps its
       generated secrets. Each was found by reading the generated file or deploying.
       `4ee95d0`, `9694f0b`.
 
-*Overlaps to judge:*
+*Overlaps to judge (Kyle ticked both, so judged each new):*
 - **The CSRF and server-record candidates sit close to slice 02's "defence in depth,
   tested from a real second origin".**
 - **The canary candidate sits close to slice 02's "proving a defence by breaking it".**
@@ -233,7 +237,7 @@ Kyle's own, if different: ________________________________________________
 `slice-03.md`: *"Explicitly NOT reasons to continue: that the slice works, and that the next
 slice is obvious."*
 
-- [ ] **STOP.** The default.
+- [x] **STOP.** The default.
 - [ ] **A fourth slice**, which requires **its own commission, written and dated in this
       repository**. If chosen: which technique is it for?
       ________________________________________________

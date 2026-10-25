@@ -61,9 +61,9 @@ logins, rate-limited login, secrets kept out of logs, and the pre-commit hook in
 tested. After its design review (2026-10-24), the argon2id password fallback is deferred. The
 commission and definition are
 [`slice-03.md`](specs/001-portfolio-platform/slice-03.md). **It is built (2026-10-24), and its
-gate is Kyle's:** see
-[`slice-03-assessment.md`](specs/001-portfolio-platform/slice-03-assessment.md). The default is
-STOP. Slices
+gate is decided (2026-10-25): STOP.** See
+[`slice-03-assessment.md`](specs/001-portfolio-platform/slice-03-assessment.md). Anything
+further, a fourth slice or the first real balance, needs its own commission. Slices
 are now commissioned and gated in this repository: the planning repository's `D-043`
 (2026-10-20) decoupled the two projects, and this repository only reads it. No real balance
 enters before this slice is built: Kyle's ruling of 2026-10-18, recorded in
