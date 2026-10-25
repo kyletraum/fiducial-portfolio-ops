@@ -19,9 +19,10 @@ public abstract class ApiTests(PostgresFixture pg) : IClassFixture<PostgresFixtu
 
     public ValueTask InitializeAsync()
     {
+        // Signed in (slice-03.md step 2, D11): from step 4 every endpoint requires a session.
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-            b.UseEnvironment("Production").UseSetting("ConnectionStrings:portfolio", Pg.ConnectionString));
-        Client = factory.CreateClient();
+            b.UseEnvironment("Production").UseSetting("ConnectionStrings:portfolio", Pg.ConnectionString).WithTestAuth());
+        Client = factory.CreateSignedInClient();
         return ValueTask.CompletedTask;
     }
 

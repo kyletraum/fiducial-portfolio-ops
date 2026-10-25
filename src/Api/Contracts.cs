@@ -119,3 +119,44 @@ public sealed record ImportRunResponse(
     int Unchanged,
     [property: Description("Why the run failed; empty when it succeeded. At most 50, then a count of the rest.")]
     IReadOnlyList<ImportErrorResponse> Errors);
+
+// ---- Slice 03: authentication. No response carries a credential (FR-3.2): the passkey options are
+// Identity's own WebAuthn JSON, which holds a challenge and public identifiers only.
+
+public sealed record AuthStateResponse(
+    [property: Description("Whether an owner has enrolled. Before that, the page offers set-up instead of sign-in.")]
+    bool Enrolled,
+    [property: Description("The environment's name, shown on the sign-in page before authentication.")]
+    string Environment);
+
+public sealed record BeginEnrolmentRequest(
+    [property: Description("The first-run setup code. Spaces, hyphens and case are ignored.")]
+    string SetupCode,
+    string UserName);
+
+public sealed record CompleteEnrolmentRequest(
+    [property: Description("The same setup code, presented again with the passkey.")]
+    string SetupCode,
+    [property: Description("The browser's PublicKeyCredential.toJSON() from navigator.credentials.create().")]
+    System.Text.Json.JsonElement Credential);
+
+public sealed record SessionResponse(string UserName);
+
+public sealed record CsrfTokenResponse(
+    [property: Description("Send it as the X-CSRF-TOKEN header on every unsafe request. Bound to the signed-in user: fetch a new one after every sign-in.")]
+    string Token);
+
+/// <summary>
+/// The ProblemDetails titles the authentication routes answer with. Part of the contract: the page
+/// tells one refusal from another by its title, never its status (slice-03.md step 4).
+/// </summary>
+public static class ProblemTitles
+{
+    public const string SetupCodeRefused = "Setup code not accepted";
+    public const string AlreadyEnrolled = "An owner is already enrolled";
+    public const string NoCeremony = "No passkey ceremony is underway";
+    public const string PasskeyRefused = "Passkey not accepted";
+    public const string NotRegisteredHere = "This passkey isn't registered with this app";
+    public const string CsrfTokenRefused = "CSRF token missing or invalid";
+    public const string TooManySignInAttempts = "Too many sign-in attempts. Try again in about a minute.";
+}

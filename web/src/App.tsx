@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useHealth, useNetWorth } from './api/queries';
+import { isSignedOut, useHealth, useNetWorth } from './api/queries';
 import { AccountsSection } from './components/Accounts';
+import { AccountBar } from './components/Auth';
 import { ImportsSection } from './components/Imports';
 import { NetWorthChart } from './components/NetWorthChart';
 import { NetWorthTable } from './components/NetWorthTable';
@@ -34,7 +35,7 @@ function NetWorthSection() {
         ))}
       </fieldset>
       {series.isPending && <p>Loading net worth…</p>}
-      {series.isError && <p role="alert" className="form-error">Could not load net worth: {series.error.message}</p>}
+      {series.isError && !isSignedOut(series.error) && <p role="alert" className="form-error">Could not load net worth: {series.error.message}</p>}
       {series.data && (
         <>
           {anyValue
@@ -59,8 +60,9 @@ export default function App() {
   return (
     <>
       <header>
-        <h1>Portfolio</h1>
+        <h1 tabIndex={-1}>Portfolio</h1>
         <p className="hint">Invented data only. Nothing here is a real account.</p>
+        <AccountBar />
       </header>
       <main>
         {/* One boundary per section: a render error costs that section, never the page. */}

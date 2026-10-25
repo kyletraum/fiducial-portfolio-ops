@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import {
-  ApiError, useAccounts, useBindSource, useCreateAccount, useRecordBalance, useSources, type Account,
+  ApiError, isSignedOut, useAccounts, useBindSource, useCreateAccount, useRecordBalance, useSources, type Account,
 } from '../api/queries';
 import { formatMoney, localToday } from '../money';
 
@@ -215,7 +215,7 @@ export function AccountsSection() {
     <section aria-labelledby="accounts-heading">
       <h2 id="accounts-heading">Accounts</h2>
       {accounts.isPending && <p>Loading accounts…</p>}
-      {accounts.isError && <p role="alert" className="form-error">Could not load accounts: {accounts.error.message}</p>}
+      {accounts.isError && !isSignedOut(accounts.error) && <p role="alert" className="form-error">Could not load accounts: {accounts.error.message}</p>}
       {accounts.data && <AccountsTable accounts={accounts.data} />}
       <div className="forms">
         {accounts.data && <RecordBalanceForm accounts={accounts.data} />}

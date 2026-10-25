@@ -507,6 +507,295 @@
           }
         }
       }
+    },
+    "/api/v1/auth/state": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "operationId": "GetAuthState",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthStateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/csrf-token": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "operationId": "GetCsrfToken",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CsrfTokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sign-out": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "operationId": "SignOut",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "operationId": "GetSession",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/enrolment/options": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "operationId": "BeginEnrolment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BeginEnrolmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/enrolment": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "operationId": "CompleteEnrolment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteEnrolmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sign-in/options": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "operationId": "BeginSignIn",
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sign-in": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "operationId": "CompleteSignIn",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -561,6 +850,23 @@
               "string"
             ],
             "format": "date"
+          }
+        }
+      },
+      "AuthStateResponse": {
+        "required": [
+          "enrolled",
+          "environment"
+        ],
+        "type": "object",
+        "properties": {
+          "enrolled": {
+            "type": "boolean",
+            "description": "Whether an owner has enrolled. Before that, the page offers set-up instead of sign-in."
+          },
+          "environment": {
+            "type": "string",
+            "description": "The environment's name, shown on the sign-in page before authentication."
           }
         }
       },
@@ -635,6 +941,22 @@
           }
         }
       },
+      "BeginEnrolmentRequest": {
+        "required": [
+          "setupCode",
+          "userName"
+        ],
+        "type": "object",
+        "properties": {
+          "setupCode": {
+            "type": "string",
+            "description": "The first-run setup code. Spaces, hyphens and case are ignored."
+          },
+          "userName": {
+            "type": "string"
+          }
+        }
+      },
       "BindSourceRequest": {
         "required": [
           "sourceSystem",
@@ -649,6 +971,23 @@
           "sourceId": {
             "type": "string",
             "description": "The file's own identifier for this account: the CSV 'account' column or the OFX ACCTID."
+          }
+        }
+      },
+      "CompleteEnrolmentRequest": {
+        "required": [
+          "setupCode",
+          "credential"
+        ],
+        "type": "object",
+        "properties": {
+          "setupCode": {
+            "type": "string",
+            "description": "The same setup code, presented again with the passkey."
+          },
+          "credential": {
+            "description": "The browser's PublicKeyCredential.toJSON() from navigator.credentials.create().",
+            "$ref": "#/components/schemas/JsonElement"
           }
         }
       },
@@ -670,6 +1009,18 @@
           "openedOn": {
             "type": "string",
             "format": "date"
+          }
+        }
+      },
+      "CsrfTokenResponse": {
+        "required": [
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "Send it as the X-CSRF-TOKEN header on every unsafe request. Bound to the signed-in user: fetch a new one after every sign-in."
           }
         }
       },
@@ -838,6 +1189,7 @@
           "failed"
         ]
       },
+      "JsonElement": { },
       "NetWorthPoint": {
         "required": [
           "asOfDate",
@@ -1004,6 +1356,17 @@
           }
         }
       },
+      "SessionResponse": {
+        "required": [
+          "userName"
+        ],
+        "type": "object",
+        "properties": {
+          "userName": {
+            "type": "string"
+          }
+        }
+      },
       "SourceResponse": {
         "required": [
           "accountId",
@@ -1056,6 +1419,9 @@
     },
     {
       "name": "Imports"
+    },
+    {
+      "name": "Authentication"
     }
   ]
 }

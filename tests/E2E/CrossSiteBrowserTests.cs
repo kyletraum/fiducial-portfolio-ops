@@ -50,8 +50,10 @@ public class CrossSiteBrowserTests(AppFixture fixture) : IClassFixture<AppFixtur
               { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"asOfDate":"2026-10-15","balance":"1"}' }));
             // no-cors cannot carry a non-safelisted Content-Type: the browser drops it and sends
             // text/plain - no preflight, so this one ARRIVES, and the API must refuse it.
+            // credentials: 'include' (slice 03): fetch's default sends no cookie cross-origin, and the
+            // attack worth refusing is the one that carries the session.
             await run('nocors', () => fetch('{{target}}/api/v1/imports?fileName=nocors.csv',
-              { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/csv' }, body: {{JsonSerializer.Serialize(Csv)}} }));
+              { method: 'POST', mode: 'no-cors', credentials: 'include', headers: { 'Content-Type': 'text/csv' }, body: {{JsonSerializer.Serialize(Csv)}} }));
             document.getElementById('form').submit();
             return out;
           };
@@ -73,18 +75,20 @@ public class CrossSiteBrowserTests(AppFixture fixture) : IClassFixture<AppFixtur
     public async Task A_page_on_another_site_cannot_write(string attackerHost, string targetName)
     {
         var target = (targetName == "api" ? fixture.ApiUrl : fixture.WebUrl).GetLeftPart(UriPartial.Authority);
-        using var api = new HttpClient { BaseAddress = fixture.ApiUrl };
+        await using var api = await fixture.ApiAsync();
         var account = await NewAccountAsync(api);
         var before = await WrittenAsync(api, account);
 
         await using var site = AttackerSite.Start(AttackPage(target, account));
-        var context = await fixture.Browser.NewContextAsync();
+        // Signed in (slice 03): the attack runs in a browser that holds a valid session.
+        var context = await fixture.NewSignedInContextAsync(new() { BaseURL = null });
         var seen = new List<Seen>();
         context.Response += (_, r) => { if (r.Url.StartsWith(target)) lock (seen) seen.Add(new(r.Request.Method, r.Url, r.Status, null)); };
         context.RequestFailed += (_, r) => { if (r.Url.StartsWith(target)) lock (seen) seen.Add(new(r.Method, r.Url, null, r.Failure)); };
         context.Request += (_, r) => { if (r.Url.StartsWith(target)) lock (seen) seen.Add(new(r.Method, r.Url, null, "requested")); };
 
         var page = await context.NewPageAsync();
+        var mark = fixture.ApiLogMark;
         await page.GotoAsync($"http://{attackerHost}:{site.Port}/");
         // A string, parsed here: binding a JS object straight to a Dictionary came back empty.
         var outcome = JsonSerializer.Deserialize<Dictionary<string, string>>(
@@ -112,27 +116,37 @@ public class CrossSiteBrowserTests(AppFixture fixture) : IClassFixture<AppFixtur
             Assert.True(seen.Any(s => s.Url.Contains("fileName=nocors.csv") && s.Status == 403), Report());
         }
 
+        // slice 03, DoD 4: WHICH layer refused, and whether the session cookie arrived, read from the
+        // API's own record. A browser test sees only the status of a response its page cannot read,
+        // and Playwright reports no Cookie on such a request (Spike J, EXECUTED). From another port of
+        // localhost the Strict cookie is sent (same site); from attacker.localhost it is not.
+        var sameSite = attackerHost == "localhost";
+        var expected = $"Refused by cross-site: POST /api/v1/imports Sec-Fetch-Site={(sameSite ? "same-site" : "cross-site")} session-cookie={(sameSite ? "arrived" : "absent")}";
+        // The two writes that reach the API: the form post and the no-cors fetch. (A preflight's OPTIONS
+        // is refused too, for having no session, and grants no CORS either way.)
+        var refusals = await fixture.RefusalsSinceAsync(mark, l => l.Contains(": POST /api/v1/imports ", StringComparison.Ordinal), atLeast: 2);
+        Assert.True(refusals.Count >= 2 && refusals.All(l => l.Contains(expected, StringComparison.Ordinal)),
+            $"expected two lines of: {expected}{Environment.NewLine}found:{Environment.NewLine}{string.Join(Environment.NewLine, refusals)}");
+
         // And nothing was written, whatever the browser did.
         Assert.Equal(before, await WrittenAsync(api, account));
         await context.CloseAsync();
     }
 
-    static async Task<Guid> NewAccountAsync(HttpClient api)
+    static async Task<Guid> NewAccountAsync(SignedInApi api)
     {
-        var created = await api.PostAsJsonAsync("/api/v1/accounts",
-            new { institutionName = "Example Bank", displayName = "Target", openedOn = "2026-01-01" }, Ct);
-        created.EnsureSuccessStatusCode();
-        var id = (await created.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetGuid();
-        (await api.PostAsJsonAsync($"/api/v1/accounts/{id}/sources", new { sourceSystem = "import:csv", sourceId = $"EX-{Guid.NewGuid():N}" }, Ct))
-            .EnsureSuccessStatusCode();
+        var created = await api.PostJsonAsync("/api/v1/accounts",
+            new { institutionName = "Example Bank", displayName = "Target", openedOn = "2026-01-01" });
+        var id = created.GetProperty("id").GetGuid();
+        await api.PostJsonAsync($"/api/v1/accounts/{id}/sources", new { sourceSystem = "import:csv", sourceId = $"EX-{Guid.NewGuid():N}" });
         return id;
     }
 
     /// <summary>Imports recorded, and balances on the target account.</summary>
-    static async Task<(int Runs, int Balances)> WrittenAsync(HttpClient api, Guid account)
+    static async Task<(int Runs, int Balances)> WrittenAsync(SignedInApi api, Guid account)
     {
-        var runs = await api.GetFromJsonAsync<JsonElement>("/api/v1/imports?limit=500", Ct);
-        var balances = await api.GetFromJsonAsync<JsonElement>($"/api/v1/accounts/{account}/balances", Ct);
+        var runs = await api.GetJsonAsync("/api/v1/imports?limit=500");
+        var balances = await api.GetJsonAsync($"/api/v1/accounts/{account}/balances");
         return (runs.GetArrayLength(), balances.GetArrayLength());
     }
 

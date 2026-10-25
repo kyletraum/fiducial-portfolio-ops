@@ -60,7 +60,10 @@ means passkey login, sessions, CSRF, security headers and a strict CSP, an audit
 logins, rate-limited login, secrets kept out of logs, and the pre-commit hook installed and
 tested. After its design review (2026-10-24), the argon2id password fallback is deferred. The
 commission and definition are
-[`slice-03.md`](specs/001-portfolio-platform/slice-03.md); it opens with three spikes. Slices
+[`slice-03.md`](specs/001-portfolio-platform/slice-03.md). **It is built (2026-10-24), and its
+gate is decided (2026-10-25): STOP.** See
+[`slice-03-assessment.md`](specs/001-portfolio-platform/slice-03-assessment.md). Anything
+further, a fourth slice or the first real balance, needs its own commission. Slices
 are now commissioned and gated in this repository: the planning repository's `D-043`
 (2026-10-20) decoupled the two projects, and this repository only reads it. No real balance
 enters before this slice is built: Kyle's ruling of 2026-10-18, recorded in
@@ -112,6 +115,56 @@ separate file:
 So the generated file is complete on its own. `aspire-output/` is git-ignored as a
 directory, because the `.env.<Environment>` file there holds the generated database password. Never commit
 it. [`deploy/.env.example`](deploy/.env.example) lists the keys.
+
+**Signing in (slice 03).** Every page and endpoint but the health check needs a session.
+
+- **The first run asks for a setup code.** Open the app as **`http://localhost`**, not
+  `127.0.0.1`: passkeys only work at `localhost`.
+  - Deployed, the code is `SETUP_CODE` in `aspire-output/.env.<Environment>`.
+  - Under `aspire run`, it is the `setup-code` parameter on the dashboard.
+
+  Enter the code, then a user name, then create a passkey. A code works for **one**
+  enrolment, ever.
+- **Sessions last 7 days after you last use the app.** They survive a redeploy and
+  `docker compose … restart api`, because the key ring that signs them is on its own volume,
+  `portfolio-dev-keys`.
+- **`docker compose … down -v` destroys both volumes.** You lose the data, the key ring and
+  the owner. Every session ends, and enrolment opens again, for a code not used before.
+- **The compose project's name** comes from `aspire deploy`: `aspire-compose-` and a hash of
+  the AppHost's path. Move the repository and the next deploy is a new project, with new
+  volumes and an empty database. A `docker compose -p <name>` run by hand uses the name you
+  give it.
+
+**Recovering, from the host.** Both commands run in a throwaway container, need no browser,
+and are written to the audit log:
+
+```sh
+# A session you do not trust (a copied cookie): every browser must sign in again.
+docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.<Environment> run --rm api revoke-sessions
+# A lost passkey: removes the owner and their passkeys, and opens enrolment again.
+docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.<Environment> run --rm api reset-owner
+```
+
+After `reset-owner`, enrolment needs a setup code that has never been used. **A redeploy does
+not give you one.** `aspire deploy` keeps the code it generated in its deployment state,
+`~/.aspire/deployments/<hash>/`, and writes the same one every time. An explicit
+`Parameters__setup-code` does not override it either. Instead, put a new value in `SETUP_CODE`
+in `aspire-output/.env.<Environment>`: 29 lower-case letters, without `i`, `l` or `o`. Then
+recreate the API:
+
+```sh
+docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.<Environment> up -d api
+```
+
+The next `aspire deploy` writes the old, spent code back. That is harmless, since a spent code
+cannot enrol anyone, but enrol before you redeploy. **Never use `aspire deploy --clear-cache`
+on a stack with data.** It regenerates every parameter, the database password among them, and
+the existing volume only accepts the password it was created with.
+
+**Logs** are in `docker logs <api container>`. They are kept by Docker's `local` log driver
+(about 100 MB per container), and are lost when the container is recreated. The request lines
+that would carry a URL's query string are switched off in code, so a secret pasted into a URL
+is not written down.
 
 ## Before you commit anything
 

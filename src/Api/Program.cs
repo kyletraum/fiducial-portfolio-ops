@@ -9,6 +9,11 @@ using Portfolio.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+// Slice 03 step 5 (DoD 7): the request-start and -finish lines carry the full query string, and
+// a secret pasted into a URL would be written down. Off below Warning whatever configuration
+// says: a filter added here comes after configuration's and wins at the same category. Each
+// request is still a span, whose url.query OpenTelemetry already redacts.
+builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
 builder.Services.AddProblemDetails();
 
 // One clock, injected, so tests can pin it (slice-02.md "Dates and time"). The data layer's
@@ -27,16 +32,38 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 builder.Services.AddDbContext<PortfolioDbContext>(options =>
     PortfolioDbContext.Configure(options, builder.Configuration.GetConnectionString("portfolio")));
 builder.EnrichNpgsqlDbContext<PortfolioDbContext>();
-// The context is also Identity's store (slice 03): every host models the same Identity schema.
-PortfolioDbContext.AddIdentitySchema(builder.Services);
+// Slice 03: Identity with passkeys, whose store is the same context (step 1).
+builder.AddPortfolioAuthentication();
+builder.Services.AddCsrfTokens();
+SignInRateLimit.AddSignInRateLimit(builder.Services, builder.Configuration);
+builder.Services.AddScoped<OwnerCommands>();
 
 var app = builder.Build();
 
+// `docker compose run --rm api revoke-sessions` (or reset-owner): run the command and exit, with no
+// web server started (slice-03.md step 7).
+if (OwnerCommands.ModeFrom(args) is { } mode)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    return await scope.ServiceProvider.GetRequiredService<OwnerCommands>().RunAsync(mode, Console.Out);
+}
+
+// The order is slice-03.md step 3's, and each place is load-bearing (round 2 SRC-1, TST-5, TST-9):
+// - The headers first, so every later response carries them, refusals and errors included.
+// - The cross-site refusal before anything reads the request.
+// - Static files BEFORE authentication: a fallback policy (step 4) also covers a file served after
+//   it, and the page would answer 401.
+// - Authentication and authorization called explicitly. Otherwise WebApplication inserts them ahead
+//   of every middleware here, and a 401 would leave without the headers.
+// Host filtering wraps all of this: its 400 refuses before any of it runs, and carries no headers.
+app.UseSecurityHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
-
-// Before any endpoint runs: a write marked cross-site or same-site never reaches a handler.
 app.UseCrossSiteWriteRefusal();
+app.UseFileServer();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {
@@ -49,9 +76,8 @@ app.MapPortfolioApi();
 
 app.MapDefaultEndpoints();
 
-app.UseFileServer();
-
 app.Run();
+return 0;
 
 // For WebApplicationFactory in the tests.
 public partial class Program;

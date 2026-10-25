@@ -67,6 +67,9 @@ var setupCode = builder.AddParameter("setup-code",
 var api = builder.AddProject<Projects.Api>("api")
     .WithReference(db)
     .WithEnvironment("Enrolment__SetupCode", setupCode)
+    // Slice 03 step 7 (C3-9): Aspire's publish default trusts X-Forwarded-For and -Proto from any
+    // client, so every caller would choose its own address and scheme. There is no proxy to trust.
+    .DisableForwardedHeaders()
     .WaitForCompletion(migrator)
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints()
@@ -86,6 +89,26 @@ var web = builder.AddViteApp("web", "../../web")
     .WaitFor(api);
 
 api.PublishWithContainerFiles(web, "wwwroot");
+
+// Slice 03 step 7 (D3, C3-11): the data-protection key ring, the root of trust for every cookie and
+// token, outlives the container. Declared as a mount annotation, so the compose file declares the
+// volume too (a volume added only in the compose callback is never declared: SRC-7). Mounted AT
+// /home/app, which the image's `app` user (UID 1654) owns: Docker initialises an empty named
+// volume from the mount point's own ownership, where a fresh path would be root's and unwritable.
+// Under `aspire run` the Api is a process, and keeps its keys in the user profile.
+if (builder.ExecutionContext.IsPublishMode)
+{
+    api.WithAnnotation(new ContainerMountAnnotation("portfolio-dev-keys", "/home/app", ContainerMountType.Volume, isReadOnly: false));
+    api.WithEnvironment("DataProtection__KeyPath", "/home/app/keys");
+}
+
+// Slice 03 step 2: the origins the Api's passkey check accepts (C3-23). Under `aspire run` the page
+// is the Vite dev server's, on a port Aspire allocates; published, the Api serves the page itself,
+// on the port the compose file publishes on loopback (SRC-12).
+if (builder.ExecutionContext.IsPublishMode)
+    api.WithEnvironment("Auth__AllowedOrigins", ReferenceExpression.Create($"http://localhost:{api.GetEndpoint("http").Property(EndpointProperty.Port)}"));
+else
+    api.WithEnvironment("Auth__AllowedOrigins", web.GetEndpoint("http"));
 
 builder.Build().Run();
 

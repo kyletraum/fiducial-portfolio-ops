@@ -109,7 +109,10 @@ laptop is the primary self-hosted threat, this is the control that matters most.
   shapes. It captures every category at `Trace` in Production configuration, traces
   included, and checks raw, URL-encoded and base64 forms. Any filter redacts by
   **property name**; request bodies are never logged. Secrets travel only in `POST`
-  bodies and cookies, never in a query string.
+  bodies and cookies, never in a query string. The test went red once, on ASP.NET Core's own
+  request-start and request-finish lines, which write the full query string. The Api
+  turns that category off below `Warning` in code, so configuration cannot turn it back
+  on (`slice-03.md` step 5).
 - **`audit_event.detail` never contains a secret** - tested.
 - Revocation takes effect immediately, without a restart (FR-3.4).
 - Every use is audited (FR-3.5).

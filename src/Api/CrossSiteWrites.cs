@@ -14,7 +14,7 @@ namespace Portfolio.Api;
 /// tests, which is not the threat this exists for. Layer 1 is the content-type allowlist on every
 /// write endpoint; each layer is tested on its own (DoD 11).
 /// </remarks>
-static class CrossSiteWrites
+public static class CrossSiteWrites
 {
     public const string Header = "Sec-Fetch-Site";
 
@@ -26,6 +26,7 @@ static class CrossSiteWrites
             var site = context.Request.Headers[Header].ToString();
             if (unsafeMethod && (site.Equals("cross-site", StringComparison.OrdinalIgnoreCase) || site.Equals("same-site", StringComparison.OrdinalIgnoreCase)))
             {
+                Refusals.Log(context, Refusals.CrossSite);
                 await Results.Problem(statusCode: StatusCodes.Status403Forbidden,
                     title: "Cross-site writes are refused.",
                     detail: $"This request came from another site ({Header}: {site}). Only this app's own page may write.")
