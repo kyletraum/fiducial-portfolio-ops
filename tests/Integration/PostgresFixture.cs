@@ -11,7 +11,7 @@ namespace Portfolio.Integration;
 /// </summary>
 public class PostgresFixture : IAsyncLifetime
 {
-    // The image Aspire's AddPostgres runs (13.5.4 and 13.6.1 both publish postgres:18.3),
+    // The image Aspire's AddPostgres runs (13.5.4, 13.6.1 and 13.6.4 all publish postgres:18.3),
     // so these tests exercise the server version the app gets.
     const string Image = "postgres:18.3";
 
