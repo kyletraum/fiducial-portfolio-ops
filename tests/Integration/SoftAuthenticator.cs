@@ -30,6 +30,14 @@ public sealed class SoftAuthenticator(string origin, byte[]? registeredElsewhere
     byte[]? userHandle = registeredElsewhere;
     uint signCount;
 
+    /// <summary>
+    /// A user handle no user here has, shaped as Identity's are: the UTF-8 of a GUID string. Random
+    /// bytes are usually not valid UTF-8, and Identity then refuses another way, "Passkey not
+    /// accepted" rather than "not registered here" (EXECUTED: a CI run, 2026-10-25; the E2E's virtual
+    /// authenticator had the same fix in step 4).
+    /// </summary>
+    public static byte[] ForeignUserHandle() => System.Text.Encoding.UTF8.GetBytes(Guid.NewGuid().ToString());
+
     /// <summary>What a ceremony may be made to do wrong.</summary>
     public sealed record Variant
     {

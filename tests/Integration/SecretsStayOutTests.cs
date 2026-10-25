@@ -78,7 +78,7 @@ public class SecretsStayOutTests(AuthFixture db) : IClassFixture<AuthFixture>
         var token = (await signedIn.GetFromJsonAsync<Api.CsrfTokenResponse>("/api/v1/auth/csrf-token", Ct))!.Token;
 
         // A failed and a malformed sign-in, and the health route once (the trace guard's span).
-        await SignInAsync(Recording(api, bodies), new SoftAuthenticator(Origin, registeredElsewhere: Guid.NewGuid().ToByteArray()));
+        await SignInAsync(Recording(api, bodies), new SoftAuthenticator(Origin, registeredElsewhere: SoftAuthenticator.ForeignUserHandle()));
         await SignInAsync(Recording(api, bodies), owner, new() { MalformedCbor = true });
         await browser.GetAsync("/api/v1/system/health", Ct);
 
