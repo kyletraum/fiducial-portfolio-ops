@@ -142,12 +142,24 @@ docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspi
 docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.<Environment> run --rm api reset-owner
 ```
 
-After `reset-owner`, enrolment needs a setup code that has never been used. Either redeploy,
-or put a new value in `SETUP_CODE`: 29 lower-case letters, without `i`, `l` or `o`. Then
-recreate the API with `up -d`.
+After `reset-owner`, enrolment needs a setup code that has never been used. **A redeploy does
+not give you one.** `aspire deploy` keeps the code it generated in its deployment state,
+`~/.aspire/deployments/<hash>/`, and writes the same one every time. An explicit
+`Parameters__setup-code` does not override it either. Instead, put a new value in `SETUP_CODE`
+in `aspire-output/.env.<Environment>`: 29 lower-case letters, without `i`, `l` or `o`. Then
+recreate the API:
 
-**Logs** are in `docker logs <api container>`. They are kept by Docker's log driver, and are
-lost when the container is recreated. The driver is checked in step 7b. The request lines
+```sh
+docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.<Environment> up -d api
+```
+
+The next `aspire deploy` writes the old, spent code back. That is harmless, since a spent code
+cannot enrol anyone, but enrol before you redeploy. **Never use `aspire deploy --clear-cache`
+on a stack with data.** It regenerates every parameter, the database password among them, and
+the existing volume only accepts the password it was created with.
+
+**Logs** are in `docker logs <api container>`. They are kept by Docker's `local` log driver
+(about 100 MB per container), and are lost when the container is recreated. The request lines
 that would carry a URL's query string are switched off in code, so a secret pasted into a URL
 is not written down.
 

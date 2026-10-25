@@ -21,7 +21,14 @@ async function post(path: string, body?: unknown): Promise<unknown> {
   const json: unknown = await response.json().catch(() => ({}));
   if (!response.ok) {
     const problem = json as { title?: string };
-    throw new ApiError(response.status, problem.title ?? `Request failed (HTTP ${response.status}).`);
+    let message = problem.title ?? `Request failed (HTTP ${response.status}).`;
+    // DoD 5 / C3-19: a static time, worked out once, never a countdown in a live region.
+    const retryAfter = Number(response.headers.get('Retry-After'));
+    if (response.status === 429 && retryAfter > 0) {
+      const at = new Date(Date.now() + retryAfter * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      message += ` You can try again after ${at}.`;
+    }
+    throw new ApiError(response.status, message);
   }
   return json;
 }

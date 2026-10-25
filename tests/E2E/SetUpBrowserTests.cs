@@ -19,6 +19,15 @@ public class SetUpBrowserTests(NewOwnerFixture fixture) : IClassFixture<NewOwner
         await page.GotoAsync("/");
 
         await Expect(page).ToHaveTitleAsync("Set up — Portfolio");
+
+        // DoD 6: the set-up view in both colour schemes, while there is still no owner to make it go away.
+        await Axe.AssertCleanAsync(page, "set-up (light)");
+        var dark = await fixture.Browser.NewContextAsync(new() { BaseURL = fixture.WebUrl.ToString(), ColorScheme = ColorScheme.Dark });
+        var darkPage = await dark.NewPageAsync();
+        await darkPage.GotoAsync("/");
+        await Expect(darkPage.GetByRole(AriaRole.Heading, new() { Name = "Step 1 of 3: Enter the setup code" })).ToBeVisibleAsync();
+        await Axe.AssertCleanAsync(darkPage, "set-up (dark)");
+        await dark.CloseAsync();
         await Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Step 1 of 3: Enter the setup code" })).ToBeVisibleAsync();
         await Expect(page.GetByText("Environment:")).ToContainTextAsync("Development");
         await Expect(page.GetByLabel("Setup code")).ToHaveAttributeAsync("autocomplete", "one-time-code");
