@@ -184,7 +184,7 @@ public class AuthApiTests(AuthFixture db) : IClassFixture<AuthFixture>, IAsyncLi
         await using var __ = api;
         var audited = await AuditCountAsync("sign_in_failed", AuditEvent.UnknownActor);
 
-        var stranger = await SignInAsync(Client(api), new SoftAuthenticator(Origin, registeredElsewhere: Guid.NewGuid().ToByteArray()));
+        var stranger = await SignInAsync(Client(api), new SoftAuthenticator(Origin, registeredElsewhere: SoftAuthenticator.ForeignUserHandle()));
 
         await AssertProblemAsync(stranger, HttpStatusCode.Unauthorized, ProblemTitles.NotRegisteredHere);
         Assert.Equal(audited + 1, await AuditCountAsync("sign_in_failed", AuditEvent.UnknownActor));
