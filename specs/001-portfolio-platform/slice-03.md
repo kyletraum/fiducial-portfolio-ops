@@ -93,6 +93,16 @@ member. [`EXECUTED 2026-10-21`, committee OPS: `net localgroup docker-users`;
   `postgres`, so `audit_event`'s immutability is a property of the application's code
   paths, not a database boundary (`G-7`). Trigger: real data, or anything other than this
   app reaching the database.
+
+  > **`G-7` shown, 2026-10-31** (after the gate, on a fresh `aspire deploy`). The API's
+  > connection string logs in as `postgres`, which is superuser and owns `audit_event`.
+  > As that role, in one transaction: a `DELETE` was refused by the trigger; `ALTER TABLE
+  > audit_event DISABLE TRIGGER audit_event_append_only` succeeded (`tgenabled` `D`); the
+  > same `DELETE` then removed all 5 rows. Rolled back: 5 rows, both triggers `O`.
+  > [`EXECUTED`] The fix stays deferred. It needs the API to log in as a role that is
+  > neither superuser nor the table's **owner**: a non-superuser role owning a probe table
+  > disabled and dropped its trigger, also rolled back. [`EXECUTED`] See "Before the
+  > first real balance".
 - **No dev-server CSP** (`D9`). The API's headers never reach a script tag under Vite, and
   by rule the dev page holds only invented data. Trigger: an XSS found in the app's own
   markup, or the dev page ever carrying real data.
@@ -1202,6 +1212,20 @@ The items deferred by the review, each with the trigger that reopens it:
 | A `sessions` table (`D4`) | More than one session to revoke |
 | A `127.0.0.1` → `localhost` redirect (`D8`) | The pre-ceremony warning is ever missed in use |
 | Firefox in the E2E (`D14`) | Playwright gains a virtual authenticator for Firefox |
+
+### Before the first real balance
+
+*(Added 2026-10-31, after the gate.)* Several deferrals above share one trigger, and that
+day should not depend on remembering them. This list collects them; it adds no work.
+
+1. **A commission**, written and dated here, as "The gate" below requires.
+2. **The backup command** (`D5`), before a migration runs on a volume that matters.
+3. **The application role** (`D6`, `G-7`). The Migrator keeps `postgres`; the API logs
+   in as a role that is neither superuser nor the owner of any table, with only the
+   grants it uses. Shown needed: today the API's login can disable the audit trigger.
+4. **The wider audit** (`D17`): data mutation, reports, projections and exports.
+5. **The dev page stays on invented data** (`D9`), or it gets a CSP first.
+6. **Kyle's ruling on `C-389`**, value-weighted coverage, carried as an open question.
 
 ## The gate — slice 01's rule, unchanged
 
