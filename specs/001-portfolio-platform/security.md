@@ -154,6 +154,18 @@ laptop is the primary self-hosted threat, this is the control that matters most.
   the RP ID from the `Host` header, and to accept any origin equal to the
   request's own `Origin`. [`SOURCE@dotnet/aspnetcore@v10.0.13`
   `src/Identity/Core/src/PasskeyHandler.cs:651-678`]
+- *(slice 03)* **A replayed sign-in is not caught for a synced passkey.** Identity's
+  only replay guard past the challenge is the sign counter, and it skips the check
+  when the stored and the presented counts are both 0. A Google Password Manager
+  passkey reported 0 at enrolment and at every sign-in measured. The challenge sits in a
+  cookie for 10 minutes with no server-side record, so a captured sign-in can be
+  replayed inside that window. **Accepted, not built** (Kyle, 2026-10-31): the
+  exchange travels over loopback, so capturing it means software on the host, which
+  is "at the keyboard" above; and whoever captured it also holds the session cookie
+  the exchange returned, so a replay gains nothing. Trigger: the API leaves loopback,
+  or a sign-in can be captured without the session that followed it.
+  [`SOURCE@dotnet/aspnetcore@v10.0.13` `src/Identity/Core/src/PasskeyHandler.cs:520-532`;
+  `EXECUTED 2026-10-31` `G-8`, `slice-03.md` step 4]
 - **Sessions:** `HttpOnly`, `Secure`, `SameSite=Strict` cookies. No token in
   `localStorage` or `sessionStorage`, where any script can read it.
   *(slice 03)* None of the three is the framework default: cookie authentication

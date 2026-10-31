@@ -90,6 +90,7 @@ later; they are simply not the number the gate reads.
 | 2026-10-24 | 7b · published stack | — | 1.5 | axe in both schemes on every new view; 429 retry time; published run: migration 5 on the existing volume, CSP exact + positive control, set-up/balance/chart under the CSP, axe without BypassCSP (G-29), passkey on 8080 (G-12), session survives restart, forged XFF audited at the real address (C3-9, G-3), revoke-sessions in a container, G-26/G-27 raised, G-11 partly; found the deploy keeps its setup code (runbook corrected). Agent hours estimated |
 | 2026-10-25 | gate · assessment | — | 0.5 | slice-03-assessment.md: DoD walked (10 met, two noted), cost, spikes and security.md corrections, defects the build found, the attacker table, techniques and decision left to Kyle. Agent hours estimated |
 | 2026-10-31 | maint · G-11 | — | 0.4 | Second-host probe from Kyle's phone: 8080 timed out, a 0.0.0.0:8099 control answered (after a port rule and a phone-side change); Docker's backend is allowed on Private, so the 127.0.0.1 binding refused it. G-11 raised. Agent hours estimated |
+| 2026-10-31 | maint · G-8 | — | 0.3 | Kyle enrolled from Chrome; the passkey went to Google Password Manager (AAGUID read from the attestation): SignCount 0 after two sign-ins, synced. Nonce trigger met; Kyle kept it deferred (capture needs the host; the captor has the session). security.md "API" bullet added. Agent hours estimated |
 
 <!-- Slice 03 rows above. Total at its gate. -->
 
