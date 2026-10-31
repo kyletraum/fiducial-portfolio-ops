@@ -156,7 +156,7 @@ refuse a process running as the user, or an extension with `localhost` permissio
 | **Guessing the setup code** | 131 bits; single use, surviving `reset-owner`; the limiter | **In Integration** (`56488f8`, `565016f`, `4ee95d0`). The guessing itself is **argued** from the code's size |
 | **A caller forging its address** (`X-Forwarded-For`) | Forwarded headers off | **On the published stack**: audited at the real address (step 7b) |
 | **A secret written to a log, trace or error body** | Nothing writes one; the query-string lines are off | **The canary test**, over every encoding (`1cb41da`) |
-| **Something on the LAN** | The `127.0.0.1` publish | **Partly:** refused on this machine's own LAN address (step 7b). **A probe from a second host is owed** (`G-11`) |
+| **Something on the LAN** | The `127.0.0.1` publish | **Partly:** refused on this machine's own LAN address (step 7b). **A probe from a second host is owed** (`G-11`). *After the gate, 2026-10-31: **shown.** A phone on the LAN timed out on 8080, and reached a control listener on the same address; the firewall allows Docker's backend, which holds 8080, so the binding is what refused it. `G-11` raised (`slice-03.md`, step 7)* |
 | **A process running as the user**, or **an extension with `localhost` permission** | **Nothing**: out of scope, by the stated boundary | Argued, and written into `security.md` |
 | **The database's own connecting role** removing the audit trigger | **Nothing yet**: `D6` deferred the app role | Argued; `G-7` open |
 | **A stolen disk** | Disk encryption, which is the host's | Argued. The key ring is plaintext on the volume, as `security.md` says |
@@ -256,7 +256,7 @@ judgement of what the slice taught.
 commissioned, reviewed, ruled and built here, and this assessment is its record.
 
 **In this repository**, for whatever comes next, with nothing scheduled:
-- **`G-11`'s second-host probe.**
+- **`G-11`'s second-host probe.** *Done 2026-10-31, after the gate: raised.*
 - **`G-8`:** which platform passkeys report a counter of 0.
 - **`G-7`:** whether the app's role can remove the audit trigger, which `D6` defers.
 - **A comment in `CrossSiteWriteTests`** recording why its expected values did not move
