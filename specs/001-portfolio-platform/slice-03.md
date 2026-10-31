@@ -1037,6 +1037,16 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
    >   - **`G-11` partly raised.** Port 8080 refuses on this machine's LAN address
    >     (`192.168.87.248`) and answers on `127.0.0.1`. **A probe from a second LAN host is
    >     still owed.**
+   >   - **`G-11` raised, 2026-10-31** (after the gate, on a fresh `aspire deploy`). From a
+   >     phone on the LAN (`192.168.87.190`), `http://192.168.87.248:8080/api/v1/system/health`
+   >     timed out. The positive control: a listener on `0.0.0.0:8099`, allowed through the
+   >     firewall for the probe, logged the phone's connection and answered it. The only 8080
+   >     listener is `127.0.0.1:8080`, held by `com.docker.backend`, and Windows Firewall allows
+   >     that program inbound on Private networks on any port, so the firewall did not refuse
+   >     8080: the binding did. [`EXECUTED`] Found on the way: the control failed too at first
+   >     (`ERR_TOO_MANY_RETRIES`, nothing reached the listener), first for want of a firewall
+   >     rule for the Node actually on the PATH, then on the phone's side. Without the control,
+   >     a timed-out 8080 would have passed for the wrong reason.
    > - **Found:**
    >   - **The deploy keeps its setup code.** `aspire deploy` holds generated parameters in
    >     its deployment state, `~/.aspire/deployments/<hash>/`. The current state is in
