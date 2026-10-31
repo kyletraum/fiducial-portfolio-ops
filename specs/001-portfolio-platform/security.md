@@ -321,6 +321,11 @@ updated or deleted, and never contain secret values.
   still connects as the database superuser, which can remove the trigger. The
   non-superuser role under "Database" is what would make it a boundary. It is
   deferred until real data, or anything other than this app reaching the database.
+  **Shown, not only argued:** as the API's login, `DISABLE TRIGGER` succeeds and the
+  rows can then be deleted. The role must not *own* the table either, since an owner
+  can drop its triggers without being superuser. [`EXECUTED 2026-10-31` `G-7`, both
+  in rolled-back transactions on postgres 18.3, the second as a non-superuser owner of a
+  probe table; `slice-03.md` "What the slice is not"]
 
 ---
 
