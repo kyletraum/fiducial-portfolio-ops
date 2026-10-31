@@ -152,7 +152,7 @@ refuse a process running as the user, or an extension with `localhost` permissio
 | **Framing the page** | `frame-ancestors 'none'`, `X-Frame-Options: DENY` | **Headers asserted** on every status; framing itself was executed by the committee's probe (BRW F16), not re-run here |
 | **A client with no session** (`curl`, any local process) | The fallback policy | **By request** over every endpoint (`fc8975d`) |
 | **A stolen session cookie** | Sign-out rotates the stamp; `revoke-sessions` | **In Integration** (a copy refused after +61 s, `565016f`; after the command, `4ee95d0`) and **on the published stack** (step 7b). A copy stays usable for up to the validation interval: the lag `D4` accepted |
-| **A replayed or cloned passkey assertion** | The sign counter; a consumed challenge | **In Integration**: a replay with its challenge cookie, a counter that did not advance (`565016f`). Platform passkeys that report a counter of 0 are not covered (`G-8`, open) |
+| **A replayed or cloned passkey assertion** | The sign counter; a consumed challenge | **In Integration**: a replay with its challenge cookie, a counter that did not advance (`565016f`). Platform passkeys that report a counter of 0 are not covered (`G-8`, open). *After the gate, 2026-10-31: `G-8` answered. The passkey in use (Google Password Manager) reports 0, so a replay inside the challenge's 10 minutes is not caught. Accepted, with reasons, in `security.md` "API"* |
 | **Guessing the setup code** | 131 bits; single use, surviving `reset-owner`; the limiter | **In Integration** (`56488f8`, `565016f`, `4ee95d0`). The guessing itself is **argued** from the code's size |
 | **A caller forging its address** (`X-Forwarded-For`) | Forwarded headers off | **On the published stack**: audited at the real address (step 7b) |
 | **A secret written to a log, trace or error body** | Nothing writes one; the query-string lines are off | **The canary test**, over every encoding (`1cb41da`) |
@@ -257,7 +257,8 @@ commissioned, reviewed, ruled and built here, and this assessment is its record.
 
 **In this repository**, for whatever comes next, with nothing scheduled:
 - **`G-11`'s second-host probe.** *Done 2026-10-31, after the gate: raised.*
-- **`G-8`:** which platform passkeys report a counter of 0.
+- **`G-8`:** which platform passkeys report a counter of 0. *Done 2026-10-31, after the
+  gate: Google Password Manager does; the nonce stays deferred, by Kyle's ruling.*
 - **`G-7`:** whether the app's role can remove the audit trigger, which `D6` defers.
 - **A comment in `CrossSiteWriteTests`** recording why its expected values did not move
   (DoD 9's note).

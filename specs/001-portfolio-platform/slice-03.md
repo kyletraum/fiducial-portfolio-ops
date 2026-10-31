@@ -475,6 +475,17 @@ round 2 `SCO-1`, `SCO-2`, `TST-1`). Steps 1–3 build behind them.
      replayed exchange is caught only by the sign counter, which runs only when a counter
      is non-zero. `G-8` decides whether a per-credential nonce is needed. Whoever captured
      the exchange also holds the session cookie that followed.
+
+     > **`G-8` answered, 2026-10-31** (after the gate, on a fresh `aspire deploy`). Kyle
+     > enrolled from Chrome and signed in twice. Chrome saved the passkey to **Google
+     > Password Manager** (AAGUID `ea9b8d66-4d01-1d21-3ce4-b6b48cb575d4`, named in
+     > [`passkeydeveloper/passkey-authenticator-aaguids@0940476`]). The stored record:
+     > `SignCount` 0 at enrolment and after both sign-ins; backup-eligible and backed up
+     > (synced); transports `internal`, `hybrid`. [`EXECUTED`] So the counter guards
+     > nothing for the passkey in use, and the nonce's trigger is met. **Kyle ruled it
+     > deferred anyway:** capture needs software on the host, and the captor holds the
+     > session too. `security.md` "API" carries the reasoning and the new trigger.
+     > Windows Hello was not measured.
    - **The key ring (`D3`, `C3-11`).** `PersistKeysToFileSystem` to a path from
      configuration, plus `SetApplicationName("portfolio")`. Under `aspire run` the path is
      the user profile; in the container it is a named volume (step 7). The keys are
@@ -1186,7 +1197,7 @@ The items deferred by the review, each with the trigger that reopens it:
 |---|---|
 | The authentication method in audit (`C3-44`) | `D7`'s trigger |
 | A compose healthcheck (`C3-50`) | The API leaves loopback, or a restart loop is observed |
-| A per-credential nonce (`C3-39`) | `G-8` shows that platform passkeys report `signCount = 0` |
+| A per-credential nonce (`C3-39`) | ~~`G-8` shows that platform passkeys report `signCount = 0`~~ Met 2026-10-31 (Google Password Manager reports 0); Kyle kept it deferred. Now: the API leaves loopback, or a sign-in can be captured without the session that followed it (`security.md` "API") |
 | Coverage floors for security types (`C3-48`) | The first pure security type outside a measured project |
 | A `sessions` table (`D4`) | More than one session to revoke |
 | A `127.0.0.1` → `localhost` redirect (`D8`) | The pre-ceremony warning is ever missed in use |
