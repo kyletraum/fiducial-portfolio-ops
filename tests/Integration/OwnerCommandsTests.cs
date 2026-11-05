@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Portfolio.Api;
+using Portfolio.Domain;
 using static Portfolio.Integration.AuthFixture;
 using static Portfolio.Integration.Ceremony;
 using static Portfolio.Integration.ImportSupport;
@@ -42,6 +43,7 @@ public class OwnerCommandsTests(AuthFixture db) : IClassFixture<AuthFixture>, IA
         var enrolled = await EnrolAsync(Client(api), authenticator, code);
         var copied = enrolled.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith("__Host-portfolio=", StringComparison.Ordinal)).Split(';')[0];
         var audited = await AuditCountAsync("sessions_revoked");
+        var (seen, from) = (await db.AuditIdsAsync(), DateTimeOffset.UtcNow);
 
         await RunAsync(api, OwnerCommands.RevokeSessions);
 
@@ -49,6 +51,7 @@ public class OwnerCommandsTests(AuthFixture db) : IClassFixture<AuthFixture>, IA
         request.Headers.Add("Cookie", copied);
         Assert.Equal(HttpStatusCode.Unauthorized, (await Client(api, cookies: false).SendAsync(request, Ct)).StatusCode);
         Assert.Equal(audited + 1, await AuditCountAsync("sessions_revoked"));
+        AuditShape.HostCommand(await db.NewAuditEventAsync(seen), AuditEventKind.SessionsRevoked, "owner", from, DateTimeOffset.UtcNow);
         // The owner and the passkey are untouched: signing in again works.
         Assert.Equal(HttpStatusCode.OK, (await SignInAsync(Client(api), authenticator)).StatusCode);
     }
@@ -63,10 +66,12 @@ public class OwnerCommandsTests(AuthFixture db) : IClassFixture<AuthFixture>, IA
         {
             Assert.Equal(HttpStatusCode.OK, (await EnrolAsync(Client(api), new SoftAuthenticator(Origin), a)).StatusCode);
             var audited = await AuditCountAsync("owner_reset");
+            var (seen, from) = (await db.AuditIdsAsync(), DateTimeOffset.UtcNow);
 
             await RunAsync(api, OwnerCommands.ResetOwner);
 
             Assert.Equal(audited + 1, await AuditCountAsync("owner_reset"));
+            AuditShape.HostCommand(await db.NewAuditEventAsync(seen), AuditEventKind.OwnerReset, "owner", from, DateTimeOffset.UtcNow);
             Assert.Equal((0L, 0L), (await db.ScalarAsync<long>("SELECT count(*) FROM identity_user"), await db.ScalarAsync<long>("SELECT count(*) FROM identity_user_passkey")));
             Assert.False((await Client(api).GetFromJsonAsync<AuthStateResponse>("/api/v1/auth/state", Ct))!.Enrolled);
             Assert.Equal(HttpStatusCode.Forbidden, (await EnrolAsync(Client(api), new SoftAuthenticator(Origin), a)).StatusCode);

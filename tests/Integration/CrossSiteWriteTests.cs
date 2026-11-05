@@ -11,6 +11,16 @@ namespace Portfolio.Integration;
 /// (Sec-Fetch-Site) with a content type layer 1 accepts. The browser half, both layers together
 /// from a real second origin, is step 5's E2E.
 /// </summary>
+/// <remarks>
+/// Slice 03 put every endpoint behind a session and the expected values did not move (C3-13). The
+/// reason is the pipeline order. Layer 2 is middleware ahead of authentication, so its 403 comes
+/// with or without a session. Layer 1 is each endpoint's accepted content types, after
+/// authorization, so an anonymous caller meets 401 first; these tests run signed in, with the CSRF
+/// token, to reach it. A browser always sends Sec-Fetch-Site, so a cross-site page meets layer 2's
+/// 403 first either way. The property is unchanged: nothing is written. (Shown against the
+/// published stack with no session, 2026-11-05: cross-site JSON 403; a form type with no header
+/// 401, with cross-site 403.)
+/// </remarks>
 public class CrossSiteWriteTests(PostgresFixture pg) : ApiTests(pg)
 {
     public static TheoryData<string> WriteEndpoints() => new("accounts", "balances", "sources", "imports");

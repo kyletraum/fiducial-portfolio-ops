@@ -40,6 +40,7 @@ public class AuthApiTests(AuthFixture db) : IClassFixture<AuthFixture>, IAsyncLi
         var client = Client(api);
 
         var audited = await AuditCountAsync("enrolment", "owner");
+        var (seen, from) = (await db.AuditIdsAsync(), DateTimeOffset.UtcNow);
         var enrolled = await EnrolAsync(client, new SoftAuthenticator(Origin), code, "owner");
 
         Assert.Equal(HttpStatusCode.OK, enrolled.StatusCode);
@@ -49,6 +50,7 @@ public class AuthApiTests(AuthFixture db) : IClassFixture<AuthFixture>, IAsyncLi
         Assert.Equal(1L, await db.ScalarAsync<long>("SELECT count(*) FROM identity_user_passkey"));
         Assert.Equal(1L, await db.ScalarAsync<long>($"SELECT count(*) FROM used_setup_code WHERE sha256 = '{SetupCode.Sha256Hex(code)}'"));
         Assert.Equal(audited + 1, await AuditCountAsync("enrolment", "owner"));
+        AuditShape.Ceremony(await db.NewAuditEventAsync(seen), AuditEventKind.Enrolment, "owner", from, DateTimeOffset.UtcNow);
     }
 
     [Theory]
@@ -169,12 +171,14 @@ public class AuthApiTests(AuthFixture db) : IClassFixture<AuthFixture>, IAsyncLi
         var browser = Client(api);
         Assert.Equal(HttpStatusCode.Unauthorized, (await browser.GetAsync("/api/v1/auth/session", Ct)).StatusCode);
         var audited = await AuditCountAsync("sign_in_succeeded", "owner");
+        var (seen, from) = (await db.AuditIdsAsync(), DateTimeOffset.UtcNow);
 
         var signedIn = await SignInAsync(browser, authenticator);
 
         Assert.Equal(HttpStatusCode.OK, signedIn.StatusCode);
         Assert.Equal("owner", (await browser.GetFromJsonAsync<SessionResponse>("/api/v1/auth/session", Ct))!.UserName);
         Assert.Equal(audited + 1, await AuditCountAsync("sign_in_succeeded", "owner"));
+        AuditShape.Ceremony(await db.NewAuditEventAsync(seen), AuditEventKind.SignInSucceeded, "owner", from, DateTimeOffset.UtcNow);
     }
 
     [Fact]
@@ -183,11 +187,13 @@ public class AuthApiTests(AuthFixture db) : IClassFixture<AuthFixture>, IAsyncLi
         var (api, _) = await EnrolledAsync();
         await using var __ = api;
         var audited = await AuditCountAsync("sign_in_failed", AuditEvent.UnknownActor);
+        var (seen, from) = (await db.AuditIdsAsync(), DateTimeOffset.UtcNow);
 
         var stranger = await SignInAsync(Client(api), new SoftAuthenticator(Origin, registeredElsewhere: SoftAuthenticator.ForeignUserHandle()));
 
         await AssertProblemAsync(stranger, HttpStatusCode.Unauthorized, ProblemTitles.NotRegisteredHere);
         Assert.Equal(audited + 1, await AuditCountAsync("sign_in_failed", AuditEvent.UnknownActor));
+        AuditShape.Ceremony(await db.NewAuditEventAsync(seen), AuditEventKind.SignInFailed, AuditEvent.UnknownActor, from, DateTimeOffset.UtcNow);
     }
 
     public static TheoryData<string, SoftAuthenticator.Variant> HostileAssertions => new()
@@ -286,6 +292,7 @@ public class AuthApiTests(AuthFixture db) : IClassFixture<AuthFixture>, IAsyncLi
         var copied = SetCookie(enrolled, "__Host-portfolio");
         var thief = Client(api, cookies: false);
         var audited = await AuditCountAsync("sign_out", "owner");
+        var (seen, signedOutAt) = (await db.AuditIdsAsync(), clock.Now); // the pinned clock: the app's time
 
         Assert.Equal(HttpStatusCode.NoContent, (await SignOutAsync(browser)).StatusCode);
         clock.Now += TimeSpan.FromSeconds(30);
@@ -293,6 +300,7 @@ public class AuthApiTests(AuthFixture db) : IClassFixture<AuthFixture>, IAsyncLi
         clock.Now += TimeSpan.FromSeconds(31);
         Assert.Equal(HttpStatusCode.Unauthorized, (await GetWithCookie(thief, "/api/v1/auth/session", copied)).StatusCode);
         Assert.Equal(audited + 1, await AuditCountAsync("sign_out", "owner"));
+        AuditShape.Ceremony(await db.NewAuditEventAsync(seen), AuditEventKind.SignOut, "owner", signedOutAt, signedOutAt);
     }
 
     // ---- Support ----

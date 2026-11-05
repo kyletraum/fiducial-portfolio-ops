@@ -262,5 +262,11 @@ commissioned, reviewed, ruled and built here, and this assessment is its record.
 - **`G-7`:** whether the app's role can remove the audit trigger, which `D6` defers. *Done
   2026-10-31, after the gate: it can; the role split stays deferred, by Kyle's ruling.*
 - **A comment in `CrossSiteWriteTests`** recording why its expected values did not move
-  (DoD 9's note).
-- **A shape assertion per audit kind** (DoD 7's note).
+  (DoD 9's note). *Done 2026-11-05, after the gate: layer 2 runs ahead of authentication
+  and layer 1 after it, shown anonymously against the published stack (403; 401, or 403
+  with the header).*
+- **A shape assertion per audit kind** (DoD 7's note). *Done 2026-11-05, after the gate:
+  `AuditShape`, on the row each of the six kinds adds: kind, actor, environment, the app's
+  time; the address and no subject for a ceremony, "host command" and no address for a
+  command. Seen failing: the four ceremony kinds before the fixture set Kestrel's loopback
+  address, and both commands with their subject removed.*

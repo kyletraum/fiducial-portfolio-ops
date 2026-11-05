@@ -1,8 +1,12 @@
+using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Portfolio.Domain;
 using static Portfolio.Integration.ImportSupport;
 
 namespace Portfolio.Integration;
@@ -31,6 +35,7 @@ public class AuthFixture : PostgresFixture
              .UseSetting("Auth:AllowedOrigins", Origin)
              // These tests run many ceremonies a minute; the limiter's own tests set it (TST-13).
              .UseSetting("RateLimits:SignIn:PermitLimit", "100000");
+            b.ConfigureTestServices(s => s.AddSingleton<IStartupFilter, LoopbackConnection>());
             if (clock is not null)
                 b.ConfigureTestServices(s => s.AddSingleton(clock));
         });
@@ -44,6 +49,40 @@ public class AuthFixture : PostgresFixture
 
     /// <summary>What reset-owner (step 7) will do to the user; used_setup_code and audit_event stay.</summary>
     public Task ResetOwnerAsync() => ExecuteAsync("DELETE FROM identity_user");
+
+    /// <summary>Every audit row's id now: what <see cref="NewAuditEventAsync"/> compares against.</summary>
+    public async Task<Guid[]> AuditIdsAsync()
+    {
+        await using var context = CreateContext();
+        return await context.AuditEvents.Select(e => e.Id).ToArrayAsync(Ct);
+    }
+
+    /// <summary>The one audit row written since <paramref name="seen"/> was taken.</summary>
+    public async Task<AuditEvent> NewAuditEventAsync(Guid[] seen)
+    {
+        await using var context = CreateContext();
+        return Assert.Single(await context.AuditEvents.Where(e => !seen.Contains(e.Id)).ToListAsync(Ct));
+    }
+}
+
+/// <summary>
+/// TestServer leaves the connection's remote address null; Kestrel on loopback reports 127.0.0.1.
+/// Set it as Kestrel would, ahead of the app's pipeline, so the audit row's address is the one the
+/// app saw (<see cref="AuditShape"/>).
+/// </summary>
+sealed class LoopbackConnection : IStartupFilter
+{
+    public static readonly IPAddress Address = IPAddress.Loopback;
+
+    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+    {
+        app.Use((context, call) =>
+        {
+            context.Connection.RemoteIpAddress ??= Address;
+            return call(context);
+        });
+        next(app);
+    };
 }
 
 /// <summary>The two ceremonies, as the page will run them.</summary>
