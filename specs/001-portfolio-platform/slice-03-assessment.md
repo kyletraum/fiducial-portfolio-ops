@@ -158,7 +158,7 @@ refuse a process running as the user, or an extension with `localhost` permissio
 | **A secret written to a log, trace or error body** | Nothing writes one; the query-string lines are off | **The canary test**, over every encoding (`1cb41da`) |
 | **Something on the LAN** | The `127.0.0.1` publish | **Partly:** refused on this machine's own LAN address (step 7b). **A probe from a second host is owed** (`G-11`). *After the gate, 2026-10-31: **shown.** A phone on the LAN timed out on 8080, and reached a control listener on the same address; the firewall allows Docker's backend, which holds 8080, so the binding is what refused it. `G-11` raised (`slice-03.md`, step 7)* |
 | **A process running as the user**, or **an extension with `localhost` permission** | **Nothing**: out of scope, by the stated boundary | Argued, and written into `security.md` |
-| **The database's own connecting role** removing the audit trigger | **Nothing yet**: `D6` deferred the app role | Argued; `G-7` open |
+| **The database's own connecting role** removing the audit trigger | **Nothing yet**: `D6` deferred the app role | Argued; `G-7` open. *After the gate, 2026-10-31: **shown.** As the API's login, the trigger was disabled and the rows deleted, then rolled back. The fix is on `slice-03.md`'s "Before the first real balance" list* |
 | **A stolen disk** | Disk encryption, which is the host's | Argued. The key ring is plaintext on the volume, as `security.md` says |
 
 **Is the platform now fit to hold a real balance?** That is the assessment's question to
@@ -259,7 +259,8 @@ commissioned, reviewed, ruled and built here, and this assessment is its record.
 - **`G-11`'s second-host probe.** *Done 2026-10-31, after the gate: raised.*
 - **`G-8`:** which platform passkeys report a counter of 0. *Done 2026-10-31, after the
   gate: Google Password Manager does; the nonce stays deferred, by Kyle's ruling.*
-- **`G-7`:** whether the app's role can remove the audit trigger, which `D6` defers.
+- **`G-7`:** whether the app's role can remove the audit trigger, which `D6` defers. *Done
+  2026-10-31, after the gate: it can; the role split stays deferred, by Kyle's ruling.*
 - **A comment in `CrossSiteWriteTests`** recording why its expected values did not move
   (DoD 9's note).
 - **A shape assertion per audit kind** (DoD 7's note).
