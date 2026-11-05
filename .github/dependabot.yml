@@ -1,6 +1,14 @@
 # Keeps the pins current. Actions are pinned by commit SHA (M-27) and packages by exact
 # version, so nothing moves on its own: Dependabot proposes each update as a PR, and the
 # ci workflow decides whether it is safe to merge.
+#
+# One PR per ecosystem per week for minor and patch updates. Separate PRs overlapped and
+# rebased each other after every merge: #90, #91 and #98 were all the .NET 10.0.14
+# servicing release, split by groups whose patterns crossed. A dependency goes to the
+# FIRST group it matches, so the minor-and-patch group comes first and the groups after it
+# catch majors only. A major that matches no group gets a PR of its own: majors are what
+# break (TypeScript 7 in #20, MessagePack 3 in #38), and one at a time says which did.
+# Security updates are not grouped here, so they still arrive one at a time, at once.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -23,19 +31,23 @@ updates:
       - dependency-name: MessagePack
         update-types: ["version-update:semver-major"]
     groups:
-      # One PR for the test framework across all five test projects, not one per project
-      # (#39 and its per-project duplicates #40, #41, #43).
-      xunit:
-        patterns: ["xunit*"]
-      # Released together and versioned together; one PR, not a dozen.
+      nuget:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      # Majors. Each of these families is released and versioned together, so its major is
+      # one PR, not a dozen; xunit's also spans all five test projects (#39-#43).
+      dotnet:
+        patterns: ["Microsoft.*", "Npgsql*", "EFCore.*"]
+        update-types: ["major"]
       aspire:
         patterns: ["Aspire.*"]
-      ef-core:
-        patterns: ["Microsoft.EntityFrameworkCore*", "Npgsql*", "EFCore.*"]
+        update-types: ["major"]
       opentelemetry:
         patterns: ["OpenTelemetry*"]
-      microsoft-extensions:
-        patterns: ["Microsoft.Extensions.*", "Microsoft.AspNetCore.*"]
+        update-types: ["major"]
+      xunit:
+        patterns: ["xunit*"]
+        update-types: ["major"]
 
   - package-ecosystem: npm
     directory: /web
@@ -52,11 +64,14 @@ updates:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
     groups:
+      npm:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
       # React and React DOM must move together: react-dom declares a peer dependency on its
       # own react version and checks at startup that the two match exactly. Separate PRs
       # (#32 and #33) conflicted with each other, and landing either alone would have left
       # main mismatched - a page that builds but throws "Incompatible React versions".
+      # Their minors and patches already travel together in the group above.
       react:
         patterns: ["react", "react-dom"]
-      dev-tooling:
-        dependency-type: development
+        update-types: ["major"]
