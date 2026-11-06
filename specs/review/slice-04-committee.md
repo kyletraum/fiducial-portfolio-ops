@@ -123,6 +123,43 @@ Every FIX in the table above is applied to `slice-04.md`.
 
 ---
 
+## Round 2 — the rewrite
+
+**Seats (2):** database security (`slice-04-r2-seats/dbs.md`) and test design
+(`slice-04-r2-seats/tst.md`), on `slice-04.md` at `213f49f`. **Findings:** 17 (MUST FIX 10,
+SHOULD FIX 4, NOTE 3; none blocking). **Verdict:** the six-part boundary holds against
+every route tried, but one. Nothing round 1 found was mis-applied. Two round-1 items had
+been dropped, and nine of TST's were weakened in the rewrite. All of them are restored.
+
+| Finding | What changed in `slice-04.md` |
+|---|---|
+| R2-DBS-1 | `pg_logical_emit_message` writes to the WAL from inside the read-only transaction, and `ROLLBACK` does not undo it (`EXECUTED`). Both overloads revoked; the "any write" claim narrowed to the routes tested, listed in DoD 10 |
+| R2-DBS-2 | A failed password statement lands in PostgreSQL's log in plain text (`EXECUTED`). The SCRAM verifier is now required; the role is created without a password first; a test fails the statement on purpose |
+| R2-DBS-3 | The snapshot reads effective privileges, attributes and memberships; each run re-asserts the attributes and fails on any membership |
+| R2-DBS-4 | Round 1's advisory-lock fix had been dropped. **Ruled S4-9:** accepted, in "does not refuse" |
+| R2-DBS-5 | `CONNECT` on `template1` revoked; session metadata and locks in "does not refuse"; `max_prepared_transactions` in the snapshot; the pid read from the connection |
+| R2-TST-1 | DoD 1 is a two-outcome table: the owner meets the trigger (`P0001`), the API login meets the grant (`42501`); `session_replication_role` restored |
+| R2-TST-2 | The Integration database was named `postgres`, the one being revoked. It is now `portfolio_dev`; `CONNECT` is granted explicitly |
+| R2-TST-3 | The Migrator process test written out: a fresh container, a second run with new passwords, a pre-existing role, logs, and how each part is seen failing |
+| R2-TST-4 | The snapshot's full scope, and four plants |
+| R2-TST-5 | The compiler lists every test site: the fixture's single connection string is replaced by three. Who-am-I tests; the E2E's `pg_stat_activity` check |
+| R2-TST-6 | The default reader held a whole 100 MB cell before a byte could be counted (`EXECUTED`). `SequentialAccess` and chunked reads required; byte-cap boundaries; an allocation test. G4-4 answered |
+| R2-TST-7 | The producer table restored, including a query that lifts its own `statement_timeout` |
+| R2-TST-8 | The session-state probe could not fail (`ROLLBACK` undoes `set_config` anyway). Replaced by pid, advisory-lock and prepared-statement probes |
+| R2-TST-9 | The crash test by `SIGKILL`, deterministic in CI, with a warm pool; the memory crash shown by hand |
+| R2-TST-10 | **Ruled S4-10:** a second run gets `429`; tested by order, not time |
+| R2-TST-11 | Oracles for DoD 7 and step 6: the contract superset, a `sha256` of each password parameter, the API working after each redeploy |
+| R2-TST-12 | G4-4 answered; GT-B moot; G4-6 added (EF's retry after a crash); 1b expected to edit `ExpectedPrivileges.Api` |
+
+### Ruled, 2026-11-06 (round 2)
+
+| # | Question | Ruling |
+|---|---|---|
+| S4-9 | A run can hold an advisory key the API takes at enrolment, and `ACCESS SHARE` on the tables beneath the views, for up to the deadline | **Accept, documented** in "does not refuse". Bounded by one run at a time and the 10 s deadline; the table locks cannot be revoked anyway |
+| S4-10 | What a second run gets while one is in progress | **`429` with a named problem title** |
+
+---
+
 ## Confirmed by the seats (do not re-check)
 
 - `CREATE ROLE` has no `IF NOT EXISTS` form, and a password cannot be a bind parameter

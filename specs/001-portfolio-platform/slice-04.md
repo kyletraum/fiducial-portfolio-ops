@@ -22,6 +22,10 @@ Four seats (DBS, SRC, TST, SCO) read the first draft, with 49 findings in 18 the
 to him. **This document is the rewrite to those rulings.** A sentence citing `C4-n`, `S4-n`
 or a seat finding (`DBS-n`, `SRC-n`, `TST-n`, `SCO-n`) points there for its evidence.
 
+**Reviewed again, 2026-11-06** (round 2, the same file, "Round 2"). Two seats read the
+rewrite: 17 findings, none blocking (`R2-DBS-1` to `R2-DBS-5`, `R2-TST-1` to `R2-TST-12`).
+Kyle ruled `S4-9` and `S4-10`. Their fixes are applied below.
+
 **What this slice is for, by the gate's rule** (slice 03, "The gate": a slice is for a
 technique, not because the next feature is obvious). Two techniques, stated narrowly so
 that neither re-claims slice 02's "immutable at the database" (`SCO-4`):
@@ -76,22 +80,30 @@ by trying what each must not do, and shown on the published stack.
 | Every other table and `public.v_net_worth_daily` | What its paths use, derived in step 1a | The existing suites, run as this login, fail on a missing grant. The enumeration test fails on an extra one (`C4-8`) |
 
 **Provisioning** (`C4-6`, `C4-7`). One routine, `DatabaseLogins.EnsureAsync` (name to
-settle), lives in `Infrastructure`. It creates each login if it is missing (there is no `IF
-NOT EXISTS` form, `EXECUTED`), applies the whole grant and `REVOKE` script idempotently,
-and sets both passwords. **The Migrator runs it after every migration run.** A new table is
-then granted in the same run, and a volume reused with a new password still works. **The
-Integration fixture runs the same routine,** so the tests exercise the code production
-runs (`TST-1`). The password statement goes on a plain `NpgsqlCommand`, outside EF's
-logger, because EF logged the literal (`SRC-7`, `EXECUTED`). It is sent as a quoted literal,
-or preferably as a client-computed SCRAM verifier, since a password cannot be a bind
-parameter (`EXECUTED`, `42601`).
+settle), lives in `Infrastructure`. **The Migrator runs it after every migration run,
+whether or not a migration was pending.** A new table is then granted in the same run, and
+a volume reused with a new password still works. **The Integration fixture runs the same
+routine,** so the tests exercise the code production runs (`TST-1`). On every run it:
+1. creates each login if it is missing, **without a password** (`CREATE ROLE … LOGIN`,
+   catching `42710` for the race; there is no `IF NOT EXISTS` form, `EXECUTED`);
+2. **re-asserts its attributes**, `LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+   NOBYPASSRLS`, and fails if the login is a member of any role (`R2-DBS-3`);
+3. applies the whole grant and `REVOKE` script idempotently, including `CONNECT` on the
+   app's own database (`current_database()`), granted explicitly, never left to `PUBLIC`
+   (`R2-TST-2`);
+4. sets each password with `ALTER ROLE … PASSWORD`, as a **client-computed SCRAM verifier,
+   always** (`R2-DBS-2`). A failed statement is written to PostgreSQL's own log with its
+   text (`log_min_error_statement`, `EXECUTED`), and a logged verifier is not a login. The
+   statement goes on a plain `NpgsqlCommand`, outside EF's logger, which logged the literal
+   (`SRC-7`, `EXECUTED`). A password cannot be a bind parameter (`EXECUTED`, `42601`).
 
 **Wiring** (`C4-5`). The API's `WithReference(db)` is **removed**, because it hands the API
 the superuser password (`SRC-6`, `EXECUTED`). Its connection string becomes a
 `ReferenceExpression` over the Postgres resource's host and port and the API login's
 parameter. That survives `aspire publish` (`SRC`, `EXECUTED`). The reporting
-`NpgsqlDataSource` is registered **keyed**, so it can never become EF's connection
-(`SRC-8`). Both passwords are `AddParameter(…, GenerateParameterDefault { Special = false
+`NpgsqlDataSource` is registered **keyed**, so it can never become EF's connection, and the
+API **refuses to start** without its own connection string (`SRC-8`; restored by
+`R2-DBS` "Round-1 findings"). Both passwords are `AddParameter(…, GenerateParameterDefault { Special = false
 }, secret: true, persist: true)`. Without `persist` they regenerate on every `aspire run`
 (`SRC-7`, `SOURCE`). Deploys keep them in deploy state, as they keep `postgres`'s (`G-26`).
 
@@ -113,17 +125,26 @@ parameter. That survives `aspire publish` (`SRC`, `EXECUTED`). The reporting
    parameters**. PostgreSQL itself refuses a multi-statement text (`42601`, `SRC-3` and
    `DBS-1`, `EXECUTED`), so nothing is parsed and `D5` holds. Positional parameters avoid
    Npgsql's `@name` and `:name` rewrite (`SRC-4`, `EXECUTED`);
-4. reads under **one wall-clock deadline**, counting **rows and bytes** on the client. At
-   either cap, or at the deadline, it calls **`cmd.Cancel()` before disposing the reader**.
-   Disposing alone reads the whole remaining result (`SRC-1`, `TST-6`, `EXECUTED`), and
-   `CommandTimeout` re-arms on every read (`SRC-2`, `EXECUTED`);
+4. reads under **one wall-clock deadline**, with **`CommandBehavior.SequentialAccess`**,
+   counting **rows and bytes** on the client. Text and `bytea` cells are read in chunks
+   (`GetTextReader`, `GetStream`) against the remaining byte budget. The default reader
+   allocated a whole 100 MB cell before a byte could be counted; the sequential reader
+   allocated none (`R2-TST-6`, `EXECUTED`). A byte is a UTF-8 byte of the returned cell, and
+   the row that crosses a cap is dropped. At either cap, or at the deadline, it calls
+   **`cmd.Cancel()` before disposing the reader**. Disposing alone reads the whole
+   remaining result (`SRC-1`, `TST-6`, `EXECUTED`), and `CommandTimeout` re-arms on every
+   read (`SRC-2`, `EXECUTED`);
 5. returns the columns, the rows, and "cut off", saying which cap or the deadline cut it;
-6. ends in **`ROLLBACK`**, and closes the connection.
+6. ends in **`ROLLBACK`**, with the user's statement the last one before it, and closes the
+   connection. The backend's pid is read from the connection (`ProcessID`), never by a
+   statement after the user's (`R2-DBS-5`).
 
 On top of that: the Migrator sets role defaults (`statement_timeout`,
 `transaction_timeout`, `idle_in_transaction_session_timeout`, and `temp_file_limit`, the
-one that holds; `DBS-2`) as a backstop. **One run at a time** (`S4-6`): a second waits or
-gets `429`.
+one that holds; `DBS-2`) as a backstop. **One run at a time** (`S4-6`): a second run,
+ad hoc or saved, gets **`429` with a named problem title** (`S4-10`). The slot is released
+in a `finally`, whether the run ends by its deadline, a refusal or the client going away.
+The schema route does not take the slot.
 
 **Values** (`S4-2`), from configuration, so tests set them small (`SCO-12`): **10 s, 10,000
 rows, 8 MB of result, `temp_file_limit` 256 MB.** `testing.md` names them.
@@ -145,9 +166,12 @@ the schema as a plain list, an accessible results table with a "cut off" notice 
 sorting or paging (`S4-7`), and the saved list with its parameter inputs.
 
 **The boundary, stated.** The reporting login refuses:
-- **any write**, by any route. That includes `ALTER ROLE` on itself, large objects,
-  temporary tables and `DO`. The grants alone do not refuse those; the read-only
-  transaction, the one statement and the targeted revokes do (`DBS-1`);
+- **any write, by every route tested** (`R2-DBS-1`: the claim is no wider than the tests).
+  That includes `ALTER ROLE` on itself, large objects, temporary tables, `DO`, sequences,
+  locks that block writers, and WAL messages (`pg_logical_emit_message`, whose
+  non-transactional form a `ROLLBACK` does not undo, `EXECUTED`). The grants alone do not
+  refuse those; the read-only transaction, the one statement and the targeted revokes do
+  (`DBS-1`). DoD 10 lists every route tested;
 - **any read outside the `reporting` views**, including rows a view filters out
   (`security_barrier`, `DBS-4`), Identity's tables, the audit log, `saved_report` and the
   tables beneath the views;
@@ -159,13 +183,19 @@ sorting or paging (`S4-7`), and the saved list with its parameter inputs.
   availability, not integrity. The deadline, the caps and one run at a time narrow it, and
   a test shows the API serves the next request after a crash.
 - **Seeing names in the catalog:** table and view names, view definitions, role names and
-  their settings, and row counts of tables it cannot read (`DBS-8`). It reads no rows
-  outside the views. `security.md` says so, and it is revisited before the first real
-  balance.
+  their settings, row counts of tables it cannot read, other sessions' metadata (not their
+  query text) and the locks held (`DBS-8`, `R2-DBS-5`). It reads no rows outside the views.
+  `security.md` says so, and it is revisited before the first real balance.
+- **Holding locks for the length of a run** (`S4-9`, `R2-DBS-4`): an advisory key the API
+  also takes at enrolment, and `ACCESS SHARE` on the tables beneath the views. The API can
+  wait for up to the deadline. One run at a time and the 10 s deadline bound it, and the
+  table locks cannot be revoked anyway.
 
-**Revoked from `PUBLIC`, by name** (`DBS-1`; never wholesale, `SCO-13`): `EXECUTE` on
-`lo_create`, `lo_creat` and `lo_from_bytea`; `TEMPORARY` on the database; `USAGE` on
-`plpgsql`; and `CONNECT` on the `postgres` database.
+**Revoked from `PUBLIC`, by name** (`DBS-1`, `R2-DBS-1`; never wholesale, `SCO-13`):
+`EXECUTE` on `lo_create`, `lo_creat`, `lo_from_bytea` and both `pg_logical_emit_message`
+overloads; `TEMPORARY` on the app's database; `USAGE` on `plpgsql`; and `CONNECT` on the
+`postgres` and `template1` databases (`R2-DBS-5`). The four original revokes leave the API
+login working (`R2-DBS`, `EXECUTED`).
 
 ---
 
@@ -210,7 +240,7 @@ seat files (`EXECUTED`), and each answer becomes a test in the step that needs i
 | M 1: passwords and their stability | `SOURCE` (`SRC-7`): `persist: true` in run mode; deploy state across deploys | Step 1a: `aspire run` twice keeps them. Step 6: two redeploys |
 | M 2: a second user's connection string through publish | `EXECUTED` on a throwaway publish (SRC) | Step 1b: in the repo's AppHost |
 | M 3: who creates the roles | Decided: the provisioning routine, from the Migrator | Step 1a |
-| M 4: the roles on an existing volume | Decided: create if missing, then set the password every run | Step 6, over slice 03's volume |
+| M 4: the roles on an existing volume | Decided: create if missing, then set the password every run | Step 1a in CI (the process test's second run and pre-existing role, `R2-TST-3`); step 6 by hand, over slice 03's volume |
 
 ---
 
@@ -219,26 +249,62 @@ seat files (`EXECUTED`), and each answer becomes a test in the step that needs i
 Each step merges green, as slices 01–03 did.
 
 1. **Step 1a — provisioning, the API unchanged** (`SCO-6`). `DatabaseLogins.EnsureAsync`;
-   the two logins; the grant matrix; the revokes. The Migrator calls it, and the fixture
-   calls it. Tests:
-   - the enumeration test: every table, view, schema, sequence and function, for both
-     logins, against a committed `ExpectedPrivileges`, with a planted extra grant to show
-     it can fail (`TST-4`);
-   - a process test of the **built Migrator** producing the same catalog snapshot
-     (`TST-1`);
-   - the Migrator's log contains neither password (`SRC-7`).
+   the two logins; the grant matrix; the revokes. The Migrator calls it and the fixture
+   calls it. `PostgresFixture` names its database `portfolio_dev`, not `postgres`, so the
+   app's database and the revoked one are different objects in tests as in production
+   (`R2-TST-2`). Tests:
+   - **The catalog snapshot** (`R2-TST-4`, `R2-DBS-3`), built from **effective**
+     privileges (`has_table_privilege`, `has_any_column_privilege`, `has_sequence_privilege`,
+     `has_schema_privilege`, `has_database_privilege`, `has_function_privilege`), not grant
+     rows. Its scope: role attributes including `rolcanlogin`; memberships both ways;
+     `pg_db_role_setting`; `pg_default_acl`; `pg_shdepend`; every database (`CONNECT`,
+     `CREATE`, `TEMP`); every language; every non-system schema, relation, sequence and
+     function, plus the named built-ins; large objects; `max_prepared_transactions = 0`.
+     Databases are named by role (`app`, `postgres`, `template1`), so one committed
+     `ExpectedPrivileges` serves Integration and step 6. **Plants**, each a committed test
+     that flags exactly its row: a column grant; a default ACL followed by a new table;
+     `GRANT TEMP` back to `PUBLIC`; `GRANT pg_read_all_data` to the reporting login.
+   - **The built Migrator, as a process** (`R2-TST-3`):
+     1. in a fresh container of its own, run `Migrator.dll` with both passwords (P1, R1):
+        exit 0, snapshot equal, both logins connect;
+     2. run it again with P2, R2, with no migration pending: exit 0, snapshot unchanged,
+        P2 and R2 connect, and P1 and R1 give `28P01`;
+     3. in a second container, with `portfolio_reporting` created beforehand by hand: exit
+        0, snapshot equal;
+     4. no run's output contains any password. A password statement made to fail on
+        purpose leaves no password in the PostgreSQL container's log (`R2-DBS-2`).
+
+     **Seen failing:** with the call removed from `Program.cs`, item 1 goes red. With the
+     call inside `pending.Count > 0`, item 2 goes red. With the statement sent through
+     `ExecuteSqlRawAsync`, item 4 goes red.
+   - **The migration that creates `reporting` runs up, down and up**, with the routine
+     called after each `up` (`R2-TST-12`; `MigrationOnRowsTests`' pattern).
+
+   `ExpectedPrivileges.Api` has no behaviour behind it until 1b, and 1b is expected to edit
+   it: that is where the matrix is first shown sufficient (`R2-TST-12`).
 2. **Step 1b — the API switches** (`C4-5`). `WithReference(db)` removed; the
-   `ReferenceExpression`; the host commands on the API login. Every Integration site that
-   touches the database names its login (`TST-2`). Seeding and assertions run as
-   superuser; the API runs as `portfolio_api`. **`G-7` closes**, with each refusal of
-   `C4-4` seen failing as the owner and passing as the API login, a positive control on
-   the app's own connection, and the exact `42501` (`TST-3`). Every existing suite stays
-   green, which shows the matrix is enough.
+   `ReferenceExpression`; the host commands on the API login; the API refuses to start
+   without its connection string. **The compiler lists every test site** (`R2-TST-5`):
+   `PostgresFixture.ConnectionString` is deleted, and replaced by
+   `SuperuserConnectionString`, `ApiConnectionString` and `ReportingConnectionString`.
+   `CreateContext()` becomes `CreateSuperuserContext()`, for arrangement only. Every site
+   must then choose. Seeding and assertions run as superuser; the API runs as
+   `portfolio_api`. Tests:
+   - **Who-am-I**, per kind of factory (`AuthFixture`, the `ImportApiTests` factory, the
+     process test): through the app's own `PortfolioDbContext`, `current_user` is
+     `portfolio_api` and not superuser. **Seen failing:** handed the superuser string.
+   - **`G-7` closes:** DoD 1's table, on the app's own connection.
+   - **Every existing suite stays green**, which shows the matrix is enough.
+   - **The E2E:** after one API request, `pg_stat_activity` shows a `portfolio_api`
+     backend and no `postgres` backend except the test's own.
 3. **Step 2 — the reporting schema.** The four barrier views and their `COMMENT`s.
    `data-model.md` corrected. Tests (`C4-9`, `C4-16`):
    - each refusal of "The boundary" through the endpoint, asserting its SQLSTATE (a
-     misspelt table, `42P01`, does not count);
+     misspelt table, `42P01`, does not count). The reporting login connecting to
+     `postgres` gives `42501`;
    - writes judged by effect (`lo_from_bytea` succeeded with no error, `TST-5`);
+     `pg_logical_emit_message` returns an LSN while its `EXECUTE` is granted, and `42501`
+     after the revoke (`R2-DBS-1`);
    - the leaky-function probe, seen failing on a view without the barrier (`DBS-4`);
    - the catalog test that every `reporting` view has `security_barrier`;
    - the view rules;
@@ -246,15 +312,49 @@ Each step merges green, as slices 01–03 did.
    - the reporting login cannot read `saved_report` or `audit_event`.
 4. **Step 3 — running a query.** The six parts, the caps, one run at a time, the typing
    rule, the schema route, and problem details that pass on PostgreSQL's message, never a
-   connection string. `SecretsStayOutTests` covers both new passwords (`TST-14`). Tests,
-   each seen failing:
-   - a streaming producer (`generate_series`) cut at the row cap, its backend seen active
-     by pid and then gone (`TST-6`, `TST-7`);
-   - the cap at n = cap−1, cap and cap+1 (`TST-8`);
-   - a wide row cut at the byte cap;
-   - `SET statement_timeout = 0` refused as a second statement;
-   - `set_config` in one run not visible to the next (`DBS-3`);
-   - a crash: the API serves the next request (`S4-1`).
+   connection string. `SecretsStayOutTests` covers both new passwords, including the two
+   producers that are not a `PostgresException` (`TST-14`, `R2-TST-11`). Tests, each seen
+   failing:
+   - **The producer table** (`R2-TST-7`), with the deadline at 2 s by option, each row
+     through the endpoint, each running backend seen active by pid and then gone
+     (`TST-7`):
+
+     | Producer | Expected |
+     |---|---|
+     | `set_config('statement_timeout','0',true)` with `pg_sleep(600)` | timed out |
+     | `count(*)` over `generate_series` to 1e11 | timed out |
+     | an `ORDER BY` over `generate_series` to 1e11, with a small `temp_file_limit` | refused, `53400` |
+     | `generate_series` to 1e11 in the target list | cut off by rows |
+     | an unbounded `WITH RECURSIVE` | cut off by rows |
+
+     **Seen failing:** with the deadline removed, the first two run until the test's own
+     deadline. A separate test asserts the Production values: 10 s, 10,000 rows, 8 MB and
+     256 MB.
+   - **The caps' boundaries:** rows at cap−1, cap and cap+1; and bytes, with the cap at
+     1,000 by option, at 999, 1,000 and 1,001. Cut off: false, false, true (`TST-8`,
+     `R2-TST-6`).
+   - **Memory:** `GC.GetTotalAllocatedBytes` across one request for a cell of 1e8 bytes,
+     with the byte cap at 64 KB, stays under 16 MB. It runs in a collection with
+     parallelization off. **Seen failing:** `CommandBehavior.Default` allocates at least
+     the cell (`R2-TST-6`).
+   - **No session state survives a run** (`R2-TST-8`): two runs report different pids; an
+     advisory lock taken in a run is not held by any reporting backend once it returns;
+     a statement prepared in one run is unknown in the next (`26000`). **Seen failing:** a
+     pooled data source with `No Reset On Close=true`. The `set_config` row tests part 6,
+     seen failing with `COMMIT` in place of `ROLLBACK`.
+   - **The crash** (`R2-TST-9`), in a class of its own. Warm the API's pool. Start a long
+     run, and once its backend is active, kill it with `SIGKILL` inside the container. Wait
+     for PostgreSQL to answer again, and assert it restarted (the log says
+     `reinitializing`, and the API's backends are gone). The run answers a named problem,
+     not a hang. **The first** signed-in request afterwards answers 200, and so does a run
+     of `SELECT 1`. **Seen failing:** with EF's retry disabled, that first request answers
+     500. The memory-induced crash itself is shown by hand in step 6.
+   - **One run at a time** (`R2-TST-10`), by order, not by time: run A sleeps, and once
+     its backend is active, run B (a saved report) gets `429` and the reporting backend
+     count is still 1. Abort A; once its pid is gone, run C succeeds. Repeat, with A ending
+     by its deadline and by a refusal. A schema request during A answers 200. **Seen
+     failing:** without the gate, B sees two backends; with the release outside `finally`,
+     C gets `429`.
 5. **Step 4 — saved reports.** `saved_report` (create, list, run, delete) and typed
    positional parameters. The binding probe uses values **the grant allows**, so only the
    binding can explain the result (`TST-9`): an echo report returns a hostile value byte
@@ -264,10 +364,12 @@ Each step merges green, as slices 01–03 did.
 7. **Step 6 — the published stack** (`C4-14`).
    - **In CI**, as far as it can go: the app-model test that the API's connection uses its
      own parameter and not the `postgres` password.
-   - **By hand**, over slice 03's volume and through two redeploys: the catalog snapshot
-     equal to `ExpectedPrivileges`; the passwords unchanged; the API signed in and working
-     as its own login; one refusal probe holding in the container. Recorded with date,
-     commit and machine (`D13`).
+   - **By hand**, over slice 03's volume and through two redeploys (`R2-TST-11`): the
+     shared catalog-snapshot file's output equal to `ExpectedPrivileges`; each password
+     parameter's `sha256` in deploy state unchanged, its value never printed; the API
+     signed in and working after each redeploy, which shows the login took the value the
+     API holds; one refusal probe holding in the container; and the memory-induced crash
+     under 256 MB, with the API recovering. Recorded with date, commit and machine (`D13`).
    - **The README runbook** covers three logins, their passwords and recovery (`SCO-8`).
 
 ---
@@ -276,23 +378,29 @@ Each step merges green, as slices 01–03 did.
 
 Each item names the test that shows it and how that test was seen failing.
 
-1. **The API's own login.** The app connects as `portfolio_api`, which is not superuser and
-   owns nothing (`pg_shdepend`), with privileges equal to `ExpectedPrivileges.Api`. On that
-   connection, `DISABLE` and `DROP TRIGGER`, `DROP TABLE audit_event`, `DROP FUNCTION
-   append_only() CASCADE`, `TRUNCATE`, `UPDATE` and `DELETE` on `audit_event`, `used_setup_code`
-   and `ingest_run`, and `ALTER DATABASE` each fail with `42501`. **Seen failing:** each
-   succeeds as the owner in a rolled-back transaction. **`G-7` is closed**, and `security.md`
-   "Audit" says the immutability is now a database boundary.
-2. **The reporting login holds exactly its grant.** Its catalog snapshot equals
+1. **The API's own login.** The app connects as `portfolio_api`, which is not superuser,
+   owns nothing (`pg_shdepend`) and belongs to no role, with effective privileges equal to
+   `ExpectedPrivileges.Api`. Each statement below gives both its outcomes (`R2-TST-1`): the
+   SQLSTATE that differs is the evidence that the grant, not the trigger, refuses.
+
+   | Statement | As the owner, rolled back | On the app's connection |
+   |---|---|---|
+   | `DISABLE TRIGGER`, `DROP TRIGGER`, `DROP TABLE audit_event`, `DROP FUNCTION append_only() CASCADE` and `ingest_run`'s own function, `ALTER DATABASE … SET work_mem` | succeeds | `42501` |
+   | `SET session_replication_role = replica`, then `UPDATE audit_event` | the `UPDATE` succeeds | `42501` on the `SET` |
+   | `UPDATE`, `DELETE`, `TRUNCATE` on `audit_event`, `used_setup_code`, `ingest_run` | `P0001`, the trigger | `42501`, the grant |
+
+   **`G-7` is closed**, and `security.md` "Audit" says the immutability is now a database
+   boundary.
+2. **The reporting login holds exactly its grant.** Its snapshot equals
    `ExpectedPrivileges.Reporting`. Every refusal in "The boundary" fails through the endpoint
    with its expected SQLSTATE. After the probes, the catalog, the large objects, ownership and
-   every table's rows are unchanged. **Seen failing:** a planted grant is flagged;
-   `lo_from_bytea` succeeds while its `EXECUTE` is still granted; the leaky function sees a
-   filtered row without the barrier.
-3. **Bounded.** Each producer ends as stated: timed out, cut off by rows, cut off by bytes, or
-   refused. Each backend is seen active by pid, then gone. A setting made in one run is not
-   visible to the next. After a crash, the API serves the next request. **Seen failing:**
-   disposing without `Cancel()` lets the streaming producer run past the deadline.
+   every table's rows are unchanged. **Seen failing:** each plant is flagged; `lo_from_bytea`
+   and `pg_logical_emit_message` succeed while their `EXECUTE` is still granted; the leaky
+   function sees a filtered row without the barrier.
+3. **Bounded.** Each producer in step 3's table ends as stated, with its backend seen active by
+   pid and then gone. The caps cut at their boundaries, and the byte cap holds memory under its
+   bound. No session state survives a run. One run at a time answers `429`. After a crash, the
+   first request succeeds. **Seen failing:** as step 3 lists for each.
 4. **Bound parameters.** The echo report returns the hostile value byte for byte; the effect
    report matches nothing for `nobody' OR 'a'='a`; a wrongly typed value answers `400` before
    the database. **Seen failing:** an interpolating runner turns both red.
@@ -300,14 +408,18 @@ Each item names the test that shows it and how that test was seen failing.
    the page. Every view and column has one. **Seen failing:** a nulled comment is named.
 6. **The page.** axe is clean in light and dark in each named state, and the keyboard path is
    asserted on the focused element.
-7. **The contract** (`SCO-14`). The new routes are in the committed OpenAPI document, which is
-   byte-stable, and the contract test covers them.
-8. **Nothing regressed, for the right reason.** Every Integration site names its login.
-   Slices 01–03's DoD items hold. CI is green, including both time-zone jobs, and the E2E is
-   green locally, recorded with date, commit and machine (`D13`).
+7. **The contract** (`SCO-14`, `R2-TST-11`). The new routes are in the committed OpenAPI
+   document, which is byte-stable. The contract test covers them, with the committed document
+   a superset of what the app serves, and stays advisory in CI as it is today.
+8. **Nothing regressed, for the right reason.** Every Integration site chose its login (the
+   compiler made it). Slices 01–03's DoD items hold. CI is green, including both time-zone
+   jobs. The E2E is green locally, with `portfolio_api` shown in `pg_stat_activity`, recorded
+   with date, commit and machine (`D13`).
 9. **Published.** As step 6 lists.
 10. **Each obligation below is done, or recorded as not done with a reason.** Each refusal in
-    "The boundary" is marked **shown**, with its test, or **argued**.
+    "The boundary", and every write route tested, is listed and marked **shown**, with its
+    test, or **argued**. "The API serves the next request after a crash" is shown in CI;
+    "one query can crash PostgreSQL" is argued in CI and shown by hand (`R2-TST-9`).
 
 ---
 
@@ -317,11 +429,15 @@ Each item names the test that shows it and how that test was seen failing.
 
 | Id | Claim | Raised by |
 |---|---|---|
-| G4-1 | `aspire run` twice keeps both passwords (`persist: true`) | Step 1a |
-| G4-2 | The `ReferenceExpression` connection string works in this repo's AppHost under `aspire run` and in the published compose file | Step 1b and step 6 |
+| G4-1 | `aspire run` twice keeps both passwords (`persist: true`) | Step 1a, by hand |
+| G4-2 | The `ReferenceExpression` connection string works in this repo's AppHost under `aspire run` and in the published compose file | Steps 1b and 6, by hand |
 | G4-3 | Cancel-then-dispose also holds on the batch path and for multi-row results (TST's GT-D) | Step 3's producer table |
-| G4-4 | A single 200 MB cell does not reach the API's memory whole under the byte cap (TST's GT-C) | Step 3's wide-row producer, with the API's working set read |
+| G4-4 | ~~A single 200 MB cell does not reach the API's memory whole under the byte cap~~ **Answered** (`R2-TST-6`, `EXECUTED`): only with `SequentialAccess`, which part 4 now requires. Its test is step 3's memory test | — |
 | G4-5 | The app-model test runs on CI's ubuntu runner (TST's GT-A) | Step 6's first CI run |
+| G4-6 | EF's retrying strategy recovers the API after PostgreSQL crash-restarts (`EXECUTED` at the Npgsql level only, `R2-TST-9`) | Step 3's crash test |
+
+TST's round-1 gate GT-B (`DROP ROLE` in a migration's `Down`) is **moot**: the roles come
+from the routine, not a migration (`R2-TST-12`).
 
 ---
 
