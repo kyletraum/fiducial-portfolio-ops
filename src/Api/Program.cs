@@ -45,6 +45,15 @@ builder.Services.AddCsrfTokens();
 SignInRateLimit.AddSignInRateLimit(builder.Services, builder.Configuration);
 builder.Services.AddScoped<OwnerCommands>();
 
+// Slice 04 step 3: the report runner, on the reporting login. Its data source is KEYED, so it can
+// never become EF's connection (SRC-8), and built on first use: the Api starts without a reporting
+// string, and only the report routes answer 503 (and log why) if it is missing.
+builder.Services.Configure<ReportingLimits>(builder.Configuration.GetSection(ReportingLimits.Section));
+builder.Services.AddKeyedSingleton(ReportRunner.DataSourceKey, (_, _) => ReportRunner.CreateDataSource(
+    builder.Configuration.GetConnectionString("reporting") is { Length: > 0 } reporting ? reporting
+        : throw new InvalidOperationException("ConnectionStrings:reporting is not set. Reports run on the reporting login, and there is none.")));
+builder.Services.AddSingleton<ReportRunner>();
+
 var app = builder.Build();
 
 // `docker compose run --rm api revoke-sessions` (or reset-owner): run the command and exit, with no

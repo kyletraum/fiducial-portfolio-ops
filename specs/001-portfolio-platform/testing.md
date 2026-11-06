@@ -107,8 +107,17 @@ handling - are precisely what these tests exist to verify.
   the views.
 - The closed-account constraint rejects a later balance **at the database level**.
 - Supersession: a restated balance inserts and links rather than overwriting.
-- **The reporting role**: cannot write, cannot read `app`, cannot exceed the
-  statement timeout or row cap (`security.md`).
+- **The reporting role** (slice 04): cannot write by any route tested, cannot read
+  outside the `reporting` views, and cannot run past its deadline or its row or
+  byte cap (`security.md`). Each refusal is asserted by its SQLSTATE, directly
+  (`ReportingSchemaTests`) and through the endpoint (`ReportApiTests`). The
+  Production values are **10 s, 10,000 rows, 8 MB of result and a
+  `temp_file_limit` of 256 MB**. Tests set them small through the `Reporting`
+  configuration section: a 2 s deadline for the producer table
+  (`ReportProducerTests`), a 1,000-byte cap for the boundaries, 64 KB for the
+  memory test (`ReportMemoryTests`, a non-parallel collection), and a 1 MB
+  `temp_file_limit` in the producer fixture. A crash-restart is a `SIGKILL` of
+  the run's backend, in a container of its own (`ReportCrashTests`).
 - Views exclude soft-deleted rows, never gap-fill, and flag conditional money.
 - The ingestion pipeline end to end against the stub MCP server and the provider
   sandbox, including failure paths: timeout, partial page, malformed record,

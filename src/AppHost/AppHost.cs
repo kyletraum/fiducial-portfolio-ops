@@ -85,8 +85,14 @@ var setupCode = builder.AddParameter("setup-code",
 var apiConnection = ReferenceExpression.Create(
     $"Host={postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Host)};Port={postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Port)};Database={db.Resource.DatabaseName};Username=portfolio_api;Password={apiLogin}");
 
+// Slice 04 step 3: the report runner's own login, on the same endpoint. The Api holds both strings;
+// the reporting one reaches only the keyed data source the runner uses (SRC-8).
+var reportingConnection = ReferenceExpression.Create(
+    $"Host={postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Host)};Port={postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Port)};Database={db.Resource.DatabaseName};Username=portfolio_reporting;Password={reportingLogin}");
+
 var api = builder.AddProject<Projects.Api>("api")
     .WithEnvironment("ConnectionStrings__portfolio", apiConnection)
+    .WithEnvironment("ConnectionStrings__reporting", reportingConnection)
     .WithEnvironment("Enrolment__SetupCode", setupCode)
     // Slice 03 step 7 (C3-9): Aspire's publish default trusts X-Forwarded-For and -Proto from any
     // client, so every caller would choose its own address and scheme. There is no proxy to trust.

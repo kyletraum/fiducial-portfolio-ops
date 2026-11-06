@@ -42,7 +42,7 @@ static class CatalogSnapshot
             """);
         await AddAsync("SELECT 'member of ' || m.roleid::regrole FROM pg_auth_members m WHERE m.member = $1::regrole");
         await AddAsync("SELECT 'has member ' || m.member::regrole FROM pg_auth_members m WHERE m.roleid = $1::regrole");
-        await AddAsync("SELECT 'setting ' || coalesce(s.setdatabase::text, '*') || ' ' || array_to_string(s.setconfig, ',') FROM pg_db_role_setting s WHERE s.setrole = $1::regrole");
+        await AddAsync("SELECT 'setting ' || CASE s.setdatabase WHEN 0 THEN '*' ELSE s.setdatabase::text END || ' ' || array_to_string(s.setconfig, ',') FROM pg_db_role_setting s WHERE s.setrole = $1::regrole");
         await AddAsync("SELECT 'owns ' || d.classid::regclass || ' ' || d.objid FROM pg_shdepend d WHERE d.refclassid = 'pg_authid'::regclass AND d.refobjid = $1::regrole AND d.deptype = 'o'");
         await AddAsync("SELECT 'owns large object ' || m.oid FROM pg_largeobject_metadata m WHERE m.lomowner = $1::regrole");
         // A default ACL makes every later table a grant nobody wrote (TST-4's plant), whoever it names.

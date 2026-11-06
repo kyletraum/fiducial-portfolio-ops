@@ -44,7 +44,10 @@ public static class DatabaseLogins
         "SELECT ON identity_user_claim, identity_user_login, identity_user_token, app_setting, v_net_worth_daily",
     ];
 
-    public static async Task EnsureAsync(NpgsqlConnection superuser, string apiPassword, string reportingPassword, CancellationToken ct = default)
+    public static Task EnsureAsync(NpgsqlConnection superuser, string apiPassword, string reportingPassword, CancellationToken ct = default) =>
+        EnsureAsync(superuser, apiPassword, reportingPassword, new ReportingLimits(), ct);
+
+    public static async Task EnsureAsync(NpgsqlConnection superuser, string apiPassword, string reportingPassword, ReportingLimits limits, CancellationToken ct = default)
     {
         foreach (var login in new[] { Api, Reporting })
             await CreateIfMissingAsync(superuser, login, ct);
@@ -54,6 +57,7 @@ public static class DatabaseLogins
             foreach (var login in new[] { Api, Reporting })
                 await RefuseWhatALoginMustNotBeAsync(superuser, login, ct);
             await ApplyGrantsAsync(superuser, ct);
+            await ApplyRoleDefaultsAsync(superuser, limits, ct);
             await tx.CommitAsync(ct);
         }
 
@@ -148,6 +152,25 @@ public static class DatabaseLogins
         await ExecuteAsync(superuser, $"""
             GRANT USAGE ON SCHEMA reporting TO {Reporting};
             GRANT SELECT ON ALL TABLES IN SCHEMA reporting TO {Reporting};
+            """, ct);
+    }
+
+    /// <summary>
+    /// slice-04.md step 3 (DBS-2): the reporting login's role defaults, applied at every connect and
+    /// reset first, so the routine converges. The three timeouts are a backstop, which a statement
+    /// can lift; the runner's own deadline does not rest on them. <c>temp_file_limit</c> only a
+    /// superuser can change, so it holds. The API login has none.
+    /// </summary>
+    static async Task ApplyRoleDefaultsAsync(NpgsqlConnection superuser, ReportingLimits limits, CancellationToken ct)
+    {
+        var timeout = (long)limits.RoleTimeout.TotalMilliseconds;
+        await ExecuteAsync(superuser, $"""
+            ALTER ROLE {Api} RESET ALL;
+            ALTER ROLE {Reporting} RESET ALL;
+            ALTER ROLE {Reporting} SET statement_timeout = {timeout};
+            ALTER ROLE {Reporting} SET transaction_timeout = {timeout};
+            ALTER ROLE {Reporting} SET idle_in_transaction_session_timeout = {timeout};
+            ALTER ROLE {Reporting} SET temp_file_limit = '{limits.TempFileLimitMegabytes}MB';
             """, ct);
     }
 
