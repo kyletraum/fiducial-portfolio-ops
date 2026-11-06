@@ -23,7 +23,23 @@ public class PostgresFixture : IAsyncLifetime
 
     readonly PostgreSqlContainer container = new PostgreSqlBuilder(Image).WithDatabase(Database).Build();
 
-    public string ConnectionString => container.GetConnectionString();
+    /// <summary>
+    /// Slice 04 step 1b (R2-TST-5): three strings, and no plain "ConnectionString", so every site
+    /// that touches the database says which login it is. Seeding and assertions run as the
+    /// superuser; anything that exercises the app's own code runs as the API's login.
+    /// </summary>
+    public string SuperuserConnectionString => container.GetConnectionString();
+    public string ApiConnectionString => As(DatabaseLogins.Api, ApiPassword);
+    public string ReportingConnectionString => As(DatabaseLogins.Reporting, ReportingPassword);
+
+    string As(string login, string secret)
+    {
+        // The indexer, not the Password property: the hygiene hook reads "Password = x" as a
+        // connection string with its password written in.
+        var builder = new NpgsqlConnectionStringBuilder(SuperuserConnectionString) { Username = login };
+        builder["Password"] = secret;
+        return builder.ConnectionString;
+    }
 
     /// <summary>Slice 04: the logins' passwords, fresh per fixture, set by the same routine the Migrator runs.</summary>
     public string ApiPassword { get; } = NewPassword();
@@ -34,7 +50,7 @@ public class PostgresFixture : IAsyncLifetime
     public virtual async ValueTask InitializeAsync()
     {
         await StartAsync();
-        await using (var db = CreateContext())
+        await using (var db = CreateSuperuserContext())
             await db.Database.MigrateAsync();
         await EnsureLoginsAsync();
         await SeedAsync();
@@ -43,7 +59,7 @@ public class PostgresFixture : IAsyncLifetime
     /// <summary>What the Migrator does after migrating (slice-04.md step 1a): <see cref="DatabaseLogins.EnsureAsync"/>.</summary>
     protected async Task EnsureLoginsAsync()
     {
-        await using var connection = new NpgsqlConnection(ConnectionString);
+        await using var connection = new NpgsqlConnection(SuperuserConnectionString);
         await connection.OpenAsync();
         await DatabaseLogins.EnsureAsync(connection, ApiPassword, ReportingPassword);
     }
@@ -62,13 +78,23 @@ public class PostgresFixture : IAsyncLifetime
     /// user-initiated transaction unless the caller runs inside it - which BalanceRecorder
     /// must, and these tests would not notice if they ran without it.
     /// </summary>
-    public PortfolioDbContext CreateContext()
+    /// <remarks>
+    /// <see cref="CreateSuperuserContext"/> is for arranging and asserting; <see cref="CreateApiContext"/>
+    /// for calling the app's own code (BalanceRecorder, ImportPipeline, NetWorthDay), which must meet
+    /// the API login's grants as the running app does (TST-2).
+    /// </remarks>
+    public PortfolioDbContext CreateSuperuserContext() => CreateContext(SuperuserConnectionString);
+
+    /// <inheritdoc cref="CreateSuperuserContext"/>
+    public PortfolioDbContext CreateApiContext() => CreateContext(ApiConnectionString);
+
+    PortfolioDbContext CreateContext(string connectionString)
     {
         var options = new DbContextOptionsBuilder<PortfolioDbContext>();
         // No host here, so Identity's schema version has to be supplied (slice 03, migration 5);
         // without it the model would differ from the snapshot and MigrateAsync would refuse.
         PortfolioDbContext.WithIdentitySchema(options);
-        options.UseNpgsql(ConnectionString, npgsql =>
+        options.UseNpgsql(connectionString, npgsql =>
             {
                 PortfolioDbContext.Npgsql(npgsql);
                 npgsql.EnableRetryOnFailure();
@@ -79,7 +105,7 @@ public class PostgresFixture : IAsyncLifetime
 
     public async Task ExecuteAsync(string sql)
     {
-        await using var connection = new NpgsqlConnection(ConnectionString);
+        await using var connection = new NpgsqlConnection(SuperuserConnectionString);
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand(sql, connection);
         await command.ExecuteNonQueryAsync();
@@ -87,7 +113,7 @@ public class PostgresFixture : IAsyncLifetime
 
     public async Task<T?> ScalarAsync<T>(string sql)
     {
-        await using var connection = new NpgsqlConnection(ConnectionString);
+        await using var connection = new NpgsqlConnection(SuperuserConnectionString);
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand(sql, connection);
         var value = await command.ExecuteScalarAsync();

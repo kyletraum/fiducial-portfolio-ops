@@ -326,6 +326,15 @@ updated or deleted, and never contain secret values.
   can drop its triggers without being superuser. [`EXECUTED 2026-10-31` `G-7`, both
   in rolled-back transactions on postgres 18.3, the second as a non-superuser owner of a
   probe table; `slice-03.md` "What the slice is not"]
+  **A database boundary since slice 04 step 1b (`G-7` closed, 2026-11-06).** The API
+  connects as `portfolio_api`, which is not superuser, owns nothing and belongs to no
+  role. On its own connection, `DISABLE` and `DROP TRIGGER`, `DROP TABLE`,
+  `DROP FUNCTION … CASCADE`, `SET session_replication_role`, `ALTER DATABASE`, and
+  `UPDATE`, `DELETE` and `TRUNCATE` on `audit_event`, `used_setup_code` and `ingest_run`
+  are each refused by the grant (`42501`). The owner, in a rolled-back transaction, gets
+  past the grant and either succeeds or meets the trigger (`23001`). Only the Migrator's
+  `postgres` login can now remove the trigger. [`EXECUTED` `ApiLoginTests`, seen failing
+  with the superuser's string; `slice-04.md` step 1b]
 
 ---
 

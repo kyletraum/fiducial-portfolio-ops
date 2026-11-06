@@ -1223,6 +1223,7 @@ day should not depend on remembering them. This list collects them; it adds no w
 3. **The application role** (`D6`, `G-7`). The Migrator keeps `postgres`; the API logs
    in as a role that is neither superuser nor the owner of any table, with only the
    grants it uses. Shown needed: today the API's login can disable the audit trigger.
+   **Done, 2026-11-06:** slice 04 step 1b (`G-7` closed, `security.md` "Audit").
 4. **The wider audit** (`D17`): data mutation, reports, projections and exports.
 5. **The dev page stays on invented data** (`D9`), or it gets a CSP first.
 6. **Kyle's ruling on `C-389`**, value-weighted coverage, carried as an open question.

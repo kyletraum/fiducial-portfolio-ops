@@ -48,14 +48,14 @@ public class AuthSchemaTests(PostgresFixture pg) : IClassFixture<PostgresFixture
             AttestationObject = [5, 6],
             ClientDataJson = [7, 8, 9],
         };
-        await using (var db = pg.CreateContext())
+        await using (var db = pg.CreateSuperuserContext())
         {
             db.Users.Add(user);
             db.UserPasskeys.Add(new IdentityUserPasskey<string> { CredentialId = [42, 43], UserId = user.Id, Data = data });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        await using var read = pg.CreateContext();
+        await using var read = pg.CreateSuperuserContext();
         var passkey = await read.UserPasskeys.SingleAsync(p => p.UserId == user.Id, TestContext.Current.CancellationToken);
 
         Assert.Equal([42, 43], passkey.CredentialId);
@@ -95,13 +95,13 @@ public class AuthSchemaTests(PostgresFixture pg) : IClassFixture<PostgresFixture
     public async Task A_setup_code_is_recorded_as_spent_once()
     {
         var hash = SetupCode.Sha256Hex("the same code");
-        await using (var db = pg.CreateContext())
+        await using (var db = pg.CreateSuperuserContext())
         {
             db.UsedSetupCodes.Add(new UsedSetupCode { Sha256 = hash });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        await using var again = pg.CreateContext();
+        await using var again = pg.CreateSuperuserContext();
         again.UsedSetupCodes.Add(new UsedSetupCode { Sha256 = SetupCode.Sha256Hex("THE-SAME code") }); // normalises to the same
         var error = await Assert.ThrowsAsync<DbUpdateException>(() => again.SaveChangesAsync(TestContext.Current.CancellationToken));
 
@@ -112,13 +112,13 @@ public class AuthSchemaTests(PostgresFixture pg) : IClassFixture<PostgresFixture
     public async Task An_audit_event_round_trips_with_its_kind()
     {
         // The enum's labels are multi-word: the declared labels and MapEnum's translator must agree.
-        await using (var db = pg.CreateContext())
+        await using (var db = pg.CreateSuperuserContext())
         {
             db.AuditEvents.Add(new AuditEvent { Kind = AuditEventKind.SessionsRevoked, Actor = "owner", Environment = "Test", ConnectionAddress = "::1" });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        await using var read = pg.CreateContext();
+        await using var read = pg.CreateSuperuserContext();
         var row = await read.AuditEvents.SingleAsync(e => e.Kind == AuditEventKind.SessionsRevoked, TestContext.Current.CancellationToken);
 
         Assert.Equal(("owner", "::1"), (row.Actor, row.ConnectionAddress));

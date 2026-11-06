@@ -19,7 +19,7 @@ public class ImportPipelineTests(PostgresFixture pg) : IClassFixture<PostgresFix
 
     async Task<List<AccountBalance>> RowsAsync(Guid accountId)
     {
-        await using var db = pg.CreateContext();
+        await using var db = pg.CreateSuperuserContext();
         return await db.AccountBalances.Where(b => b.AccountId == accountId).OrderBy(b => b.AsOfDate).ThenBy(b => b.CreatedAt).ToListAsync(Ct);
     }
 
@@ -119,7 +119,7 @@ public class ImportPipelineTests(PostgresFixture pg) : IClassFixture<PostgresFix
         var outcome = await ImportAsync(pg, CsvSource, "account,as_of_date,balance\nEXAMPLE-1,03/04/2026,1\n"u8.ToArray());
 
         Assert.Equal((IngestRunStatus.Failed, 0), (outcome.Run.Status, outcome.Run.RowsRead));
-        await using var db = pg.CreateContext();
+        await using var db = pg.CreateSuperuserContext();
         var stored = await db.IngestRuns.SingleAsync(r => r.Id == outcome.Run.Id, Ct);
         using var detail = JsonDocument.Parse(stored.ErrorDetail!);
         var e = Assert.Single(detail.RootElement.EnumerateArray());

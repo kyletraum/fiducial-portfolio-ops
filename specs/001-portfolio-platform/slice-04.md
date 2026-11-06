@@ -338,6 +338,53 @@ Each step merges green, as slices 01–03 did.
    - **Every existing suite stays green**, which shows the matrix is enough.
    - **The E2E:** after one API request, `pg_stat_activity` shows a `portfolio_api`
      backend and no `postgres` backend except the test's own.
+
+   > **BUILT 2026-11-06.**
+   > - **The AppHost:** the Api's `ConnectionStrings__portfolio` is a `ReferenceExpression`
+   >   over the Postgres endpoint's host and port, the database name, `portfolio_api` and
+   >   `api-db-password`, built the way `PostgresServerResource` builds its own.
+   >   `WithReference(db)` is gone from the Api. Published, the Api's only database variable
+   >   is `Host=postgres;Port=5432;Database=portfolio_dev;Username=portfolio_api;Password=${API_DB_PASSWORD}`,
+   >   with no `POSTGRES_PASSWORD` and no `PORTFOLIO_*`. [`EXECUTED`: `aspire publish`] With
+   >   the E2E's run-mode check, that raises `G4-2`.
+   > - **The Api refuses to start** without `ConnectionStrings:portfolio`. The build-time
+   >   OpenAPI tool (`GetDocument.Insider`) is excepted, since it runs the entry point with
+   >   no database; the committed document is unchanged.
+   > - **The fixture split, as written.** The compiler listed 37 sites. The seven that call
+   >   the app's own code (`BalanceRecorder`, `ImportPipeline`, `NetWorthDay`), and the five
+   >   that hand the app its connection string, now use the API login. The rest use the
+   >   superuser. **The grant matrix was enough unchanged:** the whole suite passed on it
+   >   first time, so `ExpectedPrivileges.Api` was not edited after all.
+   > - **`ApiLoginTests`** (18 cases):
+   >   - DoD 1's table, 16 statements, each run on the owner (succeeds, or `23001` from the
+   >     trigger) and on the Api's own connection from its own services (`42501`);
+   >   - who-am-I for both factory kinds;
+   >   - the refusal to start.
+   >
+   >   **Two corrections to round 2,** both found by running it:
+   >   - the trigger's refusal is `23001` (`restrict_violation`), not `P0001` (R2-TST-1
+   >     had it wrong; `AuthSchemaTests` already asserted `23001`);
+   >   - the owner's `TRUNCATE ingest_run` is refused first by `account_balance`'s foreign
+   >     key (`0A000`), so that row uses `CASCADE` to reach the trigger.
+   > - **E2E:** `AppModelTests` checks that the Api's connection uses `api-db-password` and
+   >   that no environment value reaches the postgres password, following nested
+   >   expressions. It runs locally with the E2E; CI only compiles that project, so putting it
+   >   in CI is step 6's (`G4-5`). `ImportAFileTests` checks that the running Api is
+   >   connected as `portfolio_api`.
+   > - **Seen failing** [`EXECUTED`], each a mutation, reverted:
+   >   - `WithReference(db)` back in place: both E2E checks red;
+   >   - the fixture handing the Api the superuser: 17 of 18 `ApiLoginTests` red (the
+   >     startup refusal needs no connection);
+   >   - the startup check removed: its test red.
+   > - **Runs:** Integration 175 (157 + 18), E2E 29 + 1 skipped, Architecture 65, Unit 129 +
+   >   1 skipped, Contract 1.
+   > - **`G-7` is closed.** `security.md` "Audit" says so, and slice 03's "Before the first
+   >   real balance" item 3 is marked done.
+   > - **Not built: a who-am-I for the host-command process.** `OwnerCommandsTests` runs
+   >   that process with the API login's string, and its `reset-owner` passes on it, so the
+   >   matrix is enough for the commands. But the test would pass on the superuser too, so it
+   >   does not show which login the process holds. In compose the commands run in the
+   >   `api` service, whose only database variable is the API login's. **Argued**, for DoD 10.
 3. **Step 2 — the reporting schema.** The four barrier views and their `COMMENT`s.
    `data-model.md` corrected. Tests (`C4-9`, `C4-16`):
    - each refusal of "The boundary" through the endpoint, asserting its SQLSTATE (a

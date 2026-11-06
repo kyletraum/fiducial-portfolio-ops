@@ -21,7 +21,7 @@ public class SameDayPickTests(PostgresFixture pg) : IClassFixture<PostgresFixtur
 
     async Task<decimal?> NetWorthAsync(DateOnly day)
     {
-        await using var db = pg.CreateContext();
+        await using var db = pg.CreateApiContext();
         return (await NetWorthDay.Query(db, day, day).SingleAsync(Ct)).NetWorth;
     }
 
@@ -30,7 +30,7 @@ public class SameDayPickTests(PostgresFixture pg) : IClassFixture<PostgresFixtur
 
     async Task ManualAsync(Guid account, DateOnly day, decimal amount, DateTimeOffset at)
     {
-        await using var db = pg.CreateContext();
+        await using var db = pg.CreateApiContext();
         await BalanceRecorder.RecordAsync(db, new FixedClock(at), account, day, amount, "manual", SourceStrength.Manual, Ct);
     }
 

@@ -19,6 +19,20 @@ public class ImportAFileTests(AppFixture fixture) : IClassFixture<AppFixture>
     static FilePayload Csv(string name, string body) =>
         new() { Name = name, MimeType = "application/vnd.ms-excel", Buffer = Encoding.UTF8.GetBytes(body) };
 
+    /// <summary>
+    /// slice-04.md step 1b, DoD 8: the running Api holds its connections as portfolio_api. Here, in an
+    /// existing class, so it costs no stack of its own. Seen failing with WithReference(db) back in
+    /// place: only postgres is connected.
+    /// </summary>
+    [Fact]
+    public async Task The_running_Api_is_connected_as_its_own_login()
+    {
+        await using var api = await fixture.ApiAsync();
+        await api.GetJsonAsync("/api/v1/accounts");
+
+        Assert.Contains("portfolio_api", await fixture.LoginsConnectedAsync());
+    }
+
     [Fact]
     public async Task A_file_imported_in_the_browser_appears_in_the_chart_and_importing_it_again_changes_nothing()
     {

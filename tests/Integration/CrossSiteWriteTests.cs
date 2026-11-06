@@ -47,7 +47,7 @@ public class CrossSiteWriteTests(PostgresFixture pg) : ApiTests(pg)
     /// <summary>Every table a write could touch.</summary>
     async Task<int> WrittenAsync()
     {
-        await using var db = Pg.CreateContext();
+        await using var db = Pg.CreateSuperuserContext();
         return await db.Accounts.CountAsync(Ct) + await db.AccountBalances.CountAsync(Ct)
              + await db.AccountSources.CountAsync(Ct) + await db.IngestRuns.CountAsync(Ct);
     }

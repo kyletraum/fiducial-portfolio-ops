@@ -15,7 +15,7 @@ public class RestatementTests(PostgresFixture pg) : IClassFixture<PostgresFixtur
 
     async Task<Guid> NewAccountAsync()
     {
-        await using var db = pg.CreateContext();
+        await using var db = pg.CreateSuperuserContext();
         var institution = new Institution { Id = Guid.CreateVersion7(), Name = $"Test Bank {Guid.NewGuid():N}" };
         var account = new Account
         {
@@ -32,15 +32,15 @@ public class RestatementTests(PostgresFixture pg) : IClassFixture<PostgresFixtur
         var accountId = await NewAccountAsync();
 
         Guid firstId, secondId;
-        await using (var db = pg.CreateContext())
+        await using (var db = pg.CreateApiContext())
             firstId = (await BalanceRecorder.RecordAsync(db, accountId, Day, 100m, "manual", SourceStrength.Manual, Ct)).Balance.Id;
 
         BalanceRecorder.Result second;
-        await using (var db = pg.CreateContext())
+        await using (var db = pg.CreateApiContext())
             second = await BalanceRecorder.RecordAsync(db, accountId, Day, 110m, "manual", SourceStrength.Manual, Ct);
         secondId = second.Balance.Id;
 
-        await using var read = pg.CreateContext();
+        await using var read = pg.CreateSuperuserContext();
         var rows = await read.AccountBalances.Where(b => b.AccountId == accountId).ToListAsync(Ct);
         var old = rows.Single(b => b.Id == firstId);
         var @new = rows.Single(b => b.Id == secondId);
@@ -60,7 +60,7 @@ public class RestatementTests(PostgresFixture pg) : IClassFixture<PostgresFixtur
         // Why BalanceRecorder's order matters: INSERT-then-UPDATE leaves two live rows for an
         // instant, and account_balance_live_uq is checked per statement (Spike D, 05).
         var accountId = await NewAccountAsync();
-        await using (var db = pg.CreateContext())
+        await using (var db = pg.CreateApiContext())
             await BalanceRecorder.RecordAsync(db, accountId, Day, 100m, "manual", SourceStrength.Manual, Ct);
 
         var error = await Assert.ThrowsAsync<Npgsql.PostgresException>(() => pg.ExecuteAsync($"""

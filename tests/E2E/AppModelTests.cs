@@ -48,4 +48,38 @@ public class AppModelTests
             await callback.Callback(context);
         Assert.Same(parameter, context.EnvironmentVariables["Enrolment__SetupCode"]);
     }
+
+    /// <summary>
+    /// Slice 04 step 1b (C4-5, SRC-6): the Api's connection uses its own login's parameter, and NO
+    /// value in its environment reaches the postgres password, which WithReference(db) would hand
+    /// it as the connection string and as separate variables. Read from the app model, so it runs
+    /// in CI (step 6). Seen failing with WithReference(db) put back.
+    /// </summary>
+    [Fact]
+    public async Task The_Api_connects_with_its_own_password_and_never_the_superusers()
+    {
+        var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(TestContext.Current.CancellationToken);
+        var postgres = builder.Resources.OfType<PostgresServerResource>().Single();
+        var apiLogin = builder.Resources.OfType<ParameterResource>().Single(p => p.Name == "api-db-password");
+
+        var api = builder.Resources.OfType<ProjectResource>().Single(r => r.Name == "api");
+        var context = new EnvironmentCallbackContext(new DistributedApplicationExecutionContext(DistributedApplicationOperation.Publish));
+        foreach (var callback in api.Annotations.OfType<EnvironmentCallbackAnnotation>())
+            await callback.Callback(context);
+
+        var connection = Assert.IsType<ReferenceExpression>(context.EnvironmentVariables["ConnectionStrings__portfolio"]);
+        Assert.Contains(apiLogin, Providers(connection));
+        Assert.Contains("Username=portfolio_api", connection.Format);
+        var reaching = context.EnvironmentVariables.Where(v => Providers(v.Value).Contains(postgres.PasswordParameter)).Select(v => v.Key).ToList();
+        Assert.True(reaching.Count == 0, "the postgres password reaches the Api through: " + string.Join(", ", reaching));
+    }
+
+    /// <summary>Every value provider a value is built from, followed through nested expressions and connection strings.</summary>
+    static IEnumerable<object> Providers(object? value) => value switch
+    {
+        ReferenceExpression e => e.ValueProviders.SelectMany(p => Providers(p).Prepend(p)),
+        IResourceWithConnectionString r => Providers(r.ConnectionStringExpression).Prepend(r),
+        ConnectionStringReference c => Providers(c.Resource),
+        _ => [],
+    };
 }

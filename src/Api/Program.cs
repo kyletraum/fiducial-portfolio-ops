@@ -29,6 +29,13 @@ builder.Services.AddOpenApi(o => o.AddDocumentTransformer((doc, _, _) =>
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 
+// Slice 04 step 1b (SRC-8): the Api connects only as its own login, so with no connection string it
+// refuses to start, rather than meeting the first request with a missing database. The build-time
+// OpenAPI tool runs this entry point with no database at all, and is the one exception.
+if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("portfolio"))
+    && System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name != "GetDocument.Insider")
+    throw new InvalidOperationException("ConnectionStrings:portfolio is not set. The Api connects as its own database login and will not start without one.");
+
 builder.Services.AddDbContext<PortfolioDbContext>(options =>
     PortfolioDbContext.Configure(options, builder.Configuration.GetConnectionString("portfolio")));
 builder.EnrichNpgsqlDbContext<PortfolioDbContext>();

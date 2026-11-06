@@ -19,7 +19,7 @@ static class ImportSupport
 
     public static async Task<Guid> NewAccountAsync(PostgresFixture pg, DateOnly opened, DateOnly? closed = null)
     {
-        await using var db = pg.CreateContext();
+        await using var db = pg.CreateSuperuserContext();
         var institution = new Institution { Id = Guid.CreateVersion7(), Name = $"Import Test Bank {Guid.NewGuid():N}" };
         var account = new Account
         {
@@ -34,7 +34,7 @@ static class ImportSupport
     public static async Task<string> BindAsync(PostgresFixture pg, Guid accountId, string sourceSystem, string? sourceId = null)
     {
         sourceId ??= $"EXAMPLE-{Guid.NewGuid():N}"[..24];
-        await using var db = pg.CreateContext();
+        await using var db = pg.CreateSuperuserContext();
         db.AccountSources.Add(new AccountSource { Id = Guid.CreateVersion7(), AccountId = accountId, SourceSystem = sourceSystem, SourceId = sourceId });
         await db.SaveChangesAsync(Ct);
         return sourceId;
@@ -58,7 +58,7 @@ static class ImportSupport
     public static async Task<ImportPipeline.Outcome> ImportAsync(PostgresFixture pg, IBalanceSource source, byte[] file,
         TimeProvider? clock = null, string fileName = "balances.csv")
     {
-        await using var db = pg.CreateContext();
+        await using var db = pg.CreateApiContext();
         return await new ImportPipeline(db, clock ?? TimeProvider.System).RunAsync(source, fileName, file, Ct);
     }
 }

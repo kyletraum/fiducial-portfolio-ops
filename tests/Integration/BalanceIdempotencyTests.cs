@@ -18,7 +18,7 @@ public class BalanceIdempotencyTests(PostgresFixture pg) : IClassFixture<Postgre
     public ValueTask InitializeAsync()
     {
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-            b.UseEnvironment("Production").UseSetting("ConnectionStrings:portfolio", pg.ConnectionString).WithTestAuth());
+            b.UseEnvironment("Production").UseSetting("ConnectionStrings:portfolio", pg.ApiConnectionString).WithTestAuth());
         return ValueTask.CompletedTask;
     }
 
@@ -43,7 +43,7 @@ public class BalanceIdempotencyTests(PostgresFixture pg) : IClassFixture<Postgre
         Assert.Equal(HttpStatusCode.Created, first.Status);
         Assert.Equal(HttpStatusCode.OK, again.Status);
         Assert.Equal(first.Id, again.Id);
-        await using var db = pg.CreateContext();
+        await using var db = pg.CreateSuperuserContext();
         Assert.Equal(1, await db.AccountBalances.CountAsync(b => b.AccountId == account, Ct));
     }
 
@@ -58,7 +58,7 @@ public class BalanceIdempotencyTests(PostgresFixture pg) : IClassFixture<Postgre
 
         Assert.Equal(HttpStatusCode.Created, changed.Status);
         Assert.NotEqual(first.Id, changed.Id);
-        await using var db = pg.CreateContext();
+        await using var db = pg.CreateSuperuserContext();
         Assert.Equal(first.Id, (await db.AccountBalances.SingleAsync(b => b.Id == changed.Id, Ct)).Supersedes);
     }
 }

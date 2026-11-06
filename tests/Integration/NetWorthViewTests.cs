@@ -34,7 +34,7 @@ public class NetWorthViewTests(NetWorthFixture pg) : IClassFixture<NetWorthFixtu
 
     async Task<NetWorthDay> DayAsync(string date)
     {
-        await using var db = pg.CreateContext();
+        await using var db = pg.CreateApiContext();
         var d = DateOnly.Parse(date);
         return await NetWorthDay.Query(db, d, d).SingleAsync(Ct);
     }

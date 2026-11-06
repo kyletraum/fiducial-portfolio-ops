@@ -70,8 +70,8 @@ public class DatabaseLoginsTests(PostgresFixture pg) : IClassFixture<PostgresFix
 
         Assert.Equal(before.Item1, await CatalogSnapshot.TakeAsync(connection, DatabaseLogins.Api));
         Assert.Equal(before.Item2, await CatalogSnapshot.TakeAsync(connection, DatabaseLogins.Reporting));
-        await AssertConnectsAsync(pg.ConnectionString, DatabaseLogins.Api, pg.ApiPassword);
-        await AssertConnectsAsync(pg.ConnectionString, DatabaseLogins.Reporting, pg.ReportingPassword);
+        await AssertConnectsAsync(pg.SuperuserConnectionString, DatabaseLogins.Api, pg.ApiPassword);
+        await AssertConnectsAsync(pg.SuperuserConnectionString, DatabaseLogins.Reporting, pg.ReportingPassword);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class DatabaseLoginsTests(PostgresFixture pg) : IClassFixture<PostgresFix
 
     async Task<NpgsqlConnection> OpenAsync()
     {
-        var connection = new NpgsqlConnection(pg.ConnectionString);
+        var connection = new NpgsqlConnection(pg.SuperuserConnectionString);
         await connection.OpenAsync(Ct);
         return connection;
     }

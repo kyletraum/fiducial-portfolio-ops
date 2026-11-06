@@ -21,7 +21,7 @@ public abstract class ApiTests(PostgresFixture pg) : IClassFixture<PostgresFixtu
     {
         // Signed in (slice-03.md step 2, D11): from step 4 every endpoint requires a session.
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-            b.UseEnvironment("Production").UseSetting("ConnectionStrings:portfolio", Pg.ConnectionString).WithTestAuth());
+            b.UseEnvironment("Production").UseSetting("ConnectionStrings:portfolio", Pg.ApiConnectionString).WithTestAuth());
         Client = factory.CreateSignedInClient();
         return ValueTask.CompletedTask;
     }
@@ -209,7 +209,7 @@ public class ImportApiTests(PostgresFixture pg) : ApiTests(pg)
 
     async Task<int> RunCountAsync()
     {
-        await using var db = Pg.CreateContext();
+        await using var db = Pg.CreateSuperuserContext();
         return await db.IngestRuns.CountAsync(Ct);
     }
 
