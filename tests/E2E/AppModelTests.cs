@@ -70,6 +70,12 @@ public class AppModelTests
         var connection = Assert.IsType<ReferenceExpression>(context.EnvironmentVariables["ConnectionStrings__portfolio"]);
         Assert.Contains(apiLogin, Providers(connection));
         Assert.Contains("Username=portfolio_api", connection.Format);
+        // Slice 04 step 3: the report runner's string, on the reporting login's own password.
+        var reportingLogin = builder.Resources.OfType<ParameterResource>().Single(p => p.Name == "reporting-db-password");
+        var reporting = Assert.IsType<ReferenceExpression>(context.EnvironmentVariables["ConnectionStrings__reporting"]);
+        Assert.Contains(reportingLogin, Providers(reporting));
+        Assert.DoesNotContain(apiLogin, Providers(reporting));
+        Assert.Contains("Username=portfolio_reporting", reporting.Format);
         var reaching = context.EnvironmentVariables.Where(v => Providers(v.Value).Contains(postgres.PasswordParameter)).Select(v => v.Key).ToList();
         Assert.True(reaching.Count == 0, "the postgres password reaches the Api through: " + string.Join(", ", reaching));
     }

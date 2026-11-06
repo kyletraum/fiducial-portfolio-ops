@@ -135,6 +135,9 @@ public class SecretsStayOutTests(AuthFixture db) : IClassFixture<AuthFixture>
             ("the session cookie", session),
             ("the CSRF token", token),
             ("the pasted canary", pasted),
+            // Slice 04 (TST-14): the two logins' passwords, which this Api holds in its connection strings.
+            ("the API login's password", db.ApiPassword),
+            ("the reporting login's password", db.ReportingPassword),
         };
         var auditRows = await db.ScalarAsync<string>("SELECT coalesce(string_agg(row_to_json(a)::text, ' '), '') FROM audit_event a");
         var haystack = allLogs.Select(e => $"[{e.Category} {e.Level}] {e.Text}")
@@ -142,6 +145,73 @@ public class SecretsStayOutTests(AuthFixture db) : IClassFixture<AuthFixture>
             .Concat(bodies)
             .Append(auditRows ?? "");
 
+        var hits = SecretScan.Hits(secrets, haystack).ToList();
+        Assert.True(hits.Count == 0, "found:\n" + string.Join("\n", hits.Take(20)));
+    }
+
+    /// <summary>
+    /// slice-04.md step 3 (TST-14, R2-TST-11): the report routes, through every way a run ends. Each
+    /// kind of PostgreSQL refusal; and the two failures that are not a <see cref="Npgsql.PostgresException"/>
+    /// from the statement, where Npgsql's messages carry host, port and user: a wrong password
+    /// (28P01) and a closed port, the latter holding the REAL password in its connection string. A
+    /// pasted canary rides in the SQL text, which the app never logs or traces (S4-3).
+    /// </summary>
+    [Fact]
+    public async Task No_database_password_or_report_text_reaches_a_log_a_trace_or_an_error_body()
+    {
+        var pasted = "canary" + Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+        var wrongSecret = PostgresFixture.NewPassword();
+        var wrong = new Npgsql.NpgsqlConnectionStringBuilder(db.ReportingConnectionString);
+        wrong["Password"] = wrongSecret;
+        var closed = new Npgsql.NpgsqlConnectionStringBuilder(db.ReportingConnectionString) { Port = 1, Timeout = 2 };
+        var bodies = new List<string>();
+        var allLogs = new List<(string Category, LogLevel Level, string Text)>();
+        var allSpans = new List<Activity>();
+
+        async Task DriveAsync(string reporting, HttpStatusCode schema, params (string Sql, HttpStatusCode Status)[] runs)
+        {
+            var (traced, logs, spans) = Api(NewSetupCode());
+            await using var api = traced.WithWebHostBuilder(b => b
+                .UseSetting("ConnectionStrings:reporting", reporting)
+                .UseSetting("Reporting:Deadline", "00:00:01")
+                .WithTestAuth());
+            var client = api.CreateSignedInClient(outermost: new ErrorBodies(bodies));
+            foreach (var (sql, status) in runs)
+                Assert.Equal(status, (await client.PostAsJsonAsync("/api/v1/reports/run", new { sql }, Ct)).StatusCode);
+            Assert.Equal(schema, (await client.GetAsync("/api/v1/reports/schema", Ct)).StatusCode);
+            allLogs.AddRange(logs.Entries);
+            allSpans.AddRange(spans.Snapshot());
+            await traced.DisposeAsync();
+        }
+
+        await DriveAsync(db.ReportingConnectionString, HttpStatusCode.OK,
+            ($"SELECT '{pasted}' AS pasted", HttpStatusCode.OK),
+            ($"SELECT '{pasted}' FROM public.account", HttpStatusCode.UnprocessableEntity),   // 42501
+            ($"SELECT '{pasted}' AS pasted; SELECT 1", HttpStatusCode.UnprocessableEntity),   // 42601
+            ($"SELECT '{pasted}', 1 / 0", HttpStatusCode.UnprocessableEntity),                // 22012
+            ($"SELECT '{pasted}', pg_sleep(600)", HttpStatusCode.OK));                        // 57014: cut off by the deadline
+        await DriveAsync(wrong.ConnectionString, HttpStatusCode.ServiceUnavailable, ("SELECT 1", HttpStatusCode.ServiceUnavailable));
+        await DriveAsync(closed.ConnectionString, HttpStatusCode.ServiceUnavailable, ("SELECT 1", HttpStatusCode.ServiceUnavailable));
+
+        // Not vacuous: the runner ran and was captured, both connection failures were met, spans were exported.
+        Assert.Contains(allLogs, e => e.Text.Contains("Report run started on backend", StringComparison.Ordinal));
+        Assert.Contains(allLogs, e => e.Text.Contains("could not connect", StringComparison.Ordinal) && e.Text.Contains("28P01", StringComparison.Ordinal));
+        Assert.Contains(allLogs, e => e.Text.Contains("could not connect", StringComparison.Ordinal) && !e.Text.Contains("28P01", StringComparison.Ordinal));
+        Assert.NotEmpty(allSpans);
+        Assert.Equal(7, bodies.Count); // three refusals, two run failures and two schema failures
+
+        // A problem passes MessageText and SqlState only: no connection string, host or user in any body.
+        foreach (var fragment in new[] { "Host=", "Username=", "portfolio_reporting", "127.0.0.1", "localhost" })
+            Assert.DoesNotContain(bodies, b => b.Contains(fragment, StringComparison.OrdinalIgnoreCase));
+
+        var secrets = new (string, string)[]
+        {
+            ("the API login's password", db.ApiPassword),
+            ("the reporting login's password", db.ReportingPassword),
+            ("the wrong reporting password", wrongSecret),
+            ("the canary in the SQL", pasted),
+        };
+        var haystack = allLogs.Select(e => $"[{e.Category} {e.Level}] {e.Text}").Concat(allSpans.Select(SecretScan.Describe)).Concat(bodies);
         var hits = SecretScan.Hits(secrets, haystack).ToList();
         Assert.True(hits.Count == 0, "found:\n" + string.Join("\n", hits.Take(20)));
     }

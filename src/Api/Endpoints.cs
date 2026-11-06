@@ -33,6 +33,7 @@ static class Endpoints
 
         v1.MapImportApi(accounts);
         v1.MapAuthApi();
+        v1.MapReportApi();
 
         v1.MapGet("/net-worth", GetNetWorth).WithName("GetNetWorth").WithTags("Net worth").ProducesValidationProblem(Unprocessable422);
     }
