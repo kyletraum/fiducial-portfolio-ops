@@ -18,6 +18,8 @@
 >
 > - **Corrected by slice 03, 2026-10-24.** The "API", "Frontend", "Audit" and "Credentials → Rules" sections, and the "Out of scope" line under "Threat model", were commissioned by `slice-03.md` and corrected from `../review/slice-03-committee.md`. Each correction is marked *(slice 03)* where it stands.
 >
+> - **Corrected by slice 04, 2026-11-06.** "Database", its first three bullets: the two logins as built, and the `PUBLIC` defaults of `:109` above revoked by name (`slice-04.md`). The remedy `:112` gives above is not enough either: `CommandTimeout` re-arms on every read (`SRC-2`, `EXECUTED`), so slice 04 step 3 bounds a run by one wall-clock deadline and a cancel. The timeout and row-cap bullet stays as planned until step 3 is built.
+>
 > Anything *not* listed above is **unreviewed, not verified**. Where a claim
 > about an external system carries a strength marker (`EXECUTED`,
 > `SOURCE@<ref>`, `DOCS@<date>`, `INFERRED` — see `../review/process.md`), that
@@ -124,11 +126,25 @@ laptop is the primary self-hosted threat, this is the control that matters most.
 
 ## Database
 
-- The application connects as a **non-superuser** role with rights only on the
-  `app` schema.
-- User SQL uses a **separate role with `SELECT` on `reporting` only** (D5, FR-6.2).
-  This is the security boundary: `GRANT` cannot be argued with, whereas query
-  parsing can be fooled by comments, nesting and dialect quirks.
+- The application connects as **`portfolio_api`**: not superuser, owning nothing,
+  a member of no role, holding the grant matrix of `slice-04.md` on `public`'s
+  tables and nothing in `reporting` (slice 04 step 1b, `G-7` closed). The tables
+  are in `public`; the `app` schema of the plan was never built.
+- User SQL uses **`portfolio_reporting`**, which holds `USAGE` on `reporting`
+  and `SELECT` on its four views, and nothing beneath them (D5, FR-6.2; slice 04
+  step 2). **Grants alone are not the boundary** (slice 04 review, `DBS-1`): no
+  privilege refuses `ALTER ROLE` on oneself, and `PUBLIC`'s defaults let a fresh
+  role write large objects and WAL messages. The boundary is the grants, the
+  targeted revokes from `PUBLIC`, a read-only transaction the app opens, one
+  statement per run refused by the server, and a fresh session (the last three are
+  the runner's, slice 04 step 3). Every view is `security_barrier`. Each refusal
+  is tested by its SQLSTATE, so a test cannot pass on a misspelt name
+  (`ReportingSchemaTests`). Query parsing is still not used: it can be fooled by
+  comments, nesting and dialect quirks.
+- **Not refused, accepted** (`S4-1`, `S4-4`, `S4-9`): exhausting memory (one query
+  can crash-restart PostgreSQL); seeing names, view definitions, role settings and
+  row counts in the catalog; holding locks for the length of a run. Revisited
+  before the first real balance.
 - Statement timeout and row cap on the reporting connection (FR-6.3).
 - Saved-report parameters are **bound**, never interpolated (FR-6.4).
 - The database port is **not published to the host** by default. Reaching it

@@ -398,6 +398,92 @@ Each step merges green, as slices 01–03 did.
    - the view rules;
    - `reporting.v_net_worth_daily` equal to the chart's view;
    - the reporting login cannot read `saved_report` or `audit_event`.
+
+   > **BUILT 2026-11-06.**
+   > - **Migration 6, `Reporting`:** the schema and four views, each `WITH
+   >   (security_barrier)`, with a `COMMENT` on the schema, every view and every column. The
+   >   EF model is unchanged; the migration is SQL. `Down` drops the schema. `v_account`
+   >   shows the formats an account is linked under, not the identifiers. `v_balance_daily`
+   >   also drops the balances of a deleted account. `v_net_worth_daily` names the chart
+   >   view's seven columns.
+   > - **The routine** revokes everything the two logins hold in `reporting` and grants the
+   >   reporting login `USAGE` and `SELECT ON ALL TABLES IN SCHEMA reporting`, so a view added
+   >   later is granted in the same run. `ExpectedPrivileges/portfolio_reporting.txt` gains
+   >   exactly those five lines; the API's file is unchanged.
+   > - **The refusals are run on a stand-in for the runner,** `ReportingFixture.RunAsync`:
+   >   parts 1–3 and 6 (a fresh unpooled connection, `BEGIN TRANSACTION READ ONLY`, `SET LOCAL
+   >   statement_timeout`, the text as a one-command batch, `ROLLBACK`). There is no endpoint
+   >   until step 3, which owes **running the same table through the endpoint**, with
+   >   `sqlState` in the problem details (`TST-5`).
+   > - **`ReportingSchemaTests`** (52 cases):
+   >   - the catalog: `reporting` holds exactly the four views, each a barrier view; every
+   >     view and column has a comment;
+   >   - the view rules, read on the reporting login: deleted, superseded and deleted-account
+   >     rows hidden, no gap filled, `v_net_worth_daily` equal to the chart's view in both
+   >     directions (`EXCEPT ALL`);
+   >   - the leak probe (`DBS-4`) over `v_balance_daily` and `v_account`, with a committed
+   >     control: the same probe over an **unbarriered copy** of `v_balance_daily`'s
+   >     definition sees `555555`, a live balance on a deleted account. The probe is pushed
+   >     into the balance scan, below the join that drops a deleted account. The superseded
+   >     and soft-deleted balances do not leak even then; their `IS NULL` filters cost less
+   >     than any function, as `DBS-4` found. So `v_account` does not leak unbarriered today,
+   >     and has no control of its own;
+   >   - 37 refusals, each by its SQLSTATE (below), and `CONNECT` to `postgres` and
+   >     `template1` refused (`42501`);
+   >   - **by effect** (`TST-5`): after every probe, the login's snapshot and settings, the
+   >     large objects, a view's comment and every table's row count are unchanged;
+   >   - the two revokes seen failing, by granting `EXECUTE` back: `pg_logical_emit_message`
+   >     then returns an LSN from inside the read-only transaction; `lo_from_bytea` is still
+   >     refused there (`25006`), and outside one writes a large object the login owns.
+   > - **The refusals, and which layer refuses** (for DoD 10, all **shown**):
+   >   - `25006`, the read-only transaction: `ALTER ROLE` itself (password, `SET work_mem`,
+   >     `SET statement_timeout`), `CREATE TEMP TABLE`, `CREATE FUNCTION pg_temp…`, `COMMENT
+   >     ON` a view;
+   >   - `42501`, a privilege or a revoke: `lo_from_bytea`, `lo_create`, `lo_creat`,
+   >     `lo_import`, both `pg_logical_emit_message` forms, `DO` (plpgsql), `nextval`, `LOCK
+   >     … IN SHARE MODE` on a view, `LOCK` on a table beneath, `FOR UPDATE`, `COPY … TO
+   >     PROGRAM`, `pg_read_file`, `SET ROLE`, `SET SESSION AUTHORIZATION`, and 13 reads
+   >     outside the views (the tables beneath, Identity, `audit_event`, `used_setup_code`,
+   >     `app_setting`, the chart's view and its spine);
+   >   - `25001`: `set_config('transaction_read_only', 'off', true)`;
+   >   - `42601`, one statement: `SET TRANSACTION READ WRITE; ALTER ROLE …` and `COMMIT;
+   >     ALTER ROLE …`.
+   > - **Two corrections to the review,** found by running it:
+   >   - **`SET TRANSACTION READ WRITE` as the whole statement succeeds.** `DBS-1` found the
+   >     mode could be undone only before the first query; `SET LOCAL statement_timeout`
+   >     takes no snapshot, so the user's statement is still before it. It writes nothing:
+   >     it is the run's one statement, `ROLLBACK` follows, and joined to a write it is
+   >     `42601`. **One statement is what holds here, not the read-only mode.** Its test
+   >     asserts it succeeds and nothing changes. Step 3 may close it outright by taking a
+   >     snapshot before the user's text (`INFERRED`), and if so turns that test round;
+   >   - `LOCK … IN SHARE MODE` on a view is `42501`, not `25006`: a lock above `ACCESS
+   >     SHARE` needs a write privilege, checked first.
+   > - **The up/down/up test** (`R2-TST-12`, carried from step 1a): from migration 5, up
+   >   with the routine after it, the snapshot equal; down, `reporting` gone and the chart's
+   >   view kept; up again, the snapshot equal.
+   > - **Seen failing** [`EXECUTED`], each a mutation, reverted:
+   >   - `security_barrier` dropped from `v_balance_daily` in the migration: the catalog test
+   >     and that view's leak test red;
+   >   - one column's `COMMENT` dropped: the comment test red, naming the column;
+   >   - the reporting `SELECT` grant dropped: both snapshots, every view-rule test and the
+   >     leak tests red; `pg_logical_emit_message` dropped from the revokes: its two refusals
+   >     and its control red.
+   >
+   >   **The first run of the barrier mutation passed, wrongly.** The control then altered
+   >   the real view and set `security_barrier = true` in its `finally`, repairing the
+   >   mutant before the catalog test ran. It now builds its own unbarriered copy and leaves
+   >   the real views alone, and the mutation goes red.
+   > - **`data-model.md`** corrected: the tables are in `public`, not `app` (banner and
+   >   "Two schemas"), and "The `reporting` schema" rewritten to the four views built, with
+   >   the seven planned ones marked not built. **`security.md`** "Database": the two logins
+   >   as built and the boundary as `DBS-1` restated it, with the runner's three parts marked
+   >   step 3's.
+   > - **Not built here: the `saved_report` refusal.** The table arrives in step 4; a read of
+   >   it now is `42P01`, which by `TST-5` does not count. Step 4 owes that row. `audit_event`
+   >   is in the table above.
+   > - **Runs:** Integration 228 (175 + 52 + 1). Architecture 65. Unit 129 + 1 skipped.
+   >   Contract 1. E2E 29 + 1 skipped, locally: the Migrator applies migration 6 and the
+   >   routine grants the views on a real app model.
 4. **Step 3 — running a query.** The six parts, the caps, one run at a time, the typing
    rule, the schema route, and problem details that pass on PostgreSQL's message, never a
    connection string. `SecretsStayOutTests` covers both new passwords, including the two
