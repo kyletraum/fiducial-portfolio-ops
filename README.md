@@ -69,6 +69,13 @@ are now commissioned and gated in this repository: the planning repository's `D-
 enters before this slice is built: Kyle's ruling of 2026-10-18, recorded in
 [`slice-02.md`](specs/001-portfolio-platform/slice-02.md) ("What the slice is not").
 
+**Slice 04 is commissioned (2026-11-06):** SQL reporting (FR-6), bounded by the database,
+over invented balances. That means a `reporting` schema of documented views, queries and
+saved reports run on a login that can read only those views, and the API moved to its own
+login that cannot remove the audit trigger. Export is deferred. The commission is
+[`slice-04.md`](specs/001-portfolio-platform/slice-04.md), a first draft awaiting its
+design review.
+
 ## Running it
 
 Needs the .NET 10 SDK, Docker, Node 24, and the Aspire CLI (`dotnet tool install -g Aspire.Cli`).
