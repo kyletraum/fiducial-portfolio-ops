@@ -102,6 +102,8 @@ later; they are simply not the number the gate reads.
 |---|---|---|---|---|
 | 2026-11-06 | 0 · commission | — | 0.5 | Kyle chose FR-6 reporting over projections and the two connectors, and ruled four options: run and save (export deferred), the API's own login in this slice (D6/G-7), chart later, invented data with the agent building. `slice-04.md` drafted: three logins, four views, Spikes L-N, Q1-Q5 for the review. Agent hours estimated |
 
+| 2026-11-06 | 0 · review | — | 2.0 | Four seats in parallel (DBS, SRC, TST, SCO), DBS re-run after a safety stop: 49 findings -> 18 themes (C4-1..18). Headline: grants alone do not bound user SQL; the boundary is grants + read-only transaction + one statement + fresh session + cancel-backed deadline + row and byte caps. Kyle ruled S4-1..S4-8 (all as proposed: memory risk accepted, 10 s/10k/8 MB, no run audit, catalog names accepted, barrier views, one run at a time, middle cut, L and N folded in). slice-04.md rewritten. Agent hours estimated |
+| 2026-11-06 | 0 · review r2 | — | 1.0 | Round 2 on the rewrite, two seats (DBS, TST): 17 findings, none blocking. Boundary holds but for pg_logical_emit_message (WAL write past ROLLBACK, revoked). SCRAM verifier required (a failed statement logs the password). Two dropped round-1 items restored; nine weakened TST items restored (two-outcome DoD 1, Migrator process test, compiler-forced login choice, SequentialAccess byte cap, SIGKILL crash test). Kyle ruled S4-9 (lock delay accepted) and S4-10 (429). Agent hours estimated |
 <!-- Slice 04 rows above. Total at its gate. -->
 
 <!--
