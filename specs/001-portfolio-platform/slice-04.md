@@ -368,7 +368,8 @@ Each step merges green, as slices 01–03 did.
    >     key (`0A000`), so that row uses `CASCADE` to reach the trigger.
    > - **E2E:** `AppModelTests` checks that the Api's connection uses `api-db-password` and
    >   that no environment value reaches the postgres password, following nested
-   >   expressions; this runs in CI. `ImportAFileTests` checks that the running Api is
+   >   expressions. It runs locally with the E2E; CI only compiles that project, so putting it
+   >   in CI is step 6's (`G4-5`). `ImportAFileTests` checks that the running Api is
    >   connected as `portfolio_api`.
    > - **Seen failing** [`EXECUTED`], each a mutation, reverted:
    >   - `WithReference(db)` back in place: both E2E checks red;
