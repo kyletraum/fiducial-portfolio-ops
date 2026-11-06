@@ -618,6 +618,13 @@ Each step merges green, as slices 01–03 did.
    >   - no snapshot in part 2: `SET TRANSACTION READ WRITE` red in both suites;
    >   - spans not filtered: the SQL canary found in four spans' `db.query.text`;
    >   - no `temp_file_limit` default: both `53400` producers red, and the snapshot.
+   > - **The crash test failed once on CI, and the cause was the fixture.** The API login
+   >   answered `28P01` after the restart. Testcontainers runs PostgreSQL with `fsync=off`,
+   >   `full_page_writes=off` and `synchronous_commit=off` [`EXECUTED`: the container's command
+   >   line]. On CI the kill came within 200 ms of the routine's password commit, whose WAL was not
+   >   yet written, so recovery lost it. The test now takes a `CHECKPOINT` before the kill: the
+   >   durable starting point production's defaults give. Any test that crashes the server must do
+   >   the same.
    > - **Gates:** `G4-3` is raised, by the producer table's target-list row. `G4-6` is raised, by
    >   the crash test: with the retry, the first request after a SIGKILL crash-restart answers
    >   `200`.
