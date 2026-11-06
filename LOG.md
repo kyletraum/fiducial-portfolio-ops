@@ -96,6 +96,14 @@ later; they are simply not the number the gate reads.
 
 <!-- Slice 03 rows above. Total at its gate. -->
 
+### Slice 04 (commissioned here, 2026-11-06)
+
+| Date | Step | Kyle h | Agent h | What actually happened |
+|---|---|---|---|---|
+| 2026-11-06 | 0 · commission | — | 0.5 | Kyle chose FR-6 reporting over projections and the two connectors, and ruled four options: run and save (export deferred), the API's own login in this slice (D6/G-7), chart later, invented data with the agent building. `slice-04.md` drafted: three logins, four views, Spikes L-N, Q1-Q5 for the review. Agent hours estimated |
+
+<!-- Slice 04 rows above. Total at its gate. -->
+
 <!--
 UNITS NOTE -- RAISED 2026-09-18, RULED 2026-09-20. The 200-hour abandon
 threshold assumes Kyle-evenings. Agent rows are wall-clock of an agent session
