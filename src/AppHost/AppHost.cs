@@ -46,8 +46,20 @@ postgres.PublishAsDockerComposeService((_, service) =>
 
 var db = postgres.AddDatabase("portfolio", databaseName: "portfolio_dev");
 
+// Slice 04 step 1a: the passwords of the API's and the reporting login, which the Migrator sets on
+// every run. persist: true, unlike the setup code: without it a fresh value is generated on every
+// `aspire run` while the volume keeps the old one (SRC-7). `aspire deploy` keeps them in its
+// deployment state, as it keeps postgres-password (G-26). No specials: DatabaseLogins refuses
+// anything but ASCII letters and digits, for which SASLprep changes nothing.
+var apiLogin = builder.AddParameter("api-db-password",
+    new GenerateParameterDefault { MinLength = 22, Special = false }, secret: true, persist: true);
+var reportingLogin = builder.AddParameter("reporting-db-password",
+    new GenerateParameterDefault { MinLength = 22, Special = false }, secret: true, persist: true);
+
 var migrator = builder.AddProject<Projects.Migrator>("migrator")
     .WithReference(db)
+    .WithEnvironment("DatabaseLogins__ApiPassword", apiLogin)
+    .WithEnvironment("DatabaseLogins__ReportingPassword", reportingLogin)
     .WaitFor(db)
     .PublishAsDockerComposeService((_, service) =>
         // Overwrite the service_started entry the publisher wrote. No restart policy: this is

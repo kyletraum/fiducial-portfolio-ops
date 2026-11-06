@@ -40,6 +40,19 @@ try
 
     var applied = (await db.Database.GetAppliedMigrationsAsync()).ToList();
     log.LogInformation("Database at {Latest} ({Count} applied).", applied.LastOrDefault(), applied.Count);
+
+    // Slice 04 step 1a: the API's and the reporting login, provisioned on EVERY run, pending
+    // migrations or not, so a new table is granted in the same run and a reused volume takes a new
+    // password (R2-TST-3). The passwords come from the AppHost's parameters; without them the API
+    // could not connect, so their absence fails the run.
+    var logins = builder.Configuration.GetSection("DatabaseLogins");
+    await db.Database.OpenConnectionAsync();
+    await DatabaseLogins.EnsureAsync(
+        (Npgsql.NpgsqlConnection)db.Database.GetDbConnection(),
+        logins["ApiPassword"] ?? throw new InvalidOperationException("DatabaseLogins:ApiPassword is not set."),
+        logins["ReportingPassword"] ?? throw new InvalidOperationException("DatabaseLogins:ReportingPassword is not set."));
+    await db.Database.CloseConnectionAsync();
+    log.LogInformation("Logins {Api} and {Reporting} provisioned.", DatabaseLogins.Api, DatabaseLogins.Reporting);
 }
 catch (Exception ex)
 {

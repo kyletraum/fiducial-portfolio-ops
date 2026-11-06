@@ -282,6 +282,47 @@ Each step merges green, as slices 01–03 did.
 
    `ExpectedPrivileges.Api` has no behaviour behind it until 1b, and 1b is expected to edit
    it: that is where the matrix is first shown sufficient (`R2-TST-12`).
+
+   > **BUILT 2026-11-06.**
+   > - **The routine,** `src/Infrastructure/DatabaseLogins.cs`. Per login: create if missing
+   >   without a password, then re-assert the attributes and refuse any membership or
+   >   ownership. Then, in one transaction, revoke everything the two logins hold on
+   >   `public`'s objects and grant the matrix again. Then the passwords, as SCRAM verifiers.
+   >   The `pg_catalog` functions are revoked by looking up every overload on the server.
+   >   `CONNECT, TEMPORARY` on `postgres` are both revoked from `PUBLIC`.
+   > - **The Migrator** calls the routine after every run, with `DatabaseLogins__ApiPassword`
+   >   and `__ReportingPassword` from the AppHost's `api-db-password` and
+   >   `reporting-db-password` (`persist: true`, no specials). A missing password fails the
+   >   run. `aspire publish` writes them as `${API_DB_PASSWORD}` and
+   >   `${REPORTING_DB_PASSWORD}`, keys only. [`EXECUTED`]
+   > - **The E2E fixture** sets both parameters, so `persist: true` never writes a test's
+   >   passwords into the developer's user secrets.
+   > - **The snapshot** (`tests/Integration/CatalogSnapshot.cs`), against
+   >   `ExpectedPrivileges/portfolio_{api,reporting}.txt`. Besides the matrix, both files hold
+   >   `PUBLIC`'s defaults, each with its reason:
+   >   - `CONNECT` on `template0`, which takes no connections;
+   >   - `USAGE` on `c`, `internal` and `sql`, with no `CREATE` on any schema to use them;
+   >   - `USAGE` on `public`, which reveals names;
+   >   - `EXECUTE` on the four trigger functions, which refuse a direct call;
+   >   - `lo_unlink`, `set_config`, `pg_cancel_backend` and `pg_terminate_backend`, which
+   >     reach only the login's own objects and backends;
+   >   - the advisory locks (`S4-9`).
+   >
+   >   The reporting login holds nothing else until step 2.
+   > - **Tests:** 11 new ones. `DatabaseLoginsTests`: both snapshots; four plants, each flagged;
+   >   a second run changing nothing; a login with a membership refused.
+   >   `MigratorProcessTests`: the built Migrator twice, and over a pre-existing login; and a
+   >   failed password statement, whose verifier is in the server's log while its password is
+   >   not.
+   > - **Seen failing** [`EXECUTED`], each a mutation, reverted:
+   >   - no call in the Migrator: both Migrator tests red;
+   >   - the call only when a migration is pending: the second run red;
+   >   - a password sent through EF: the output check red;
+   >   - the plain password sent, not a verifier: the server-log test red;
+   >   - `app_setting` dropped from the matrix: the API snapshot red, the reporting one green.
+   > - **Runs:** Integration 157/157 (146 + 11). Architecture 65. Unit 129 + 1 skipped.
+   >   Contract 1. E2E 27 + 1 skipped.
+   > - **Open:** `G4-1` (`aspire run` twice keeps both passwords) is by hand and not yet run.
 2. **Step 1b — the API switches** (`C4-5`). `WithReference(db)` removed; the
    `ReferenceExpression`; the host commands on the API login; the API refuses to start
    without its connection string. **The compiler lists every test site** (`R2-TST-5`):

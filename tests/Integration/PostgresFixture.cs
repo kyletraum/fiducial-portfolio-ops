@@ -13,18 +13,39 @@ public class PostgresFixture : IAsyncLifetime
 {
     // The image Aspire's AddPostgres runs (13.5.4, 13.6.1 and 13.6.4 all publish postgres:18.3),
     // so these tests exercise the server version the app gets.
-    const string Image = "postgres:18.3";
+    public const string Image = "postgres:18.3";
 
-    readonly PostgreSqlContainer container = new PostgreSqlBuilder(Image).Build();
+    /// <summary>
+    /// The app's database is named as in production, not <c>postgres</c>: slice 04 revokes CONNECT on
+    /// <c>postgres</c> from PUBLIC, and the two must be different objects here too (R2-TST-2).
+    /// </summary>
+    public const string Database = "portfolio_dev";
+
+    readonly PostgreSqlContainer container = new PostgreSqlBuilder(Image).WithDatabase(Database).Build();
 
     public string ConnectionString => container.GetConnectionString();
+
+    /// <summary>Slice 04: the logins' passwords, fresh per fixture, set by the same routine the Migrator runs.</summary>
+    public string ApiPassword { get; } = NewPassword();
+    public string ReportingPassword { get; } = NewPassword();
+
+    public static string NewPassword() => Guid.NewGuid().ToString("N");
 
     public virtual async ValueTask InitializeAsync()
     {
         await StartAsync();
-        await using var db = CreateContext();
-        await db.Database.MigrateAsync();
+        await using (var db = CreateContext())
+            await db.Database.MigrateAsync();
+        await EnsureLoginsAsync();
         await SeedAsync();
+    }
+
+    /// <summary>What the Migrator does after migrating (slice-04.md step 1a): <see cref="DatabaseLogins.EnsureAsync"/>.</summary>
+    protected async Task EnsureLoginsAsync()
+    {
+        await using var connection = new NpgsqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        await DatabaseLogins.EnsureAsync(connection, ApiPassword, ReportingPassword);
     }
 
     /// <summary>Starts the container only. A fixture that migrates to a chosen point calls this.</summary>
