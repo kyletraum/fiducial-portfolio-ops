@@ -160,3 +160,38 @@ public static class ProblemTitles
     public const string CsrfTokenRefused = "CSRF token missing or invalid";
     public const string TooManySignInAttempts = "Too many sign-in attempts. Try again in about a minute.";
 }
+
+// Slice 04 step 3: reports. The SQL is the user's own, run on the reporting login (slice-04.md).
+
+public sealed record RunReportRequest(
+    [property: Description("One SQL statement, over the views of the reporting schema. Run read-only, then rolled back.")]
+    string Sql);
+
+public sealed record ReportColumnResponse(
+    string Name,
+    [property: Description("The PostgreSQL type, e.g. numeric or timestamp with time zone.")]
+    string Type);
+
+public sealed record ReportRunResponse(
+    IReadOnlyList<ReportColumnResponse> Columns,
+    [property: Description("One array per row, in column order. numeric, bigint and money are strings, so every digit is kept; timestamp with time zone is UTC, ISO 8601.")]
+    IReadOnlyList<IReadOnlyList<System.Text.Json.Nodes.JsonNode?>> Rows,
+    [property: Description("True when the result is not all there: see cutOffBy.")]
+    bool CutOff,
+    [property: Description("What cut it off: the row cap, the byte cap, or the deadline. Null when nothing did.")]
+    Portfolio.Infrastructure.ReportCutOff? CutOffBy);
+
+public sealed record ReportSchemaResponse(IReadOnlyList<ReportViewResponse> Views);
+
+public sealed record ReportViewResponse(
+    [property: Description("The view, in the reporting schema: reporting.<name>.")]
+    string Name,
+    [property: Description("The view's COMMENT, read live from the database.")]
+    string? Description,
+    IReadOnlyList<ReportViewColumnResponse> Columns);
+
+public sealed record ReportViewColumnResponse(
+    string Name,
+    string Type,
+    [property: Description("The column's COMMENT, read live from the database.")]
+    string? Description);

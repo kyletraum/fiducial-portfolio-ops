@@ -31,6 +31,7 @@ public class AuthFixture : PostgresFixture
         {
             b.UseEnvironment("Production")
              .UseSetting("ConnectionStrings:portfolio", ApiConnectionString)
+             .UseSetting("ConnectionStrings:reporting", ReportingConnectionString)
              .UseSetting("Enrolment:SetupCode", setupCode)
              .UseSetting("Auth:AllowedOrigins", Origin)
              // These tests run many ceremonies a minute; the limiter's own tests set it (TST-13).

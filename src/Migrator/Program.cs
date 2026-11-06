@@ -50,7 +50,9 @@ try
     await DatabaseLogins.EnsureAsync(
         (Npgsql.NpgsqlConnection)db.Database.GetDbConnection(),
         logins["ApiPassword"] ?? throw new InvalidOperationException("DatabaseLogins:ApiPassword is not set."),
-        logins["ReportingPassword"] ?? throw new InvalidOperationException("DatabaseLogins:ReportingPassword is not set."));
+        logins["ReportingPassword"] ?? throw new InvalidOperationException("DatabaseLogins:ReportingPassword is not set."),
+        // Step 3: the reporting login's role defaults, from the same section the Api reads.
+        builder.Configuration.GetSection(ReportingLimits.Section).Get<ReportingLimits>() ?? new ReportingLimits());
     await db.Database.CloseConnectionAsync();
     log.LogInformation("Logins {Api} and {Reporting} provisioned.", DatabaseLogins.Api, DatabaseLogins.Reporting);
 }

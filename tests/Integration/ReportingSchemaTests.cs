@@ -8,7 +8,7 @@ namespace Portfolio.Integration;
 /// slice-04.md step 2: rows each view must hide, each with a value found nowhere else, so a value
 /// seen anywhere a report can reach is a leak (DBS-4).
 /// </summary>
-public sealed class ReportingFixture : PostgresFixture
+public class ReportingFixture : PostgresFixture
 {
     /// <summary>A soft-deleted balance, a superseded one, and a live balance on a soft-deleted account.</summary>
     public static readonly string[] HiddenBalances = ["424242", "777777", "555555"];
@@ -34,10 +34,11 @@ public sealed class ReportingFixture : PostgresFixture
         """);
 
     /// <summary>
-    /// One run as the query runner will make it (slice-04.md "Running a query", parts 1-3 and 6): a
-    /// fresh unpooled connection on the reporting login, a read-only transaction, a local deadline,
-    /// the text as one command, then ROLLBACK. Step 3 builds the runner and sends these same probes
-    /// through its endpoint; until then this is its stand-in.
+    /// One run with the runner's boundary (slice-04.md "Running a query", parts 1-3 and 6): a fresh
+    /// unpooled connection on the reporting login, <see cref="ReportRunner.Begin"/>'s own prelude,
+    /// the text as one command, then ROLLBACK. Kept beside the runner because it also collects the
+    /// NOTICEs the leak probe raises; <c>ReportApiTests</c> sends the same refusals through the
+    /// endpoint (step 3).
     /// </summary>
     public async Task<ReportingRun> RunAsync(string sql)
     {
@@ -46,7 +47,7 @@ public sealed class ReportingFixture : PostgresFixture
         await using var connection = new NpgsqlConnection(builder.ConnectionString);
         connection.Notice += (_, e) => { lock (notices) notices.Add(e.Notice.MessageText); };
         await connection.OpenAsync();
-        await using (var begin = new NpgsqlCommand("BEGIN TRANSACTION READ ONLY; SET LOCAL statement_timeout = '10s'", connection))
+        await using (var begin = new NpgsqlCommand(ReportRunner.Begin(new ReportingLimits()), connection))
             await begin.ExecuteNonQueryAsync();
 
         var rows = new List<object?[]>();
@@ -71,6 +72,28 @@ public sealed class ReportingFixture : PostgresFixture
             }
         }
         lock (notices) return new ReportingRun(rows, [.. notices]);
+    }
+
+    /// <summary>
+    /// Writes judged by their effect (TST-5): the login's privileges and settings, the large objects,
+    /// a view's comment and every table's row count, as one text to compare before and after.
+    /// </summary>
+    public async Task<string> StateAsync()
+    {
+        await using var connection = new NpgsqlConnection(SuperuserConnectionString);
+        await connection.OpenAsync();
+        var snapshot = await CatalogSnapshot.TakeAsync(connection, DatabaseLogins.Reporting);
+        var rest = await ScalarAsync<string>("""
+            SELECT concat_ws(E'\n',
+                'large objects ' || (SELECT count(*) FROM pg_largeobject_metadata),
+                'role settings ' || (SELECT coalesce(string_agg(array_to_string(setconfig, ','), ';'), '') FROM pg_db_role_setting WHERE setrole = 'portfolio_reporting'::regrole),
+                'comment ' || obj_description('reporting.v_account'::regclass, 'pg_class'),
+                (SELECT string_agg(format('%s %s', c.relname,
+                        (xpath('/row/n/text()', query_to_xml(format('SELECT count(*) AS n FROM public.%I', c.relname), false, true, '')))[1]::text),
+                        E'\n' ORDER BY c.relname)
+                   FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'r'))
+            """);
+        return string.Join("\n", snapshot) + "\n" + rest;
     }
 }
 
@@ -265,8 +288,13 @@ public class ReportingSchemaTests(ReportingFixture pg) : IClassFixture<Reporting
         // The documentation is the database's: a report cannot rewrite it.
         { "COMMENT ON VIEW reporting.v_account IS 'rewritten by a report'", "25006" },
         // Undoing the read-only transaction from inside a query: refused (DBS-1). SET TRANSACTION
-        // READ WRITE as the whole statement is not, and has its own test below.
+        // READ WRITE as the whole statement succeeded in step 2, before the runner took its snapshot
+        // ahead of the user's text (ReportRunner.Begin); now it is refused too.
         { "SELECT set_config('transaction_read_only', 'off', true)", "25001" },
+        { "SET TRANSACTION READ WRITE", "25001" },
+        // The role default that holds (DBS-2): only a superuser may change temp_file_limit.
+        { "SET temp_file_limit = '100GB'", "42501" },
+        { "SELECT set_config('temp_file_limit', '-1', true)", "42501" },
         // ... and a second statement is refused by the server, not by parsing (D5).
         { "SET TRANSACTION READ WRITE; ALTER ROLE portfolio_reporting SET work_mem = '1GB'", "42601" },
         { "COMMIT; ALTER ROLE portfolio_reporting SET work_mem = '1GB'", "42601" },
@@ -317,45 +345,10 @@ public class ReportingSchemaTests(ReportingFixture pg) : IClassFixture<Reporting
     [Fact]
     public async Task After_every_probe_nothing_has_changed()
     {
-        var before = await StateAsync();
+        var before = await pg.StateAsync();
         foreach (var sql in Refusals.Select(r => (string)r.Data.Item1))
             await Assert.ThrowsAsync<PostgresException>(() => pg.RunAsync(sql));
-        Assert.Equal(before, await StateAsync());
-    }
-
-    /// <summary>
-    /// A correction to DBS-1, which found the read-only mode could be undone only BEFORE the first
-    /// query. <c>SET LOCAL statement_timeout</c> takes no snapshot, so the user's statement is still
-    /// "before any query", and <c>SET TRANSACTION READ WRITE</c> as the whole statement succeeds. It
-    /// writes nothing: it is the run's one statement, the next is the app's ROLLBACK, and joined to
-    /// a write it is refused as a second statement (42601, above). One statement is what holds here,
-    /// not the read-only mode.
-    /// </summary>
-    [Fact]
-    public async Task SET_TRANSACTION_READ_WRITE_alone_succeeds_and_the_run_still_writes_nothing()
-    {
-        var before = await StateAsync();
-        var run = await pg.RunAsync("SET TRANSACTION READ WRITE");
-        Assert.Empty(run.Rows);
-        Assert.Equal(before, await StateAsync());
-    }
-
-    async Task<string> StateAsync()
-    {
-        await using var connection = new NpgsqlConnection(pg.SuperuserConnectionString);
-        await connection.OpenAsync();
-        var snapshot = await CatalogSnapshot.TakeAsync(connection, DatabaseLogins.Reporting);
-        var rest = await pg.ScalarAsync<string>("""
-            SELECT concat_ws(E'\n',
-                'large objects ' || (SELECT count(*) FROM pg_largeobject_metadata),
-                'role settings ' || (SELECT coalesce(string_agg(array_to_string(setconfig, ','), ';'), '') FROM pg_db_role_setting WHERE setrole = 'portfolio_reporting'::regrole),
-                'comment ' || obj_description('reporting.v_account'::regclass, 'pg_class'),
-                (SELECT string_agg(format('%s %s', c.relname,
-                        (xpath('/row/n/text()', query_to_xml(format('SELECT count(*) AS n FROM public.%I', c.relname), false, true, '')))[1]::text),
-                        E'\n' ORDER BY c.relname)
-                   FROM pg_class c WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'r'))
-            """);
-        return string.Join("\n", snapshot) + "\n" + rest;
+        Assert.Equal(before, await pg.StateAsync());
     }
 
     // --- The two revokes, seen failing (R2-DBS-1, TST-5) --------------------------------------

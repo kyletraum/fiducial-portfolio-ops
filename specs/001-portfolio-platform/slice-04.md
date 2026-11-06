@@ -529,6 +529,110 @@ Each step merges green, as slices 01–03 did.
      by its deadline and by a refusal. A schema request during A answers 200. **Seen
      failing:** without the gate, B sees two backends; with the release outside `finally`,
      C gets `429`.
+   > **BUILT 2026-11-06.**
+   > - **The runner,** `src/Infrastructure/ReportRunner.cs`, the six parts as written. The data
+   >   source is keyed, forced unpooled, and emits no spans: Npgsql's carried every report's SQL
+   >   in `db.query.text` (seen by mutation, below). It is resolved on first use, not in the
+   >   constructor: `AllowListTests` found that a route's services are bound before its filters
+   >   run, so a missing reporting string answered `500` ahead of the CSRF filter's `403`. Missing,
+   >   it is `503` now, and the Api still starts.
+   > - **Part 2 takes a snapshot** (`SELECT 1`) before the user's text, which closes step 2's
+   >   correction: `SET TRANSACTION READ WRITE` alone is now refused, `25001`. It joined the
+   >   refusal table, with two rows for `temp_file_limit` (`42501`, a superuser parameter): 40 rows.
+   > - **The reader** (`ReportCells.cs`, `SRC-9`). The batch path has no text-format switch, so
+   >   values are read by type:
+   >   - text-like types and `bytea`, in 8 KB chunks against the byte budget;
+   >   - `numeric`, decoded from its wire form, so `1e40` and `NaN` keep every digit (Npgsql's own
+   >     reader throws on both, `EXECUTED`);
+   >   - `boolean`, `smallint`, `integer` and finite floats as JSON values; `bigint`, `oid` and
+   >     `money` as strings;
+   >   - dates and times as ISO 8601, with `timestamptz` in UTC and a `Z`; `interval` as an ISO
+   >     duration; arrays as JSON arrays.
+   >
+   >   Any other cell is first checked by its wire length: `GetBytes(i, 0, null, 0, 0)` reads the
+   >   length without consuming the cell (`EXECUTED`). A type Npgsql has no reader for (`regclass`,
+   >   an enum it never loaded) refuses the run, naming the column. `v_account.linked_formats` is a
+   >   `text[]`, which is why arrays are read.
+   > - **Responses:**
+   >   - `200` with columns, rows, `cutOff` and `cutOffBy` (`rows`, `bytes`, `deadline`);
+   >   - `422` with `sqlState` and PostgreSQL's message text only; `422` for an unreadable column;
+   >   - `429` while another run holds the slot;
+   >   - `503`, with a fixed title, for a failed or lost connection.
+   >
+   >   **A deadline is a cut-off, not an error:** the rows read so far are returned. The schema
+   >   route reads views, columns and comments live, on the reporting login, and takes no slot.
+   > - **Role defaults,** set by the routine and reset first: `statement_timeout`,
+   >   `transaction_timeout` and `idle_in_transaction_session_timeout` at twice the deadline, and
+   >   `temp_file_limit` 256 MB. `ExpectedPrivileges/portfolio_reporting.txt` gains that line.
+   >   `CatalogSnapshot` printed a role-wide setting's database as `0`; it now prints `*`, as
+   >   intended.
+   > - **The AppHost** gives the Api `ConnectionStrings__reporting`, built like the Api's own
+   >   string, on `reporting-db-password`. `AppModelTests` checks it, and that the API password is
+   >   not in it.
+   > - **Tests** (75 new Integration cases):
+   >   - `ReportApiTests` (65):
+   >     - the 40 refusals through the endpoint, each by its SQLSTATE, and the effect test after
+   >       them;
+   >     - the typing rule; the views through the runner; an unreadable column;
+   >     - the caps at their boundaries. Rows at 4, 5 and 6, with the cap at 5. Bytes at 999,
+   >       1,000 and 1,001, two-byte characters at 500 and 501, and rows of 400 bytes, with the cap
+   >       at 1,000;
+   >     - no session state: pids, an advisory lock, a prepared statement, a notification;
+   >     - one run at a time, with A ending by abort, deadline and refusal;
+   >     - the schema route, with a comment changed at test time; no reporting string; the
+   >       Production values.
+   >   - `ReportProducerTests` (6), `ReportMemoryTests` (1, in a non-parallel collection) and
+   >     `ReportCrashTests` (1, in its own container).
+   >   - One new `SecretsStayOutTests` case. It drives every way a run ends, including a wrong
+   >     password (`28P01`) and a closed port whose string holds the real password. Both login
+   >     passwords also joined the original scan.
+   > - **Part 6 is shown, not argued.** `NOTIFY` and `pg_notify` run inside a read-only
+   >   transaction, and a notification is delivered only at commit. So the `ROLLBACK` is what
+   >   keeps a report from signalling another session. In the test, a listener gets nothing from
+   >   two runs, and then the control. `R2-TST-8`'s stated seen-failing, `COMMIT` turning the
+   >   `set_config` row red, does not happen. With nothing writable, `COMMIT` and `ROLLBACK`
+   >   differ only for a notification.
+   > - **Two corrections to the review's producer table,** found by running it:
+   >   - **`count(*)` over `generate_series` in `FROM` is refused (`53400`), not timed out.** A
+   >     function scan materialises its result, which spills past the fixture's small
+   >     `temp_file_limit`. In the target list the series streams, and times out. The table has
+   >     both rows.
+   >   - **"With the deadline removed, the first two run until the test's own deadline" is
+   >     wrong.** Both end at the server's `statement_timeout`, 1 s past the deadline. A
+   >     `set_config('statement_timeout', '0', true)` inside the statement does not disarm the
+   >     timer armed for it (`SRC` "Confirmed"). The test now asserts each ends within 0.8 s of the
+   >     client's deadline, so the mutation turns both red at 3.2 s.
+   > - **Seen failing** [`EXECUTED`], each a mutation, reverted:
+   >   - no client deadline: both time-out producers red (3.2 s);
+   >   - no cancel at a cap: the target-list series red (3.2 s, the server draining until its
+   >     timeout). The `WITH RECURSIVE` row stayed green: draining it spills its CTE past the
+   >     fixture's 1 MB limit, which ends it with `53400`. So the series row is the one that shows
+   >     `G4-3`;
+   >   - `CommandBehavior.Default`: the memory test red at 128 MB (343 KB when green);
+   >   - pooled, with `No Reset On Close`: the pid, advisory-lock and prepared-statement tests red,
+   >     and the three slot tests (their backend never ends);
+   >   - `COMMIT` for `ROLLBACK`: the notification test red, with the notification delivered;
+   >   - no gate: all three slot tests red, with B answering `200`. The release outside
+   >     `finally`: only the aborted run red, with C answering `429`;
+   >   - EF's retry disabled: the crash test's first request answers `500` (`G4-6`);
+   >   - no snapshot in part 2: `SET TRANSACTION READ WRITE` red in both suites;
+   >   - spans not filtered: the SQL canary found in four spans' `db.query.text`;
+   >   - no `temp_file_limit` default: both `53400` producers red, and the snapshot.
+   > - **The crash test failed once on CI, and the cause was the fixture.** The API login
+   >   answered `28P01` after the restart. Testcontainers runs PostgreSQL with `fsync=off`,
+   >   `full_page_writes=off` and `synchronous_commit=off` [`EXECUTED`: the container's command
+   >   line]. On CI the kill came within 200 ms of the routine's password commit, whose WAL was not
+   >   yet written, so recovery lost it. The test now takes a `CHECKPOINT` before the kill: the
+   >   durable starting point production's defaults give. Any test that crashes the server must do
+   >   the same.
+   > - **Gates:** `G4-3` is raised, by the producer table's target-list row. `G4-6` is raised, by
+   >   the crash test: with the retry, the first request after a SIGKILL crash-restart answers
+   >   `200`.
+   > - **Not built here:** saved reports and typed parameters. Step 4 owes them, with the
+   >   `saved_report` refusal and the `22P02` producer. The memory-induced crash is step 6's, by
+   >   hand.
+   > - **Docs:** `security.md` "Database" (the runner as built, and `NOTIFY`), `research.md` D5's
+   >   banner, and `testing.md` (the values and the tests).
 5. **Step 4 — saved reports.** `saved_report` (create, list, run, delete) and typed
    positional parameters. The binding probe uses values **the grant allows**, so only the
    binding can explain the result (`TST-9`): an echo report returns a hostile value byte
@@ -605,10 +709,10 @@ Each item names the test that shows it and how that test was seen failing.
 |---|---|---|
 | G4-1 | `aspire run` twice keeps both passwords (`persist: true`) | Step 1a, by hand |
 | G4-2 | The `ReferenceExpression` connection string works in this repo's AppHost under `aspire run` and in the published compose file | Steps 1b and 6, by hand |
-| G4-3 | Cancel-then-dispose also holds on the batch path and for multi-row results (TST's GT-D) | Step 3's producer table |
+| G4-3 | ~~Cancel-then-dispose also holds on the batch path and for multi-row results (TST's GT-D)~~ **Raised** (step 3, `EXECUTED`): the target-list series is cut at 10,000 rows in under 2 s, and takes 3.2 s without the cancel | — |
 | G4-4 | ~~A single 200 MB cell does not reach the API's memory whole under the byte cap~~ **Answered** (`R2-TST-6`, `EXECUTED`): only with `SequentialAccess`, which part 4 now requires. Its test is step 3's memory test | — |
 | G4-5 | The app-model test runs on CI's ubuntu runner (TST's GT-A) | Step 6's first CI run |
-| G4-6 | EF's retrying strategy recovers the API after PostgreSQL crash-restarts (`EXECUTED` at the Npgsql level only, `R2-TST-9`) | Step 3's crash test |
+| G4-6 | ~~EF's retrying strategy recovers the API after PostgreSQL crash-restarts~~ **Raised** (step 3, `EXECUTED`): after a SIGKILL crash-restart with the pool warm, the first request answers 200; with the retry disabled, 500 | — |
 
 TST's round-1 gate GT-B (`DROP ROLE` in a migration's `Down`) is **moot**: the roles come
 from the routine, not a migration (`R2-TST-12`).
