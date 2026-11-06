@@ -1,5 +1,5 @@
 # slice-04.md step 1a: everything portfolio_reporting can do, as effective privileges
-# (CatalogSnapshot). Step 2 adds USAGE on reporting and SELECT on its views, and nothing else.
+# (CatalogSnapshot).
 
 # Who it is: a login, nothing more. Owns nothing, belongs to no role, no settings.
 attribute super=f createrole=f createdb=f login=t replication=f bypassrls=f inherit=t
@@ -15,6 +15,14 @@ language c
 language internal
 language sql
 schema public USAGE
+
+# Its grant (step 2): the reporting views, and nothing beneath them. A view reads with its
+# owner's rights (Spike L 4).
+schema reporting USAGE
+relation reporting.v_account SELECT
+relation reporting.v_balance_daily SELECT
+relation reporting.v_ingest_run SELECT
+relation reporting.v_net_worth_daily SELECT
 
 # PUBLIC's EXECUTE, kept. The four are trigger functions, which refuse a direct call.
 # The advisory locks are accepted (S4-9); cancel and terminate reach only its own backends;

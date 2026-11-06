@@ -18,7 +18,7 @@ namespace Portfolio.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresEnum(modelBuilder, "audit_event_kind", new[] { "enrolment", "sign_in_succeeded", "sign_in_failed", "sign_out", "sessions_revoked", "owner_reset" });
