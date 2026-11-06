@@ -171,6 +171,25 @@ public class AppFixture : IAsyncLifetime
     }
 
     /// <summary>
+    /// Slice 04 step 1b: the logins holding connections to the app's database, read as the superuser
+    /// through the database resource's own connection string, which only the Migrator now receives.
+    /// </summary>
+    public async Task<List<string>> LoginsConnectedAsync()
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(await app!.GetConnectionStringAsync("portfolio"));
+        await connection.OpenAsync();
+        await using var command = new Npgsql.NpgsqlCommand("""
+            SELECT DISTINCT usename::text FROM pg_stat_activity
+             WHERE datname = current_database() AND backend_type = 'client backend' AND pid <> pg_backend_pid()
+            """, connection);
+        var logins = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+            logins.Add(reader.GetString(0));
+        return logins;
+    }
+
+    /// <summary>
     /// "Healthy" is not "serving" for the web resource: it has no health check, so Aspire reports it
     /// healthy once the Vite process runs, before the dev server listens. A test that navigated in
     /// that gap got net::ERR_EMPTY_RESPONSE (ImportAFileTests, 2026-10-24; it passed alone).

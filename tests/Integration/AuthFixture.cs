@@ -30,7 +30,7 @@ public class AuthFixture : PostgresFixture
         new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
             b.UseEnvironment("Production")
-             .UseSetting("ConnectionStrings:portfolio", ConnectionString)
+             .UseSetting("ConnectionStrings:portfolio", ApiConnectionString)
              .UseSetting("Enrolment:SetupCode", setupCode)
              .UseSetting("Auth:AllowedOrigins", Origin)
              // These tests run many ceremonies a minute; the limiter's own tests set it (TST-13).
@@ -53,14 +53,14 @@ public class AuthFixture : PostgresFixture
     /// <summary>Every audit row's id now: what <see cref="NewAuditEventAsync"/> compares against.</summary>
     public async Task<Guid[]> AuditIdsAsync()
     {
-        await using var context = CreateContext();
+        await using var context = CreateSuperuserContext();
         return await context.AuditEvents.Select(e => e.Id).ToArrayAsync(Ct);
     }
 
     /// <summary>The one audit row written since <paramref name="seen"/> was taken.</summary>
     public async Task<AuditEvent> NewAuditEventAsync(Guid[] seen)
     {
-        await using var context = CreateContext();
+        await using var context = CreateSuperuserContext();
         return Assert.Single(await context.AuditEvents.Where(e => !seen.Contains(e.Id)).ToListAsync(Ct));
     }
 }

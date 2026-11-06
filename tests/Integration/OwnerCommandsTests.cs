@@ -113,7 +113,7 @@ public class OwnerCommandsTests(AuthFixture db) : IClassFixture<AuthFixture>, IA
         start.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "Api.dll"));
         start.ArgumentList.Add(OwnerCommands.RevokeSessions);
         start.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
-        start.Environment["ConnectionStrings__portfolio"] = db.ConnectionString;
+        start.Environment["ConnectionStrings__portfolio"] = db.ApiConnectionString;
         using var process = Process.Start(start)!;
         var stdout = process.StandardOutput.ReadToEndAsync(Ct);
         var stderr = process.StandardError.ReadToEndAsync(Ct);

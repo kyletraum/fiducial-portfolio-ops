@@ -14,7 +14,7 @@ public sealed class Migration3Fixture : PostgresFixture
     public override async ValueTask InitializeAsync()
     {
         await StartAsync();
-        await using var db = CreateContext();
+        await using var db = CreateSuperuserContext();
         await db.GetService<IMigrator>().MigrateAsync("20260924151919_SpineRunsToToday");
     }
 }
@@ -35,7 +35,7 @@ public class MigrationOnRowsTests(Migration3Fixture pg) : IClassFixture<Migratio
               ('30000000-0000-4000-8000-00000000000a', '2026-03-01', 150, 'USD', 'manual', 'manual', now());
             """);
 
-        await using (var db = pg.CreateContext())
+        await using (var db = pg.CreateSuperuserContext())
             await db.GetService<IMigrator>().MigrateAsync(null, Ct); // up to the latest: 4
 
         // The rows survive with the new columns empty: they were manual, and carried no stamp.
@@ -43,7 +43,7 @@ public class MigrationOnRowsTests(Migration3Fixture pg) : IClassFixture<Migratio
         Assert.Equal(250m, await pg.ScalarAsync<decimal>("SELECT sum(balance) FROM account_balance"));
         Assert.Equal(150m, await pg.ScalarAsync<decimal>("SELECT net_worth FROM v_net_worth_daily WHERE as_of_date = '2026-03-01'"));
 
-        await using (var db = pg.CreateContext())
+        await using (var db = pg.CreateSuperuserContext())
             await db.GetService<IMigrator>().MigrateAsync("20260924151919_SpineRunsToToday", Ct); // Down
         Assert.Null(await pg.ScalarAsync<string>("SELECT to_regclass('ingest_run')::text"));
         Assert.Equal(0L, await pg.ScalarAsync<long>("""
@@ -51,7 +51,7 @@ public class MigrationOnRowsTests(Migration3Fixture pg) : IClassFixture<Migratio
             """));
         Assert.Equal(150m, await pg.ScalarAsync<decimal>("SELECT net_worth FROM v_net_worth_daily WHERE as_of_date = '2026-03-01'"));
 
-        await using (var db = pg.CreateContext())
+        await using (var db = pg.CreateSuperuserContext())
             await db.GetService<IMigrator>().MigrateAsync(null, Ct); // and up again
         Assert.Equal(2L, await pg.ScalarAsync<long>("SELECT count(*) FROM account_balance"));
     }

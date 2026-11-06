@@ -76,8 +76,17 @@ var setupCode = builder.AddParameter("setup-code",
     new GenerateParameterDefault { MinLength = 29, Lower = true, Upper = false, Numeric = false, Special = false },
     secret: true);
 
+// Slice 04 step 1b (C4-5): the Api connects as its own login, which owns nothing. Not
+// WithReference(db): that hands the Api the superuser's password, in the connection string and
+// as separate variables (SRC-6). Built the way Aspire builds the server's own string
+// (PostgresServerResource.ConnectionString, v13.6.4), over the same endpoint; it survives publish
+// as the compose service's host and port, with the password as ${API_DB_PASSWORD}. The Migrator
+// has made the login and set its password by the time the Api starts (WaitForCompletion below).
+var apiConnection = ReferenceExpression.Create(
+    $"Host={postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Host)};Port={postgres.Resource.PrimaryEndpoint.Property(EndpointProperty.Port)};Database={db.Resource.DatabaseName};Username=portfolio_api;Password={apiLogin}");
+
 var api = builder.AddProject<Projects.Api>("api")
-    .WithReference(db)
+    .WithEnvironment("ConnectionStrings__portfolio", apiConnection)
     .WithEnvironment("Enrolment__SetupCode", setupCode)
     // Slice 03 step 7 (C3-9): Aspire's publish default trusts X-Forwarded-For and -Proto from any
     // client, so every caller would choose its own address and scheme. There is no proxy to trust.
