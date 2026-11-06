@@ -1,0 +1,61 @@
+# slice-04.md step 1a: everything portfolio_api can do, as effective privileges (CatalogSnapshot).
+# A line added here is a privilege granted: say why in DatabaseLogins.ApiGrants first.
+
+# Who it is: a login, nothing more. Owns nothing, belongs to no role, no settings.
+attribute super=f createrole=f createdb=f login=t replication=f bypassrls=f inherit=t
+server max_prepared_transactions=0
+
+# Where it connects: the app's database, by name. template0 takes no connections (datallowconn).
+database app CONNECT
+database template0 CONNECT
+
+# PUBLIC's, kept: the base languages (no CREATE on any schema, so no function can be made in
+# them), and public's USAGE, which reveals names, not rows.
+language c
+language internal
+language sql
+schema public USAGE
+
+# PUBLIC's EXECUTE, kept. The four are trigger functions, which refuse a direct call.
+# The advisory locks are accepted (S4-9); cancel and terminate reach only its own backends.
+function account_balance_window_guard()
+function account_close_guard()
+function append_only()
+function ingest_run_immutable()
+function lo_unlink(oid)
+function pg_advisory_lock(bigint)
+function pg_advisory_lock(integer,integer)
+function pg_advisory_xact_lock(bigint)
+function pg_advisory_xact_lock(integer,integer)
+function pg_cancel_backend(integer)
+function pg_terminate_backend(integer,bigint)
+function set_config(text,text,boolean)
+
+# The grant matrix (slice-04.md "What the slice is").
+column public.account_balance.superseded_at UPDATE
+relation public.account INSERT
+relation public.account SELECT
+relation public.account_balance INSERT
+relation public.account_balance SELECT
+relation public.account_source INSERT
+relation public.account_source SELECT
+relation public.app_setting SELECT
+relation public.audit_event INSERT
+relation public.audit_event SELECT
+relation public.identity_user DELETE
+relation public.identity_user INSERT
+relation public.identity_user SELECT
+relation public.identity_user UPDATE
+relation public.identity_user_claim SELECT
+relation public.identity_user_login SELECT
+relation public.identity_user_passkey INSERT
+relation public.identity_user_passkey SELECT
+relation public.identity_user_passkey UPDATE
+relation public.identity_user_token SELECT
+relation public.ingest_run INSERT
+relation public.ingest_run SELECT
+relation public.institution INSERT
+relation public.institution SELECT
+relation public.used_setup_code INSERT
+relation public.used_setup_code SELECT
+relation public.v_net_worth_daily SELECT

@@ -50,6 +50,10 @@ public class AppFixture : IAsyncLifetime
 
         var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(timeout.Token);
         builder.Configuration["Parameters:setup-code"] = SetupCode;
+        // Slice 04: set, so the AppHost's persist: true never writes a test's passwords into the
+        // developer's user secrets.
+        builder.Configuration["Parameters:api-db-password"] = Guid.NewGuid().ToString("N");
+        builder.Configuration["Parameters:reporting-db-password"] = Guid.NewGuid().ToString("N");
         builder.CreateResourceBuilder<ProjectResource>("api")
             // A copied cookie is refused at its next request, not a minute later, so the expiry
             // tests need no clock (TST-15). And the sign-in limiter is for people, not suites.

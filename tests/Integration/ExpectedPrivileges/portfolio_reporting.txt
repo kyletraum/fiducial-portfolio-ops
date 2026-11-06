@@ -1,0 +1,33 @@
+# slice-04.md step 1a: everything portfolio_reporting can do, as effective privileges
+# (CatalogSnapshot). Step 2 adds USAGE on reporting and SELECT on its views, and nothing else.
+
+# Who it is: a login, nothing more. Owns nothing, belongs to no role, no settings.
+attribute super=f createrole=f createdb=f login=t replication=f bypassrls=f inherit=t
+server max_prepared_transactions=0
+
+# Where it connects: the app's database, by name. template0 takes no connections (datallowconn).
+database app CONNECT
+database template0 CONNECT
+
+# PUBLIC's, kept: the base languages (no CREATE on any schema, so no function can be made in
+# them), and public's USAGE, which reveals names, not rows (S4-4).
+language c
+language internal
+language sql
+schema public USAGE
+
+# PUBLIC's EXECUTE, kept. The four are trigger functions, which refuse a direct call.
+# The advisory locks are accepted (S4-9); cancel and terminate reach only its own backends;
+# set_config is undone by the run's ROLLBACK and its fresh session (slice-04.md, part 6).
+function account_balance_window_guard()
+function account_close_guard()
+function append_only()
+function ingest_run_immutable()
+function lo_unlink(oid)
+function pg_advisory_lock(bigint)
+function pg_advisory_lock(integer,integer)
+function pg_advisory_xact_lock(bigint)
+function pg_advisory_xact_lock(integer,integer)
+function pg_cancel_backend(integer)
+function pg_terminate_backend(integer,bigint)
+function set_config(text,text,boolean)
