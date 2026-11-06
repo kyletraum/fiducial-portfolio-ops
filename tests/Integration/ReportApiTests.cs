@@ -515,6 +515,13 @@ public class ReportCrashTests(CrashFixture pg) : IClassFixture<CrashFixture>
             Assert.Equal(HttpStatusCode.OK, warm.StatusCode);
         Assert.True(await ReportApi.SuperuserAsync<long>(pg, "SELECT count(*) FROM pg_stat_activity WHERE usename = 'portfolio_api'") > 0, "the pool is cold");
 
+        // Testcontainers runs PostgreSQL with synchronous_commit=off (and fsync=off), so a commit can
+        // return before its WAL is written, and crash recovery loses it. On CI the kill came within
+        // 200 ms of the fixture's routine, and the API login's password was lost (28P01). Production
+        // runs the defaults, where a commit is durable once it returns; CHECKPOINT gives this test that
+        // starting point.
+        await pg.ExecuteAsync("CHECKPOINT");
+
         var run = ReportApi.RunAsync(client, "SELECT pg_sleep(600)");
         var pid = await ReportApi.WaitForActiveAsync(pg);
         var kill = await pg.ExecInContainerAsync("sh", "-c", $"kill -9 {pid}");
