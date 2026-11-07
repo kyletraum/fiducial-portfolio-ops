@@ -61,8 +61,17 @@ public class PostgresFixture : IAsyncLifetime
     {
         await using var connection = new NpgsqlConnection(SuperuserConnectionString);
         await connection.OpenAsync();
-        await DatabaseLogins.EnsureAsync(connection, ApiPassword, ReportingPassword);
+        await DatabaseLogins.EnsureAsync(connection, ApiPassword, ReportingPassword, Limits);
     }
+
+    /// <summary>The limits whose role defaults the routine sets; Production's unless a fixture says otherwise.</summary>
+    protected virtual ReportingLimits Limits => new();
+
+    /// <summary>A command inside the container, as its default user (the crash test's <c>kill -9</c>).</summary>
+    public Task<DotNet.Testcontainers.Containers.ExecResult> ExecInContainerAsync(params string[] command) => container.ExecAsync(command);
+
+    /// <summary>The server's own log, stdout and stderr.</summary>
+    public Task<(string Stdout, string Stderr)> ServerLogAsync() => container.GetLogsAsync();
 
     /// <summary>Starts the container only. A fixture that migrates to a chosen point calls this.</summary>
     protected Task StartAsync() => container.StartAsync();

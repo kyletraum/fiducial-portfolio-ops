@@ -54,11 +54,14 @@ public static class TestAuth
     /// unsafe request carries a CSRF token issued to that user, with its cookie (step 3). The token
     /// is fetched once, on the first unsafe request.
     /// </summary>
-    public static HttpClient CreateSignedInClient(this WebApplicationFactory<Program> factory, string userName = "owner")
+    public static HttpClient CreateSignedInClient(this WebApplicationFactory<Program> factory, string userName = "owner", DelegatingHandler? outermost = null)
     {
         // Outermost first: the token handler's own fetch passes through the cookie handler, so the
         // antiforgery cookie it is issued with is kept and sent with every later request.
-        var client = factory.CreateDefaultClient(new CsrfTokenHandler(userName), new CookieContainerHandler());
+        DelegatingHandler[] handlers = outermost is null
+            ? [new CsrfTokenHandler(userName), new CookieContainerHandler()]
+            : [outermost, new CsrfTokenHandler(userName), new CookieContainerHandler()];
+        var client = factory.CreateDefaultClient(handlers);
         client.DefaultRequestHeaders.Add(Header, userName);
         return client;
     }

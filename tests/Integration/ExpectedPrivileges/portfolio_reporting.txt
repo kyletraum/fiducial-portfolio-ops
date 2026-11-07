@@ -1,8 +1,12 @@
 # slice-04.md step 1a: everything portfolio_reporting can do, as effective privileges
 # (CatalogSnapshot).
 
-# Who it is: a login, nothing more. Owns nothing, belongs to no role, no settings.
+# Who it is: a login, nothing more. Owns nothing, belongs to no role.
 attribute super=f createrole=f createdb=f login=t replication=f bypassrls=f inherit=t
+
+# Its role defaults (step 3, DBS-2): the three timeouts at twice the deadline, a backstop a statement
+# can lift; temp_file_limit, which only a superuser can, so it holds.
+setting * statement_timeout=20000,transaction_timeout=20000,idle_in_transaction_session_timeout=20000,temp_file_limit=256MB
 server max_prepared_transactions=0
 
 # Where it connects: the app's database, by name. template0 takes no connections (datallowconn).

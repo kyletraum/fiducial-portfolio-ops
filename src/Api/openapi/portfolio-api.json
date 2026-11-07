@@ -796,6 +796,96 @@
           }
         }
       }
+    },
+    "/api/v1/reports/run": {
+      "post": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "RunReport",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportRunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/schema": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "GetReportSchema",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportSchemaResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1356,6 +1446,145 @@
           }
         }
       },
+      "ReportColumnResponse": {
+        "required": [
+          "name",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "description": "The PostgreSQL type, e.g. numeric or timestamp with time zone."
+          }
+        }
+      },
+      "ReportCutOff": {
+        "enum": [
+          "rows",
+          "bytes",
+          "deadline",
+          null
+        ]
+      },
+      "ReportRunResponse": {
+        "required": [
+          "columns",
+          "rows",
+          "cutOff",
+          "cutOffBy"
+        ],
+        "type": "object",
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportColumnResponse"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array"
+            },
+            "description": "One array per row, in column order. numeric, bigint and money are strings, so every digit is kept; timestamp with time zone is UTC, ISO 8601."
+          },
+          "cutOff": {
+            "type": "boolean",
+            "description": "True when the result is not all there: see cutOffBy."
+          },
+          "cutOffBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What cut it off: the row cap, the byte cap, or the deadline. Null when nothing did.",
+                "$ref": "#/components/schemas/ReportCutOff"
+              }
+            ]
+          }
+        }
+      },
+      "ReportSchemaResponse": {
+        "required": [
+          "views"
+        ],
+        "type": "object",
+        "properties": {
+          "views": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportViewResponse"
+            }
+          }
+        }
+      },
+      "ReportViewColumnResponse": {
+        "required": [
+          "name",
+          "type",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The column's COMMENT, read live from the database."
+          }
+        }
+      },
+      "ReportViewResponse": {
+        "required": [
+          "name",
+          "description",
+          "columns"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The view, in the reporting schema: reporting.<name>."
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The view's COMMENT, read live from the database."
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportViewColumnResponse"
+            }
+          }
+        }
+      },
+      "RunReportRequest": {
+        "required": [
+          "sql"
+        ],
+        "type": "object",
+        "properties": {
+          "sql": {
+            "type": "string",
+            "description": "One SQL statement, over the views of the reporting schema. Run read-only, then rolled back."
+          }
+        }
+      },
       "SessionResponse": {
         "required": [
           "userName"
@@ -1422,6 +1651,9 @@
     },
     {
       "name": "Authentication"
+    },
+    {
+      "name": "Reports"
     }
   ]
 }

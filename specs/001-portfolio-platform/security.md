@@ -18,7 +18,7 @@
 >
 > - **Corrected by slice 03, 2026-10-24.** The "API", "Frontend", "Audit" and "Credentials → Rules" sections, and the "Out of scope" line under "Threat model", were commissioned by `slice-03.md` and corrected from `../review/slice-03-committee.md`. Each correction is marked *(slice 03)* where it stands.
 >
-> - **Corrected by slice 04, 2026-11-06.** "Database", its first three bullets: the two logins as built, and the `PUBLIC` defaults of `:109` above revoked by name (`slice-04.md`). The remedy `:112` gives above is not enough either: `CommandTimeout` re-arms on every read (`SRC-2`, `EXECUTED`), so slice 04 step 3 bounds a run by one wall-clock deadline and a cancel. The timeout and row-cap bullet stays as planned until step 3 is built.
+> - **Corrected by slice 04, 2026-11-06.** "Database", its first three bullets: the two logins as built, and the `PUBLIC` defaults of `:109` above revoked by name (`slice-04.md`). The remedy `:112` gives above is not enough either: `CommandTimeout` re-arms on every read (`SRC-2`, `EXECUTED`), so slice 04 step 3 bounds a run by one wall-clock deadline and a cancel. Step 3 built it, and the timeout and row-cap bullet is rewritten to what holds.
 >
 > Anything *not* listed above is **unreviewed, not verified**. Where a claim
 > about an external system carries a strength marker (`EXECUTED`,
@@ -136,16 +136,32 @@ laptop is the primary self-hosted threat, this is the control that matters most.
   privilege refuses `ALTER ROLE` on oneself, and `PUBLIC`'s defaults let a fresh
   role write large objects and WAL messages. The boundary is the grants, the
   targeted revokes from `PUBLIC`, a read-only transaction the app opens, one
-  statement per run refused by the server, and a fresh session (the last three are
-  the runner's, slice 04 step 3). Every view is `security_barrier`. Each refusal
-  is tested by its SQLSTATE, so a test cannot pass on a misspelt name
-  (`ReportingSchemaTests`). Query parsing is still not used: it can be fooled by
+  statement per run refused by the server, a fresh session, and a `ROLLBACK` at the
+  end of every run (the last four are the runner's, `ReportRunner`, slice 04 step
+  3). The runner takes a snapshot before the user's text, so the statement cannot
+  switch the transaction to read-write. `NOTIFY` is allowed in a read-only
+  transaction, and is never delivered because the run is rolled back. Every view
+  is `security_barrier`. Each refusal is tested by its SQLSTATE, through the
+  endpoint, so a test cannot pass on a misspelt name (`ReportingSchemaTests`,
+  `ReportApiTests`). Query parsing is still not used: it can be fooled by
   comments, nesting and dialect quirks.
 - **Not refused, accepted** (`S4-1`, `S4-4`, `S4-9`): exhausting memory (one query
   can crash-restart PostgreSQL); seeing names, view definitions, role settings and
   row counts in the catalog; holding locks for the length of a run. Revisited
   before the first real balance.
-- Statement timeout and row cap on the reporting connection (FR-6.3).
+- **Every run is bounded from outside the query** (FR-6.3; slice 04 step 3):
+  - one wall-clock deadline, ended by a cancel the server obeys (10 s), with
+    `statement_timeout` a second later as a backstop that the statement cannot
+    disarm;
+  - row and byte caps counted on the client as cells are read (10,000 rows,
+    8 MB), and the query cancelled before the reader is disposed;
+  - `temp_file_limit` (256 MB) as a role default, which only a superuser can lift;
+  - one run at a time, a second answering `429`.
+
+  The values come from configuration, section `Reporting`. The SQL text is never
+  logged or traced: the reporting data source emits no spans, since Npgsql's
+  would carry it. A refusal answers PostgreSQL's SQLSTATE and message text only.
+  A failure to connect answers a fixed `503`, which names no host, port or user.
 - Saved-report parameters are **bound**, never interpolated (FR-6.4).
 - The database port is **not published to the host** by default. Reaching it
   requires attaching to the container network deliberately.

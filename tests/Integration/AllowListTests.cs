@@ -80,6 +80,7 @@ public class AllowListTests
         ["RecordBalance"] = ("application/json", """{"asOfDate":"2026-01-01","balance":"1"}"""),
         ["BindSource"] = ("application/json", """{"sourceSystem":"import:csv","sourceId":"x"}"""),
         ["ImportFile"] = ("text/csv", "account,as_of_date,balance\n"),
+        ["RunReport"] = ("application/json", """{"sql":"SELECT 1"}"""),
         ["SignOut"] = ("application/json", "{}"),
         ["BeginEnrolment"] = ("application/json", """{"setupCode":"x","userName":"x"}"""),
         ["CompleteEnrolment"] = ("application/json", """{"setupCode":"x","credential":{}}"""),
