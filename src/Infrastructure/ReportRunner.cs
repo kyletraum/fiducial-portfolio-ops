@@ -35,6 +35,9 @@ public abstract record ReportOutcome
     /// <summary>A column of a type the runner has no reader for (an enum, <c>regclass</c>, …).</summary>
     public sealed record UnreadableColumn(string Column, string Type) : ReportOutcome;
 
+    /// <summary>A save whose statement uses a different number of <c>$n</c> parameters than it declares (SRC-4).</summary>
+    public sealed record ParameterMismatch(int Used, int Declared) : ReportOutcome;
+
     /// <summary>Another run holds the one slot (S4-6).</summary>
     public sealed record Busy : ReportOutcome;
 
@@ -112,13 +115,16 @@ public sealed class ReportRunner(IServiceProvider services, IOptions<ReportingLi
     public static string Begin(ReportingLimits limits) =>
         $"BEGIN TRANSACTION READ ONLY; SET LOCAL statement_timeout = {(long)limits.StatementTimeout.TotalMilliseconds}; SELECT 1";
 
-    public async Task<ReportOutcome> RunAsync(string sql, CancellationToken requestAborted)
+    public Task<ReportOutcome> RunAsync(string sql, CancellationToken requestAborted) => RunAsync(sql, [], requestAborted);
+
+    /// <summary>A run with positional parameters, already checked against their types (<see cref="ReportParameters"/>).</summary>
+    public async Task<ReportOutcome> RunAsync(string sql, IReadOnlyList<NpgsqlParameter> parameters, CancellationToken requestAborted)
     {
         if (!slot.Wait(0))
             return new ReportOutcome.Busy();
         try
         {
-            return await RunInSlotAsync(sql, requestAborted);
+            return await RunInSlotAsync(sql, parameters, requestAborted);
         }
         finally
         {
@@ -126,7 +132,7 @@ public sealed class ReportRunner(IServiceProvider services, IOptions<ReportingLi
         }
     }
 
-    async Task<ReportOutcome> RunInSlotAsync(string sql, CancellationToken requestAborted)
+    async Task<ReportOutcome> RunInSlotAsync(string sql, IReadOnlyList<NpgsqlParameter> parameters, CancellationToken requestAborted)
     {
         var limits = options.Value;
         var clock = Stopwatch.StartNew();
@@ -140,6 +146,7 @@ public sealed class ReportRunner(IServiceProvider services, IOptions<ReportingLi
         ReportCutOff? cutOff = null;
         var pid = 0;
         var outcome = "failed";
+        string? endedBy = null; // which deadline: the log says, so a test can tell the client's cancel from the server's backstop
 
         if (DataSource() is not { } reporting)
             return new ReportOutcome.Unavailable();
@@ -163,7 +170,7 @@ public sealed class ReportRunner(IServiceProvider services, IOptions<ReportingLi
             await using (var begin = new NpgsqlCommand(Begin(limits), connection))
                 await begin.ExecuteNonQueryAsync(token);
 
-            await using var batch = new NpgsqlBatch(connection) { BatchCommands = { new NpgsqlBatchCommand(sql) } };
+            await using var batch = new NpgsqlBatch(connection) { BatchCommands = { Command(sql, parameters) } };
             NpgsqlDataReader? reader = null;
             try
             {
@@ -215,10 +222,12 @@ public sealed class ReportRunner(IServiceProvider services, IOptions<ReportingLi
             catch (OperationCanceledException) when (DeadlinePassed())
             {
                 cutOff = ReportCutOff.Deadline; // Npgsql cancelled on the server as the token fired
+                endedBy = "the client's deadline";
             }
             catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.QueryCanceled)
             {
                 cutOff = ReportCutOff.Deadline; // the server's statement_timeout, or a statement that cancelled itself
+                endedBy = DeadlinePassed() ? "the client's deadline" : "the server's statement_timeout";
             }
             catch (InvalidCastException e)
             {
@@ -249,7 +258,7 @@ public sealed class ReportRunner(IServiceProvider services, IOptions<ReportingLi
                 }
             }
 
-            outcome = cutOff is { } c ? "cut off by " + c : "completed";
+            outcome = cutOff is { } c ? "cut off by " + (endedBy ?? c.ToString()) : "completed";
             return new ReportOutcome.Completed(columns, rows, cutOff);
         }
         catch (Exception e) when (e is NpgsqlException or TimeoutException || e is OperationCanceledException && DeadlinePassed())
@@ -279,9 +288,80 @@ public sealed class ReportRunner(IServiceProvider services, IOptions<ReportingLi
         }
     }
 
+    /// <summary>The user's text and its positional parameters, as the one command of a batch: no rewriting (SRC-4).</summary>
+    static NpgsqlBatchCommand Command(string sql, IReadOnlyList<NpgsqlParameter> parameters)
+    {
+        var command = new NpgsqlBatchCommand(sql);
+        foreach (var parameter in parameters)
+            command.Parameters.Add(parameter.Clone());
+        return command;
+    }
+
+    /// <summary>
+    /// A save's check (SRC-4), without running the statement and without parsing it here: PostgreSQL
+    /// parses and describes it (<see cref="CommandBehavior.SchemaOnly"/>, Parse and Describe, no
+    /// Execute) on the reporting login, inside the same read-only transaction, with the declared
+    /// parameter types. That refuses a second statement, a syntax error, an unknown name, a
+    /// <c>$n</c> beyond the declared parameters, and a column the reader cannot return. Privileges are
+    /// checked when a statement executes, not when it is described, so a report over a table the login
+    /// cannot read is saved, and refused when run. Takes no slot.
+    /// </summary>
+    public async Task<ReportOutcome> DescribeAsync(string sql, IReadOnlyList<NpgsqlParameter> declared, CancellationToken ct)
+    {
+        if (DataSource() is not { } reporting)
+            return new ReportOutcome.Unavailable();
+        var limits = options.Value;
+        try
+        {
+            await using var connection = await reporting.OpenConnectionAsync(ct);
+            await using (var begin = new NpgsqlCommand(Begin(limits), connection))
+                await begin.ExecuteNonQueryAsync(ct);
+            await using var batch = new NpgsqlBatch(connection) { BatchCommands = { Command(sql, declared) } };
+            var columns = new List<ReportColumn>();
+            try
+            {
+                await using var reader = await batch.ExecuteReaderAsync(CommandBehavior.SchemaOnly, ct);
+                for (var i = 0; i < reader.FieldCount; i++)
+                {
+                    var column = new ReportColumn(reader.GetName(i), reader.GetDataTypeName(i));
+                    if (!ReportCells.CanRead(reader, i))
+                        return new ReportOutcome.UnreadableColumn(column.Name, column.Type);
+                    columns.Add(column);
+                }
+            }
+            catch (PostgresException e) when (!IsConnectionFailure(e.SqlState))
+            {
+                return new ReportOutcome.Refused(e.SqlState, e.MessageText);
+            }
+
+            // Described with the declared types, PostgreSQL infers a type for a $n beyond them rather
+            // than refusing it, and a run would then fail to bind (08P01). So the statement is also
+            // prepared on the server, which counts its parameters itself: a $n beyond the declared
+            // shows as an inferred extra type in pg_prepared_statements, this session's own. Npgsql's
+            // DeriveParameters cannot do this: it refuses positional $n (EXECUTED). A declared
+            // parameter the statement never uses cannot be seen this way, and is harmless: its value is
+            // bound and ignored.
+            await using (var prepared = new NpgsqlBatch(connection) { BatchCommands = { Command(sql, declared) } })
+                await prepared.PrepareAsync(ct);
+            await using (var count = new NpgsqlCommand("SELECT coalesce(max(cardinality(parameter_types)), 0) FROM pg_prepared_statements", connection))
+            {
+                var used = Convert.ToInt32(await count.ExecuteScalarAsync(ct));
+                if (used > declared.Count)
+                    return new ReportOutcome.ParameterMismatch(used, declared.Count);
+            }
+            return new ReportOutcome.Completed(columns, [], null);
+        }
+        catch (Exception e) when (e is NpgsqlException or TimeoutException)
+        {
+            log.LogWarning("Report could not be described: {Error} {SqlState}", e.GetType().Name, (e as PostgresException)?.SqlState);
+            return new ReportOutcome.Unavailable();
+        }
+    }
+
     /// <summary>08xxx (connection) and 57Pxx (the server shutting down or crash-restarting): not the statement's fault.</summary>
     static bool IsConnectionFailure(string sqlState) =>
-        sqlState.StartsWith("08", StringComparison.Ordinal) || sqlState.StartsWith("57P", StringComparison.Ordinal);
+        sqlState != PostgresErrorCodes.ProtocolViolation // 08P01: a bind that does not fit the statement, not a lost connection
+        && (sqlState.StartsWith("08", StringComparison.Ordinal) || sqlState.StartsWith("57P", StringComparison.Ordinal));
 
     /// <summary>
     /// The schema documentation (FR-6.6): the views of <c>reporting</c> the login can read, with every

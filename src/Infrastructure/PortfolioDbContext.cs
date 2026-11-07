@@ -24,6 +24,7 @@ public class PortfolioDbContext(DbContextOptions<PortfolioDbContext> options) : 
     public DbSet<IngestRun> IngestRuns => Set<IngestRun>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     public DbSet<UsedSetupCode> UsedSetupCodes => Set<UsedSetupCode>();
+    public DbSet<SavedReport> SavedReports => Set<SavedReport>();
 
     /// <summary>
     /// Identity's schema version, which carries the passkey table. Identity's model building

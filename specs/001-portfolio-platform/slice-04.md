@@ -637,6 +637,60 @@ Each step merges green, as slices 01–03 did.
    positional parameters. The binding probe uses values **the grant allows**, so only the
    binding can explain the result (`TST-9`): an echo report returns a hostile value byte
    for byte, and `nobody' OR 'a'='a` matches nothing.
+
+   > **BUILT 2026-11-07.**
+   > - **Migration 7, `SavedReports`:** `public.saved_report`, holding `id`, `name` (unique),
+   >   `description`, `sql_text`, `parameters` (a `jsonb` array of `{name, type}`) and
+   >   `created_at`. There is no `updated_at` or `last_run_at`: the API login holds `SELECT, INSERT,
+   >   DELETE` and no `UPDATE`, as the matrix says. The reporting login holds nothing on it.
+   >   `ExpectedPrivileges/portfolio_api.txt` gains those three lines. The refusal step 2 owed,
+   >   `SELECT * FROM public.saved_report` (`42501`), joined the table: 41 rows.
+   > - **Routes:** create, list, get, delete, and run (`/api/v1/reports/saved…`). A run binds each
+   >   value to its declared type (`date`, `text`, `numeric`) as an unnamed `NpgsqlParameter` on
+   >   the one-command batch. Nothing is written into the SQL text. A value not of its type, a
+   >   missing parameter or an unknown one answers `400` before the database. Then the run is an ad
+   >   hoc run: the same runner, slot, bounds and responses.
+   > - **A save is checked by PostgreSQL on the reporting login, without being run** (`SRC-4`). It
+   >   is parsed and described with the declared types, in the same read-only transaction, so a
+   >   second statement, a syntax error, an unknown name and a column with no reader are refused
+   >   (`422`). Privileges are checked when a statement executes, not when it is described: a
+   >   report over `public.account` is saved, and its run is refused (`42501`).
+   > - **A `$n` beyond the declared parameters, found by running the tests.** Described with the
+   >   declared types, PostgreSQL inferred a type for an undeclared `$2`, and the report was saved.
+   >   Its run would then have failed to bind (`08P01`), which the runner classed as a lost
+   >   connection (`503`). Now the save also prepares the statement on the server, and reads its
+   >   parameter count from `pg_prepared_statements`; a count over the declared is refused. Npgsql's
+   >   `DeriveParameters` could not do it: it refuses positional `$n` as a mismatch with its own
+   >   parser [`EXECUTED`]. A gap PostgreSQL cannot type (`SELECT $3` with one declared) is refused
+   >   by the describe itself (`42P18`). A declared parameter the statement never uses is saved: it
+   >   is bound and ignored, and preparing cannot see it. `08P01` is no longer a connection failure.
+   > - **`SavedReportTests`** (26):
+   >   - the echo report returns `x'); SELECT 1; -- @y $1 \' " :z` byte for byte, and a null as
+   >     null;
+   >   - the effect report counts 0 for `nobody' OR 'a'='a`, 1 for a real name, over a seed where
+   >     everything counts 2;
+   >   - `@name` and `:name` in a literal and a comment are left alone;
+   >   - dates and numbers are bound as their types;
+   >   - seven wrong values answer `400`, and the runner never logs a start;
+   >   - the save-time refusals, by SQLSTATE and by title;
+   >   - saving runs nothing (a save of `pg_sleep(5)` returns at once);
+   >   - create, list, get, a duplicate name (`409`), delete;
+   >   - a saved run gets `429` while an ad hoc run holds the slot.
+   >
+   >   `SecretsStayOutTests` gained a saved report with the canary in its stored SQL and in a
+   >   bound value, and the `22P02` producer step 3 owed.
+   > - **One of step 3's tests was flaky, and is fixed.** The producer table told the client's
+   >   deadline from the server's `statement_timeout` by elapsed time, within 0.8 s. A CPU-bound
+   >   query's cancel took 0.81 s once. The runner now logs which deadline ended a run, and the test
+   >   asserts that line, with 3 s of slack. The step-3 mutation (no client deadline) still turns
+   >   both rows red.
+   > - **Seen failing** [`EXECUTED`], each a mutation, reverted:
+   >   - an interpolating runner: the echo, effect and typed tests red, the effect counting 2;
+   >   - no numeric check: three of the `400` rows red;
+   >   - no parameter count at save: the `$1, $2` row red, saved;
+   >   - no client deadline: both time-out producers red, on the new log line.
+   > - **Docs:** `data-model.md` "`saved_report`" as built; `security.md` "Database" (the binding
+   >   and the save-time check).
 6. **Step 5 — the page.** axe in light and dark in named states (empty, results, cut off,
    refused, timed out, saved list, schema), and the keyboard path asserted (`TST-11`).
 7. **Step 6 — the published stack** (`C4-14`).

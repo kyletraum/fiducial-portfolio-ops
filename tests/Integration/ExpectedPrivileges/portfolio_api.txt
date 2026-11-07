@@ -56,6 +56,9 @@ relation public.ingest_run INSERT
 relation public.ingest_run SELECT
 relation public.institution INSERT
 relation public.institution SELECT
+relation public.saved_report DELETE
+relation public.saved_report INSERT
+relation public.saved_report SELECT
 relation public.used_setup_code INSERT
 relation public.used_setup_code SELECT
 relation public.v_net_worth_daily SELECT

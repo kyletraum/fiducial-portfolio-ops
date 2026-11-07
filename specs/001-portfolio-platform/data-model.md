@@ -259,14 +259,19 @@ missing" is frequently the most useful answer the system can give.
 `is_stale` is recomputed when any hashed input changes. Prior runs are never
 rewritten (Constitution VI).
 
-### `app.saved_report`
+### `saved_report`
 
-`id`, `name`, `description`, `sql_text`, `parameters` (`jsonb` - declared
-parameters with types and defaults), `created_at`, `updated_at`, `last_run_at`.
+*As built by slice 04 step 4 (migration 7), in `public`.* `id`, `name` (unique),
+`description`, `sql_text`, `parameters` (`jsonb`: an ordered array of
+`{name, type}`, the type one of `date`, `text`, `numeric`), `created_at`. The
+plan's defaults, `updated_at` and `last_run_at` are not built: a report is never
+edited (delete and recreate), and the API login holds no `UPDATE` on it.
 
 `sql_text` is stored verbatim and executed **only** on the restricted
-reporting connection. Parameters are bound at execution; never interpolated
-(FR-6.4).
+reporting connection, its parameters written `$1 … $n` in declared order and
+bound positionally at execution, never interpolated (FR-6.4). A save is
+described and prepared by PostgreSQL on that connection first, so a statement
+it cannot parse, or one using a `$n` beyond those declared, is never saved.
 
 ---
 

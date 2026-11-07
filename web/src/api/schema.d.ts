@@ -276,6 +276,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/saved": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListSavedReports"];
+        put?: never;
+        post: operations["CreateSavedReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/saved/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetSavedReport"];
+        put?: never;
+        post?: never;
+        delete: operations["DeleteSavedReport"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/saved/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["RunSavedReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -354,6 +402,13 @@ export interface components {
             displayName: string;
             /** Format: date */
             openedOn: string;
+        };
+        CreateSavedReportRequest: {
+            name: string;
+            description: null | string;
+            /** @description One SQL statement. The parameters are written $1, $2, … in the order declared, and bound, never written into the text. */
+            sql: string;
+            parameters: null | components["schemas"]["SavedReportParameter"][];
         };
         CsrfTokenResponse: {
             /** @description Send it as the X-CSRF-TOKEN header on every unsafe request. Bound to the signed-in user: fetch a new one after every sign-in. */
@@ -458,6 +513,8 @@ export interface components {
         };
         /** @enum {unknown} */
         ReportCutOff: "rows" | "bytes" | "deadline" | null;
+        /** @enum {unknown} */
+        ReportParameterType: "date" | "text" | "numeric";
         ReportRunResponse: {
             columns: components["schemas"]["ReportColumnResponse"][];
             /** @description One array per row, in column order. numeric, bigint and money are strings, so every digit is kept; timestamp with time zone is UTC, ISO 8601. */
@@ -485,6 +542,27 @@ export interface components {
         RunReportRequest: {
             /** @description One SQL statement, over the views of the reporting schema. Run read-only, then rolled back. */
             sql: string;
+        };
+        RunSavedReportRequest: {
+            /** @description A value per declared parameter, by name, as a string: a date as yyyy-MM-dd, a number with an optional sign and decimal point. Null binds SQL NULL. */
+            parameters: null | {
+                [key: string]: string;
+            };
+        };
+        SavedReportParameter: {
+            /** @description Lower case letters, digits and underscores, starting with a letter. The page labels its input with it. */
+            name: string;
+            type: components["schemas"]["ReportParameterType"];
+        };
+        SavedReportResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: null | string;
+            sql: string;
+            parameters: components["schemas"]["SavedReportParameter"][];
+            /** Format: date-time */
+            createdAt: string;
         };
         SessionResponse: {
             userName: string;
@@ -1241,6 +1319,202 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReportSchemaResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListSavedReports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedReportResponse"][];
+                };
+            };
+        };
+    };
+    CreateSavedReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSavedReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedReportResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetSavedReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedReportResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DeleteSavedReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RunSavedReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunSavedReportRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportRunResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Service Unavailable */

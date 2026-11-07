@@ -588,6 +588,54 @@ namespace Portfolio.Infrastructure.Migrations
                     b.ToTable("institution", (string)null);
                 });
 
+            modelBuilder.Entity("Portfolio.Domain.SavedReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Parameters")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("parameters");
+
+                    b.Property<string>("SqlText")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("sql_text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_saved_report");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_saved_report_name");
+
+                    b.ToTable("saved_report", null, t =>
+                        {
+                            t.HasCheckConstraint("saved_report_name_present", "length(btrim(name)) BETWEEN 1 AND 200");
+
+                            t.HasCheckConstraint("saved_report_parameters_array", "jsonb_typeof(parameters) = 'array'");
+                        });
+                });
+
             modelBuilder.Entity("Portfolio.Domain.UsedSetupCode", b =>
                 {
                     b.Property<string>("Sha256")
