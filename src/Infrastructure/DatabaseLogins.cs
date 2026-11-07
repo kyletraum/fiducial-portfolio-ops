@@ -109,6 +109,8 @@ public static class DatabaseLogins
             REVOKE ALL ON ALL TABLES IN SCHEMA public FROM {both};
             REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM {both};
             REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM {both};
+            REVOKE ALL ON ALL TABLES IN SCHEMA reporting FROM {both};
+            REVOKE ALL ON SCHEMA reporting FROM {both};
             """, ct);
 
         // CONNECT on the app's database granted by name, never left to PUBLIC (R2-TST-2); every
@@ -138,6 +140,15 @@ public static class DatabaseLogins
 
         foreach (var grant in ApiGrants)
             await ExecuteAsync(superuser, $"GRANT {grant} TO {Api}", ct);
+
+        // The reporting login's whole grant (slice-04.md step 2): the schema and its views, which
+        // read with their owner's rights, so nothing beneath them is granted (Spike L 4). Every
+        // relation there, so a view a later migration adds is granted in the same run; the catalog
+        // test refuses one without security_barrier.
+        await ExecuteAsync(superuser, $"""
+            GRANT USAGE ON SCHEMA reporting TO {Reporting};
+            GRANT SELECT ON ALL TABLES IN SCHEMA reporting TO {Reporting};
+            """, ct);
     }
 
     /// <summary>

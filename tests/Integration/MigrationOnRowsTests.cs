@@ -56,3 +56,53 @@ public class MigrationOnRowsTests(Migration3Fixture pg) : IClassFixture<Migratio
         Assert.Equal(2L, await pg.ScalarAsync<long>("SELECT count(*) FROM account_balance"));
     }
 }
+
+/// <summary>Stops at migration 5, the last before <c>reporting</c> (slice-04.md step 2).</summary>
+public sealed class Migration5Fixture : PostgresFixture
+{
+    public const string Migration5 = "20261024160637_AuthAndAudit";
+
+    public override async ValueTask InitializeAsync()
+    {
+        await StartAsync();
+        await using var db = CreateSuperuserContext();
+        await db.GetService<IMigrator>().MigrateAsync(Migration5);
+    }
+
+    /// <summary>The Migrator's order: migrate, then the logins routine (R2-TST-12).</summary>
+    public async Task UpAsync()
+    {
+        await using (var db = CreateSuperuserContext())
+            await db.GetService<IMigrator>().MigrateAsync(null);
+        await EnsureLoginsAsync();
+    }
+}
+
+public class ReportingMigrationTests(Migration5Fixture pg) : IClassFixture<Migration5Fixture>
+{
+    async Task AssertReportingSnapshotAsync()
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(pg.SuperuserConnectionString);
+        await connection.OpenAsync();
+        var actual = await CatalogSnapshot.TakeAsync(connection, Portfolio.Infrastructure.DatabaseLogins.Reporting);
+        var expected = CatalogSnapshot.Expected(Portfolio.Infrastructure.DatabaseLogins.Reporting);
+        Assert.True(expected.SequenceEqual(actual), CatalogSnapshot.Diff(expected, actual));
+    }
+
+    [Fact]
+    public async Task Migration_6_goes_up_down_and_up_with_the_logins_routine_after_each_up()
+    {
+        await pg.UpAsync();
+        Assert.Equal(4L, await pg.ScalarAsync<long>("SELECT count(*) FROM pg_class WHERE relnamespace = 'reporting'::regnamespace"));
+        await AssertReportingSnapshotAsync();
+
+        await using (var db = pg.CreateSuperuserContext())
+            await db.GetService<IMigrator>().MigrateAsync(Migration5Fixture.Migration5); // Down
+        Assert.Null(await pg.ScalarAsync<string>("SELECT to_regnamespace('reporting')::text"));
+        // The chart's view, which reporting.v_net_worth_daily passes through, is untouched by Down.
+        Assert.NotNull(await pg.ScalarAsync<string>("SELECT to_regclass('public.v_net_worth_daily')::text"));
+
+        await pg.UpAsync(); // and up again: the views back, and granted again in the same run
+        await AssertReportingSnapshotAsync();
+    }
+}

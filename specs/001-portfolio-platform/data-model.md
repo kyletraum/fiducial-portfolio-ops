@@ -15,6 +15,7 @@
 > - **`:280` — DIVERGES FROM THE LIVE SLICE.** `v_balance_daily` forbids gap-fill; `slice-01.md`'s `v_net_worth_daily` carries forward *within an active window*, under Constitution Amendment 3. Two views, two rules, deliberately.
 > - **Missing.** No `account_source` table, though the live slice builds one as migration 2.
 > - **`:119` — CUT.** `is_estimate` is struck: a second, semantically undefined channel for the weakness `source_strength` already carries.
+> - **Corrected by slice 04 (2026-11-06), the one place this file was edited.** The tables are in `public`, not `app`: every migration puts them there (`SOURCE@644efe2`). Read `app.x` below as `public.x`; the tables stay where they are. `The reporting schema` below is rewritten to the four views built (`slice-04.md` step 2). The other seven are not built.
 >
 > Anything *not* listed above is **unreviewed, not verified**. Where a claim
 > about an external system carries a strength marker (`EXECUTED`,
@@ -24,12 +25,12 @@
 
 PostgreSQL. Two schemas:
 
-- **`app`** - the physical model. Written by ingestion, read by the API.
-- **`reporting`** - views only. The sole surface user SQL and dashboards may
-  read (D5, FR-6.2).
+- **`public`** - the physical model. Written by the API and its import pipeline.
+  (Planned as `app`; corrected by slice 04, see the banner.)
+- **`reporting`** - views only. The sole surface user SQL may read (D5, FR-6.2).
 
-Nothing outside the ingestion pipeline writes to `app`. Nothing user-authored
-reaches `app` at all.
+Nothing user-authored reaches `public` at all: the reporting login holds no
+privilege there (`slice-04.md`).
 
 ---
 
@@ -271,29 +272,35 @@ reporting connection. Parameters are bound at execution; never interpolated
 
 ## The `reporting` schema
 
-Views only. A separate role holds `USAGE` on this schema and `SELECT` on these
-views, and nothing else anywhere (D5).
+Views only, created by migration 6 (`Reporting`, slice 04 step 2). The login
+`portfolio_reporting` holds `USAGE` on this schema and `SELECT` on these views, and
+no privilege on anything beneath them: a view reads with its owner's rights (D5,
+`slice-04.md`). Every view is `WITH (security_barrier)`, so a function in a report's
+`WHERE` cannot see a row the view excludes. Every view and column carries a
+`COMMENT`, which is the documentation the page shows (FR-6.6): the database's text,
+read live, not a copy. The column-by-column meanings are there, not here.
 
-| View | Contents |
+| View | Contents, as built |
 |---|---|
-| `v_account` | accounts with institution, type, tax treatment, open/closed, provenance |
-| `v_balance_daily` | balances by account and date, superseded rows excluded, **no gap-filling** (Constitution III) |
-| `v_net_worth_daily` | assets, liabilities and net worth by date, with a `has_conditional_money` flag |
-| `v_transaction` | transactions with account, category and merchant resolved |
-| `v_holding` | holdings with security detail and market value |
-| `v_allocation` | current allocation by asset class, with look-through where available |
-| `v_allocation_vs_policy` | allocation against policy targets and bands; gated rules marked unevaluable |
-| `v_cash_flow_monthly` | income, expense and transfer totals by month and category |
-| `v_pending_transfer` | unlanded transfers - the reason an aggregate is conditional |
-| `v_ingest_run` | sync history and outcomes |
-| `v_constant` | constants with their state (sourced, gated, assumption) |
+| `v_account` | accounts not deleted, open or closed, with institution, `is_closed` and the import formats each is linked under (not the identifiers) |
+| `v_balance_daily` | live balances: one row per account, day and source; superseded rows, soft-deleted rows and balances of deleted accounts excluded; **no gap-filling** (Constitution III) |
+| `v_net_worth_daily` | `public.v_net_worth_daily`, passed through column for column, so a report and the chart agree by construction (FR-5.5). It carries forward within the staleness window, as the chart does (Amendment 3); this is the one view that does |
+| `v_ingest_run` | every import, succeeded or failed, with its counts and a failed one's problems |
+
+Planned and **not built** (no data exists for them): `v_transaction`, `v_holding`,
+`v_allocation`, `v_allocation_vs_policy`, `v_cash_flow_monthly`,
+`v_pending_transfer`, `v_constant`. The `has_conditional_money` flag of the plan
+waits on `pending_transfer`.
 
 Rules for every view:
 
 1. Soft-deleted rows excluded.
 2. No forward-fill, no interpolation, no gap-filling. A series that stops, stops.
-3. Any aggregate that could include unlanded money carries a flag saying so.
-4. Column names and meanings are documented in the UI (FR-6.6) and are a
+   The exception is `v_net_worth_daily`, which is the chart's own rule, passed through.
+3. Any aggregate that could include unlanded money carries a flag saying so (none
+   can yet: there is no `pending_transfer`).
+4. `WITH (security_barrier)`, asserted by a catalog test over every view in the schema.
+5. Column names and meanings are documented in the database (`COMMENT`) and are a
    **stable contract** - physical tables may change beneath them; a view's
    column may not change meaning without a version.
 
