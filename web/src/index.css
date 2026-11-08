@@ -127,7 +127,7 @@ form {
 }
 .field { margin-bottom: 0.75rem; }
 .field label { display: block; font-weight: 500; margin-bottom: 0.2rem; }
-input, select, button {
+input, select, textarea, button {
   font: inherit;
   color: var(--text);
   background: var(--bg);
@@ -135,7 +135,7 @@ input, select, button {
   border-radius: 4px;
   padding: 0.4rem 0.5rem;
 }
-input, select { width: 100%; }
+input, select, textarea { width: 100%; }
 input[type='radio'] { width: auto; margin-right: 0.3rem; }
 input[aria-invalid='true'] { border-color: var(--error); border-width: 2px; }
 button { cursor: pointer; font-weight: 600; }
@@ -178,3 +178,18 @@ button[aria-disabled='true'] { cursor: progress; color: var(--muted); border-col
   margin: -1px; padding: 0; border: 0;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
+
+/* slice 04: reports. */
+textarea { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; resize: vertical; }
+.report-result, .report-problem { margin-top: 0.75rem; }
+.report-cut-off { font-weight: 600; }
+.report-null { color: var(--muted); font-style: italic; }
+.report-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.75rem 0 0; }
+.report-block { margin-top: 1.5rem; }
+.report-saved { margin-top: 0.75rem; }
+.report-parameter { border: 1px solid var(--border); border-radius: 4px; margin: 0 0 0.75rem; }
+.report-sql { overflow-x: auto; margin: 0.5rem 0; }
+.report-view { margin-top: 1rem; }
+.report-view dl { margin: 0; }
+.report-view dd { margin: 0 0 0.5rem 1rem; }
+h4 { font-size: 1rem; margin: 0 0 0.35rem; }

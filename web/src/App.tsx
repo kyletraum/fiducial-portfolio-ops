@@ -5,6 +5,7 @@ import { AccountBar } from './components/Auth';
 import { ImportsSection } from './components/Imports';
 import { NetWorthChart } from './components/NetWorthChart';
 import { NetWorthTable } from './components/NetWorthTable';
+import { ReportsSection } from './components/Reports';
 import { SectionBoundary } from './components/SectionBoundary';
 import { addDays, localToday } from './money';
 
@@ -69,6 +70,7 @@ export default function App() {
         <SectionBoundary title="Net worth"><NetWorthSection /></SectionBoundary>
         <SectionBoundary title="Accounts"><AccountsSection /></SectionBoundary>
         <SectionBoundary title="Imports"><ImportsSection /></SectionBoundary>
+        <SectionBoundary title="Reports"><ReportsSection /></SectionBoundary>
       </main>
       <footer>
         <p role="status" data-testid="api-health">
