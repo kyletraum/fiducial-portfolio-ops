@@ -27,7 +27,7 @@ public class NoCredentialInResponsesTests
 
         // Not vacuous: the authentication and report operations (slice 04, R2-TST-11) are in the document, and the scan saw a real
         // number of properties (an untyped response contributes none).
-        Assert.Superset(new HashSet<string> { "GetSession", "GetCsrfToken", "CompleteSignIn", "CompleteEnrolment", "GetAuthState", "RunReport", "GetReportSchema" }, operations);
+        Assert.Superset(new HashSet<string> { "GetSession", "GetCsrfToken", "CompleteSignIn", "CompleteEnrolment", "GetAuthState", "RunReport", "GetReportSchema", "ListSavedReports", "RunSavedReport" }, operations);
         Assert.True(properties.Count >= 30, $"only {properties.Count} response properties scanned");
 
         var flagged = Flagged(properties).ToList();

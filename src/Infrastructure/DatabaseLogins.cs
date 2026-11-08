@@ -42,6 +42,9 @@ public static class DatabaseLogins
         "SELECT, INSERT, UPDATE, DELETE ON identity_user",
         "SELECT, INSERT, UPDATE ON identity_user_passkey",
         "SELECT ON identity_user_claim, identity_user_login, identity_user_token, app_setting, v_net_worth_daily",
+        // Step 4: saved reports are created, listed and deleted, never edited (S4-7). The reporting
+        // login holds nothing on it: a report cannot read the reports.
+        "SELECT, INSERT, DELETE ON saved_report",
     ];
 
     public static Task EnsureAsync(NpgsqlConnection superuser, string apiPassword, string reportingPassword, CancellationToken ct = default) =>

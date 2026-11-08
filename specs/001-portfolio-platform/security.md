@@ -162,7 +162,13 @@ laptop is the primary self-hosted threat, this is the control that matters most.
   logged or traced: the reporting data source emits no spans, since Npgsql's
   would carry it. A refusal answers PostgreSQL's SQLSTATE and message text only.
   A failure to connect answers a fixed `503`, which names no host, port or user.
-- Saved-report parameters are **bound**, never interpolated (FR-6.4).
+- Saved-report parameters are **bound**, never interpolated (FR-6.4; slice 04
+  step 4): positional `$n`, each value checked against its declared type before
+  the database (`400`), and bound as a typed parameter on the one-command batch,
+  so Npgsql rewrites nothing. Tested with values the grant allows: a hostile echo
+  returns byte for byte, and `nobody' OR 'a'='a` matches nothing
+  (`SavedReportTests`). A save is described and prepared by PostgreSQL on the
+  reporting login without being run.
 - The database port is **not published to the host** by default. Reaching it
   requires attaching to the container network deliberately.
 - TLS for connections in transit; required in cloud, available locally.

@@ -24,6 +24,7 @@ static class ReportEndpoints
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
         reports.MapGet("/schema", Schema).WithName("GetReportSchema")
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+        reports.MapSavedReportApi();
     }
 
     /// <summary>
@@ -36,24 +37,32 @@ static class ReportEndpoints
         if (string.IsNullOrWhiteSpace(request.Sql) || request.Sql.Length > MaxSqlLength)
             return Endpoints.Unprocessable(new() { ["sql"] = [$"Required, at most {MaxSqlLength} characters."] });
 
-        return await runner.RunAsync(request.Sql, ct) switch
+        var outcome = await runner.RunAsync(request.Sql, ct);
+        return outcome is ReportOutcome.Completed completed ? TypedResults.Ok(ToResponse(completed)) : Problem(outcome);
+    }
+
+    public static ReportRunResponse ToResponse(ReportOutcome.Completed r) => new(
+        r.Columns.Select(c => new ReportColumnResponse(c.Name, c.Type)).ToList(), r.Rows, r.CutOff is not null, r.CutOff);
+
+    /// <summary>The problem for every outcome but a completed run; shared by ad hoc runs, saved runs and saves.</summary>
+    public static ProblemHttpResult Problem(ReportOutcome outcome) =>
+        outcome switch
         {
-            ReportOutcome.Completed r => TypedResults.Ok(new ReportRunResponse(
-                r.Columns.Select(c => new ReportColumnResponse(c.Name, c.Type)).ToList(),
-                r.Rows, r.CutOff is not null, r.CutOff)),
             ReportOutcome.Refused r => TypedResults.Problem(statusCode: Endpoints.Unprocessable422,
                 title: "The database refused the query.", detail: r.Message,
                 extensions: new Dictionary<string, object?> { ["sqlState"] = r.SqlState }),
             ReportOutcome.UnreadableColumn r => TypedResults.Problem(statusCode: Endpoints.Unprocessable422,
                 title: "A column has a type reports cannot return.",
                 detail: $"Column \"{r.Column}\" is {r.Type}. Cast it to text, for example \"{r.Column}\"::text."),
+            ReportOutcome.ParameterMismatch r => TypedResults.Problem(statusCode: Endpoints.Unprocessable422,
+                title: "The statement's parameters do not match those declared.",
+                detail: $"The statement uses parameters up to ${r.Used}, and {r.Declared} are declared. Declare one per $n, in order."),
             ReportOutcome.Busy => TypedResults.Problem(statusCode: StatusCodes.Status429TooManyRequests,
                 title: "A report is already running.",
                 detail: "One report runs at a time. Run this one when the other has finished."),
             ReportOutcome.Unavailable => Unavailable(),
-            _ => throw new InvalidOperationException("An outcome with no response."),
+            _ => throw new InvalidOperationException("An outcome with no problem."),
         };
-    }
 
     static async Task<Results<Ok<ReportSchemaResponse>, ProblemHttpResult>> Schema(ReportRunner runner, CancellationToken ct) =>
         await runner.SchemaAsync(ct) is { } views

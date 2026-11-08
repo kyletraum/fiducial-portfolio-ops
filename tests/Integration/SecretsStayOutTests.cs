@@ -179,6 +179,21 @@ public class SecretsStayOutTests(AuthFixture db) : IClassFixture<AuthFixture>
             foreach (var (sql, status) in runs)
                 Assert.Equal(status, (await client.PostAsJsonAsync("/api/v1/reports/run", new { sql }, Ct)).StatusCode);
             Assert.Equal(schema, (await client.GetAsync("/api/v1/reports/schema", Ct)).StatusCode);
+            if (schema == HttpStatusCode.OK)
+            {
+                // Step 4: a saved report carries the canary in its stored SQL and in a bound value,
+                // through EF's insert and the run.
+                var saved = await client.PostAsJsonAsync("/api/v1/reports/saved", new
+                {
+                    name = "Canary " + Guid.NewGuid().ToString("N"),
+                    sql = $"SELECT '{pasted}' AS stored, $1 AS bound",
+                    parameters = new[] { new { name = "value", type = "text" } },
+                }, Ct);
+                Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
+                var id = (await saved.Content.ReadFromJsonAsync<JsonObject>(Ct))!["id"]!.GetValue<string>();
+                Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync($"/api/v1/reports/saved/{id}/run",
+                    new { parameters = new { value = pasted } }, Ct)).StatusCode);
+            }
             allLogs.AddRange(logs.Entries);
             allSpans.AddRange(spans.Snapshot());
             await traced.DisposeAsync();
@@ -189,6 +204,7 @@ public class SecretsStayOutTests(AuthFixture db) : IClassFixture<AuthFixture>
             ($"SELECT '{pasted}' FROM public.account", HttpStatusCode.UnprocessableEntity),   // 42501
             ($"SELECT '{pasted}' AS pasted; SELECT 1", HttpStatusCode.UnprocessableEntity),   // 42601
             ($"SELECT '{pasted}', 1 / 0", HttpStatusCode.UnprocessableEntity),                // 22012
+            ($"SELECT '{pasted}', 'abc'::int", HttpStatusCode.UnprocessableEntity),           // 22P02
             ($"SELECT '{pasted}', pg_sleep(600)", HttpStatusCode.OK));                        // 57014: cut off by the deadline
         await DriveAsync(wrong.ConnectionString, HttpStatusCode.ServiceUnavailable, ("SELECT 1", HttpStatusCode.ServiceUnavailable));
         await DriveAsync(closed.ConnectionString, HttpStatusCode.ServiceUnavailable, ("SELECT 1", HttpStatusCode.ServiceUnavailable));
@@ -198,7 +214,7 @@ public class SecretsStayOutTests(AuthFixture db) : IClassFixture<AuthFixture>
         Assert.Contains(allLogs, e => e.Text.Contains("could not connect", StringComparison.Ordinal) && e.Text.Contains("28P01", StringComparison.Ordinal));
         Assert.Contains(allLogs, e => e.Text.Contains("could not connect", StringComparison.Ordinal) && !e.Text.Contains("28P01", StringComparison.Ordinal));
         Assert.NotEmpty(allSpans);
-        Assert.Equal(7, bodies.Count); // three refusals, two run failures and two schema failures
+        Assert.Equal(8, bodies.Count); // four refusals, two run failures and two schema failures
 
         // A problem passes MessageText and SqlState only: no connection string, host or user in any body.
         foreach (var fragment in new[] { "Host=", "Username=", "portfolio_reporting", "127.0.0.1", "localhost" })

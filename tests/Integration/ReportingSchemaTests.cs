@@ -313,6 +313,8 @@ public class ReportingSchemaTests(ReportingFixture pg) : IClassFixture<Reporting
         { "SELECT * FROM public.v_net_worth_daily", "42501" },
         { "SELECT * FROM public.v_date_spine", "42501" },
         { "SELECT * FROM public.audit_event", "42501" },
+        // Step 4: a report cannot read the reports (owed by step 2, while the table did not exist).
+        { "SELECT * FROM public.saved_report", "42501" },
         { "SELECT * FROM public.used_setup_code", "42501" },
         { "SELECT * FROM public.identity_user", "42501" },
         { "SELECT * FROM public.identity_user_passkey", "42501" },

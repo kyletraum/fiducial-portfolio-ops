@@ -447,8 +447,11 @@ public class ReportProducerTests(ProducerFixture pg) : IClassFixture<ProducerFix
             case "deadline":
                 Assert.True(seenActive, "the backend was never seen running");
                 Assert.Equal("deadline", body.GetProperty("cutOffBy").GetString());
-                // The client's deadline, not the server's statement_timeout a second later.
-                Assert.InRange(elapsed, Deadline, Deadline + TimeSpan.FromMilliseconds(800));
+                // The client's deadline, not the server's statement_timeout a second later. Elapsed time
+                // cannot tell them apart reliably (a CPU-bound query's cancel took 0.8 s once), so the
+                // runner's own line says which ended it.
+                Assert.InRange(elapsed, Deadline, Deadline + TimeSpan.FromSeconds(3));
+                Assert.Contains(logs.Entries, e => e.Text.Contains($"backend {pid} ended: cut off by the client's deadline", StringComparison.Ordinal));
                 break;
             case "rows":
                 Assert.Equal("rows", body.GetProperty("cutOffBy").GetString());

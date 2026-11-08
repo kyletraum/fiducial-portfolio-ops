@@ -195,3 +195,29 @@ public sealed record ReportViewColumnResponse(
     string Type,
     [property: Description("The column's COMMENT, read live from the database.")]
     string? Description);
+
+// Slice 04 step 4: saved reports. Created, listed, run and deleted; never edited (S4-7).
+
+public sealed record SavedReportParameter(
+    [property: Description("Lower case letters, digits and underscores, starting with a letter. The page labels its input with it.")]
+    string Name,
+    Portfolio.Infrastructure.ReportParameterType Type);
+
+public sealed record CreateSavedReportRequest(
+    string Name,
+    string? Description,
+    [property: Description("One SQL statement. The parameters are written $1, $2, … in the order declared, and bound, never written into the text.")]
+    string Sql,
+    IReadOnlyList<SavedReportParameter>? Parameters);
+
+public sealed record SavedReportResponse(
+    Guid Id,
+    string Name,
+    string? Description,
+    string Sql,
+    IReadOnlyList<SavedReportParameter> Parameters,
+    DateTimeOffset CreatedAt);
+
+public sealed record RunSavedReportRequest(
+    [property: Description("A value per declared parameter, by name, as a string: a date as yyyy-MM-dd, a number with an optional sign and decimal point. Null binds SQL NULL.")]
+    IReadOnlyDictionary<string, string?>? Parameters);
