@@ -693,6 +693,51 @@ Each step merges green, as slices 01–03 did.
    >   and the save-time check).
 6. **Step 5 — the page.** axe in light and dark in named states (empty, results, cut off,
    refused, timed out, saved list, schema), and the keyboard path asserted (`TST-11`).
+   > **BUILT 2026-11-08.**
+   > - **The page,** `web/src/components/Reports.tsx`, a fourth section behind its own error
+   >   boundary:
+   >   - a plain `<textarea>` and Run, with no new dependency, so the CSP is unchanged;
+   >   - a save form, with typed parameters added row by row;
+   >   - the views' documentation, read from the catalog each time it is opened;
+   >   - the saved list, each report with its typed inputs, its SQL, Run and Delete.
+   > - **How a run ends is one sentence,** in `role="status"`, or `role="alert"` for a refusal,
+   >   and it takes focus. A cut-off result names what cut it: "First 5 rows shown, result cut
+   >   off at the row limit." A deadline with nothing read says "Timed out before any rows came
+   >   back." A refusal shows PostgreSQL's message and its SQLSTATE, and the SQL stays in the box.
+   > - **Results** are a `<table>` with `<th scope="col">`, in a focusable scroll region. Values
+   >   are rendered as text; a `numeric` shows every digit as sent; a `null` reads as an italic
+   >   `null`; `timestamptz` is in the viewer's zone, to the second.
+   > - **Decided here:**
+   >   - a blank `date` or `numeric` input is sent as absent, so the API answers "Required."
+   >     against it. Blank never binds `NULL`, and the page does not offer `NULL` at all;
+   >   - Delete asks first, and focus goes to "Keep it";
+   >   - Run is `aria-disabled`, never `disabled`, while running: a disabled button drops focus.
+   > - **`ReportsPageTests`** (6 cases), against the whole app model:
+   >   - Tab leaves the editor with the text unchanged; Enter and Space run; focus lands on the
+   >     summary; the table's headers carry `scope`;
+   >   - a real `42501` in an alert that takes focus, with the SQL kept;
+   >   - **DoD 5:** a `COMMENT` changed as the superuser appears on the page when the
+   >     documentation is reopened;
+   >   - a report saved, refused for a blank date, run, kept, deleted, with focus asserted at each
+   >     step that removes an element;
+   >   - **DoD 6:** axe in light and dark, in each state: empty, results, one row, cut off by rows
+   >     and by size, timed out, refused, busy, the saved list with its inputs and SQL open, and
+   >     the documentation with a parameter row. The cut-off, timed-out, refused and busy states
+   >     are fulfilled from recorded bodies (`TST-11`); the rows and limits behind them are
+   >     step 3's tests.
+   > - **Found by running it:** "Keep it" focused the Delete button before React had rendered it
+   >   back, so keyboard focus fell to the page. `flushSync` commits first.
+   > - **Seen failing** [`EXECUTED`], each a mutation, reverted:
+   >   - a tab-to-indent handler: the keyboard test red;
+   >   - no focus on the outcome: four tests red;
+   >   - `scope` dropped: the keyboard test red;
+   >   - `.report-null` given a dark colour: axe red in Dark only, naming that cell;
+   >   - the row cut-off not stated: both axe-state runs red;
+   >   - the documentation cached (`staleTime: Infinity`): the comment test red;
+   >   - a blank date sent as a value: the saved-report test red.
+   > - **Not measured:** how the browser copes with a full 10,000-row table. There is no paging,
+   >   by the middle cut (`S4-7`), and no test renders that many rows.
+   > - **Runs:** Integration 332, Architecture 65, Unit 129 + 1 skipped, Contract 1, E2E 35 + 1 skipped (29 + 6), locally.
 7. **Step 6 — the published stack** (`C4-14`).
    - **In CI**, as far as it can go: the app-model test that the API's connection uses its
      own parameter and not the `postgres` password.

@@ -189,6 +189,23 @@ public class AppFixture : IAsyncLifetime
         return logins;
     }
 
+    /// <summary>Slice 04 step 5: arranging, as the superuser, what the page must then show (a changed COMMENT).</summary>
+    public async Task SuperuserExecuteAsync(string sql)
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(await app!.GetConnectionStringAsync("portfolio"));
+        await connection.OpenAsync();
+        await using var command = new Npgsql.NpgsqlCommand(sql, connection);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    public async Task<T> SuperuserScalarAsync<T>(string sql)
+    {
+        await using var connection = new Npgsql.NpgsqlConnection(await app!.GetConnectionStringAsync("portfolio"));
+        await connection.OpenAsync();
+        await using var command = new Npgsql.NpgsqlCommand(sql, connection);
+        return (T)(await command.ExecuteScalarAsync())!;
+    }
+
     /// <summary>
     /// "Healthy" is not "serving" for the web resource: it has no health check, so Aspire reports it
     /// healthy once the Vite process runs, before the dev server listens. A test that navigated in

@@ -14,15 +14,25 @@ export type Balance = components['schemas']['BalanceResponse'];
 export type Source = components['schemas']['SourceResponse'];
 export type BindSourceRequest = components['schemas']['BindSourceRequest'];
 export type ImportRun = components['schemas']['ImportRunResponse'];
+export type ReportRun = components['schemas']['ReportRunResponse'];
+export type SavedReport = components['schemas']['SavedReportResponse'];
+export type CreateSavedReport = components['schemas']['CreateSavedReportRequest'];
+export type ReportParameterType = components['schemas']['ReportParameterType'];
 
 /** A refused request, carrying the API's RFC 9457 field errors when it sent them. */
 export class ApiError extends Error {
   readonly status: number;
   readonly fields: Record<string, string[]>;
-  constructor(status: number, title: string, fields: Record<string, string[]> = {}) {
+  /** The problem's detail: for a refused report, PostgreSQL's own message. */
+  readonly detail?: string;
+  /** The SQLSTATE of a report the database refused (slice 04). */
+  readonly sqlState?: string;
+  constructor(status: number, title: string, fields: Record<string, string[]> = {}, detail?: string, sqlState?: string) {
     super(title);
     this.status = status;
     this.fields = fields;
+    this.detail = detail;
+    this.sqlState = sqlState;
   }
 }
 
@@ -31,8 +41,8 @@ function fail(response: Response, error: unknown): never {
   // and a refused write keeps its input and says why. It is never replayed.
   if (response.status === 401)
     throw new ApiError(401, 'You were signed out before this was saved. Sign in, then send it again.');
-  const problem = (error ?? {}) as { title?: string; errors?: Record<string, string[]> };
-  throw new ApiError(response.status, problem.title ?? `Request failed (HTTP ${response.status}).`, problem.errors);
+  const problem = (error ?? {}) as { title?: string; detail?: string; sqlState?: string; errors?: Record<string, string[]> };
+  throw new ApiError(response.status, problem.title ?? `Request failed (HTTP ${response.status}).`, problem.errors, problem.detail, problem.sqlState);
 }
 
 /** A section shows no alert of its own for this: the sign-in dialog is the one message. */
@@ -43,6 +53,8 @@ const keys = {
   netWorth: (from: string, to: string) => ['net-worth', from, to] as const,
   sources: (accountId: string) => ['sources', accountId] as const,
   imports: ['imports'] as const,
+  reportSchema: ['report-schema'] as const,
+  savedReports: ['saved-reports'] as const,
 };
 
 export function useAccounts() {
@@ -180,5 +192,73 @@ export function useImportFile() {
       return fail(response, body);
     },
     onSuccess: () => Promise.all([invalidate(), client.invalidateQueries({ queryKey: keys.imports })]),
+  });
+}
+
+// Slice 04 step 5: reports. A run is a mutation, not a query: it must never retry or refetch by itself.
+
+export function useRunReport() {
+  return useMutation({
+    mutationFn: async (sql: string) => {
+      const { data, error, response } = await api.POST('/api/v1/reports/run', { body: { sql } });
+      return data ?? fail(response, error);
+    },
+  });
+}
+
+export function useRunSavedReport(id: string) {
+  return useMutation({
+    mutationFn: async (parameters: Record<string, string>) => {
+      const { data, error, response } = await api.POST('/api/v1/reports/saved/{id}/run', {
+        params: { path: { id } },
+        body: { parameters },
+      });
+      return data ?? fail(response, error);
+    },
+  });
+}
+
+/** Fetched only while the documentation is open, and again each time it opens: it is live. */
+export function useReportSchema(enabled: boolean) {
+  return useQuery({
+    queryKey: keys.reportSchema,
+    enabled,
+    staleTime: 0,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET('/api/v1/reports/schema');
+      return data ?? fail(response, error);
+    },
+  });
+}
+
+export function useSavedReports() {
+  return useQuery({
+    queryKey: keys.savedReports,
+    queryFn: async () => {
+      const { data, error, response } = await api.GET('/api/v1/reports/saved');
+      return data ?? fail(response, error);
+    },
+  });
+}
+
+export function useSaveReport() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: CreateSavedReport) => {
+      const { data, error, response } = await api.POST('/api/v1/reports/saved', { body });
+      return data ?? fail(response, error);
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.savedReports }),
+  });
+}
+
+export function useDeleteSavedReport() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error, response } = await api.DELETE('/api/v1/reports/saved/{id}', { params: { path: { id } } });
+      if (!response.ok) fail(response, error);
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.savedReports }),
   });
 }
