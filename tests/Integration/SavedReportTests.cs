@@ -244,7 +244,7 @@ public class SavedReportTests(ReportingFixture pg) : IClassFixture<ReportingFixt
 
         var b = await browser.PostAsJsonAsync($"/api/v1/reports/saved/{saved}/run", new { parameters = new { } }, Ct);
         Assert.Equal(HttpStatusCode.TooManyRequests, b.StatusCode);
-        Assert.Equal([pid], await ReportApi.ActivePidsAsync(pg));
+        Assert.Equal([pid], await ReportApi.ReportingPidsAsync(pg));
 
         Assert.Equal("deadline", (await ReportApi.JsonAsync(await a)).GetProperty("cutOffBy").GetString());
         await ReportApi.WaitUntilGoneAsync(pg, pid);

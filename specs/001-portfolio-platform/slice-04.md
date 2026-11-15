@@ -794,6 +794,12 @@ Each step merges green, as slices 01–03 did.
    >     restarted (Docker marks it `OOMKilled`). The run answered the fixed `503` after 5.6 s. The
    >     first two requests afterwards, one on each login, answered `200`. The check script passed
    >     again in full.
+   > - **A flaky slot test, fixed.** Step 3's one-run-at-a-time test failed on CI twice (here, and on
+   >   Dependabot's #112). It waited for "an active reporting backend", which could catch the
+   >   runner's own prelude; between two statements that backend is idle in transaction, so the
+   >   next check found none. It now waits for the backend running the test's `pg_sleep`, and counts
+   >   every reporting backend in any state. Its "refused" case sleeps 3 s under a 5 s deadline.
+   >   Removing the gate still turns all four slot tests red.
    > - **Gates:** `G4-2` raised: the `ReferenceExpression` strings work in the published compose
    >   file, under two deploys. `G4-1`, `aspire run` twice keeping both passwords, **is still by
    >   hand and not run**.

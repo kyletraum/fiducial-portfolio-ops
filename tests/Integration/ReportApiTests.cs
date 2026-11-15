@@ -58,12 +58,23 @@ static partial class ReportApi
         await SuperuserAsync<bool>(pg, $"SELECT EXISTS (SELECT FROM pg_stat_activity WHERE pid = {pid})");
 
     /// <summary>The one reporting backend running a statement, once it is.</summary>
+    /// <remarks>
+    /// The one running the test's <c>pg_sleep</c>, not merely an active one: "active" alone also
+    /// caught the runner's own prelude, and a backend between two statements is idle in
+    /// transaction, so the next check saw none (flaky on CI, 2026-11-15).
+    /// </remarks>
     public static async Task<int> WaitForActiveAsync(PostgresFixture pg)
     {
         var pid = 0;
-        await WaitUntilAsync(async () => (await ActivePidsAsync(pg)) is [var one] && (pid = one) > 0, TimeSpan.FromSeconds(15), "a reporting backend to be active");
+        await WaitUntilAsync(async () => (await SuperuserAsync<int[]>(pg,
+            "SELECT coalesce(array_agg(pid), '{}') FROM pg_stat_activity WHERE usename = 'portfolio_reporting' AND state = 'active' AND query LIKE '%pg_sleep(%'"))
+            is [var one] && (pid = one) > 0, TimeSpan.FromSeconds(15), "a reporting backend to be running the test's sleep");
         return pid;
     }
+
+    /// <summary>Every backend on the reporting login, in any state: a second run that never connected adds none.</summary>
+    public static async Task<int[]> ReportingPidsAsync(PostgresFixture pg) =>
+        await SuperuserAsync<int[]>(pg, "SELECT coalesce(array_agg(pid), '{}') FROM pg_stat_activity WHERE usename = 'portfolio_reporting'");
 
     public static Task WaitUntilGoneAsync(PostgresFixture pg, int pid) =>
         WaitUntilAsync(async () => !await BackendExistsAsync(pg, pid), TimeSpan.FromSeconds(5), $"backend {pid} to end");
@@ -305,16 +316,16 @@ public class ReportApiTests(ReportingFixture pg) : IClassFixture<ReportingFixtur
     [InlineData("refused")]
     public async Task A_second_run_gets_429_while_one_runs_and_the_slot_comes_back_however_it_ends(string ending)
     {
-        await using var gated = ReportApi.Create(pg, null, ("Reporting:Deadline", "00:00:03"));
+        await using var gated = ReportApi.Create(pg, null, ("Reporting:Deadline", "00:00:05"));
         var browser = gated.CreateSignedInClient();
         using var abort = CancellationTokenSource.CreateLinkedTokenSource(Ct);
-        var a = ReportApi.RunAsync(browser, ending == "refused" ? "SELECT 1 / (count(*) - count(*)) FROM (SELECT pg_sleep(1.5)) s" : "SELECT pg_sleep(600)", abort.Token);
+        var a = ReportApi.RunAsync(browser, ending == "refused" ? "SELECT 1 / (count(*) - count(*)) FROM (SELECT pg_sleep(3)) s" : "SELECT pg_sleep(600)", abort.Token);
         var pid = await ReportApi.WaitForActiveAsync(pg);
 
         var b = await ReportApi.RunAsync(browser, "SELECT 1");
         Assert.Equal(HttpStatusCode.TooManyRequests, b.StatusCode);
         Assert.Equal("A report is already running.", (await ReportApi.JsonAsync(b)).GetProperty("title").GetString());
-        Assert.Equal([pid], await ReportApi.ActivePidsAsync(pg));
+        Assert.Equal([pid], await ReportApi.ReportingPidsAsync(pg));
         Assert.Equal(HttpStatusCode.OK, (await browser.GetAsync("/api/v1/reports/schema", Ct)).StatusCode);
 
         switch (ending)
