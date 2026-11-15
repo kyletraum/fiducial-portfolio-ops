@@ -749,6 +749,61 @@ Each step merges green, as slices 01–03 did.
      under 256 MB, with the API recovering. Recorded with date, commit and machine (`D13`).
    - **The README runbook** covers three logins, their passwords and recovery (`SCO-8`).
 
+   > **BUILT 2026-11-15.**
+   > - **In CI:** `AppModelTests` (3 cases) now run in the .NET job, filtered to that one E2E
+   >   class, which starts nothing. They check that the Api's two connection strings are on their
+   >   own passwords, and that the `postgres` password reaches it by no route. **`G4-5` raised** by
+   >   this PR's first CI run.
+   > - **One query, two runners** (`R2-TST-11`). The snapshot's query moved out of
+   >   `CatalogSnapshot.cs` into `tests/Integration/catalog-snapshot.sql`. The login is the custom
+   >   setting `snapshot.login`, so Npgsql (`set_config`) and `psql` (`SET`) run the same file.
+   >   Every snapshot test and plant passes on it unchanged.
+   > - **The README runbook** (`SCO-8`) covers the three logins and their passwords, the Migrator
+   >   repairing both app logins on every run, recovery from `28P01`, a backup that must bring the
+   >   logins back first, and the accepted crash.
+   > - **Slice 03's volume was gone** when step 6 began. `aspire-compose-075c33a6_portfolio-dev-pgdata`
+   >   and `…_keys` no longer existed; only the deploy state did. **Kyle ruled, 2026-11-15:** recreate
+   >   it from slice 03. Slice 03's last commit (`e9275e6`) was deployed from this same folder, since
+   >   the compose project's name is a hash of the AppHost's path. `PublishedStackTests` then
+   >   enrolled the owner and added an account, a balance and the chart through the page. Before the
+   >   upgrade, the volume had 5 migrations and no `portfolio_*` login.
+   > - **The published run** [`EXECUTED 2026-11-15`, of the tree this commit records (the images were
+   >   built from it), Windows 11 (10.0.26300), Docker Desktop 29.9.3, Aspire CLI 13.6.4]. Two
+   >   `aspire deploy` runs over that volume, each followed by the same check script, which prints
+   >   verdicts and hash prefixes only:
+   >   - **The upgrade:** migrations 6 and 7 applied, both logins created, and the slice 03 rows
+   >     kept (1 account, 1 balance, 1 user);
+   >   - **both snapshots equal `ExpectedPrivileges`** (50 and 26 lines), by the shared file through
+   >     `psql` in the container. **Seen failing** by hand: `GRANT SELECT ON public.audit_event` to
+   >     the reporting login was flagged as exactly that line, and redeploy #2 removed it unasked;
+   >   - **each password parameter's `sha256` unchanged across both deploys**, in the deploy state
+   >     and the `.env` alike: `api-db-password` `0508880435f9a50b…`, `reporting-db-password`
+   >     `e0ba73334a80243e…`, `postgres-password` and `setup-code` as before. No value was printed;
+   >   - **no password** in the Migrator's, the API's or PostgreSQL's log;
+   >   - **the API signed in and working after each deploy**, on the session saved before the
+   >     first. That shows the login took the value the API holds. The API holds connections only
+   >     as `portfolio_api`;
+   >   - **refusals hold in the container:** a report over `public.account` and one calling
+   >     `lo_from_bytea` both answered `422` `42501`, and a report over `v_account` answered `200`;
+   >   - **the runbook's recovery, run as written:** with `portfolio_api`'s password set to NULL
+   >     and the API restarted, requests answered `500` (`28P01` in its log).
+   >     `up -d --force-recreate migrator api` brought it back to `200`;
+   >   - **the memory-induced crash** (`S4-1`): a report building one string of about 300 MB, under
+   >     the 256 MB limit. The kernel killed its backend ("terminated by signal 9: Killed"), and
+   >     PostgreSQL reinitialised and was taking connections again 0.4 s later. The container was not
+   >     restarted (Docker marks it `OOMKilled`). The run answered the fixed `503` after 5.6 s. The
+   >     first two requests afterwards, one on each login, answered `200`. The check script passed
+   >     again in full.
+   > - **A flaky slot test, fixed.** Step 3's one-run-at-a-time test failed on CI twice (here, and on
+   >   Dependabot's #112). It waited for "an active reporting backend", which could catch the
+   >   runner's own prelude; between two statements that backend is idle in transaction, so the
+   >   next check found none. It now waits for the backend running the test's `pg_sleep`, and counts
+   >   every reporting backend in any state. Its "refused" case sleeps 3 s under a 5 s deadline.
+   >   Removing the gate still turns all four slot tests red.
+   > - **Gates:** `G4-2` raised: the `ReferenceExpression` strings work in the published compose
+   >   file, under two deploys. `G4-1`, `aspire run` twice keeping both passwords, **is still by
+   >   hand and not run**.
+
 ---
 
 ## Definition of done
@@ -807,10 +862,10 @@ Each item names the test that shows it and how that test was seen failing.
 | Id | Claim | Raised by |
 |---|---|---|
 | G4-1 | `aspire run` twice keeps both passwords (`persist: true`) | Step 1a, by hand |
-| G4-2 | The `ReferenceExpression` connection string works in this repo's AppHost under `aspire run` and in the published compose file | Steps 1b and 6, by hand |
+| G4-2 | ~~The `ReferenceExpression` connection string works in this repo's AppHost under `aspire run` and in the published compose file~~ **Raised** (steps 1b and 6, `EXECUTED`): under `aspire run` by the E2E, and in the published compose file over two deploys | — |
 | G4-3 | ~~Cancel-then-dispose also holds on the batch path and for multi-row results (TST's GT-D)~~ **Raised** (step 3, `EXECUTED`): the target-list series is cut at 10,000 rows in under 2 s, and takes 3.2 s without the cancel | — |
 | G4-4 | ~~A single 200 MB cell does not reach the API's memory whole under the byte cap~~ **Answered** (`R2-TST-6`, `EXECUTED`): only with `SequentialAccess`, which part 4 now requires. Its test is step 3's memory test | — |
-| G4-5 | The app-model test runs on CI's ubuntu runner (TST's GT-A) | Step 6's first CI run |
+| G4-5 | ~~The app-model test runs on CI's ubuntu runner (TST's GT-A)~~ **Raised** (step 6, `EXECUTED`): the .NET job's App model step | — |
 | G4-6 | ~~EF's retrying strategy recovers the API after PostgreSQL crash-restarts~~ **Raised** (step 3, `EXECUTED`): after a SIGKILL crash-restart with the pool warm, the first request answers 200; with the retry disabled, 500 | — |
 
 TST's round-1 gate GT-B (`DROP ROLE` in a migration's `Down`) is **moot**: the roles come
