@@ -116,6 +116,14 @@ later; they are simply not the number the gate reads.
 | **Total at the gate** | | **0** | **13.6** | Agent h as logged, the agent's own estimates; the assessment (section 2) compares them with SCO's ~12 |
 <!-- Slice 04 rows above. Total at its gate, 2026-11-15. -->
 
+### Quickstart (a draft commission, not commissioned)
+
+| Date | Step | Kyle h | Agent h | What actually happened |
+|---|---|---|---|---|
+| 2026-11-15 | 0 · commission draft | — | 1.0 | Kyle asked for a draft and an inventory of a reusable kit, nothing extracted. `specs/002-quickstart/inventory.md`: 50 pieces by first-add commit (7 general, 7 optional, 11 finance, 25 entangled), the pins, six inconsistencies found at `b48b7ac` and not fixed, the framework workarounds. `commission.md`: a DRAFT in slice 04's form, delivery and drift options with none chosen, OPEN-1..14 for Kyle, the gate's override limb left blank. Template-repo and `dotnet new` claims are INFERRED and gated. Agent hours estimated |
+
+<!-- Quickstart rows above. Not a slice: no total until it is commissioned and gated. -->
+
 <!--
 UNITS NOTE -- RAISED 2026-09-18, RULED 2026-09-20. The 200-hour abandon
 threshold assumes Kyle-evenings. Agent rows are wall-clock of an agent session
