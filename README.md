@@ -73,8 +73,10 @@ enters before this slice is built: Kyle's ruling of 2026-10-18, recorded in
 over invented balances. That means a `reporting` schema of documented views, queries and
 saved reports run on a login that can read only those views, and the API moved to its own
 login that cannot remove the audit trigger. Export is deferred. The commission is
-[`slice-04.md`](specs/001-portfolio-platform/slice-04.md), a first draft awaiting its
-design review.
+[`slice-04.md`](specs/001-portfolio-platform/slice-04.md). **It is built (2026-11-15), and
+its gate is decided (2026-11-15): STOP.** See
+[`slice-04-assessment.md`](specs/001-portfolio-platform/slice-04-assessment.md). Anything
+further, a fifth slice or the first real balance, needs its own commission.
 
 ## Running it
 

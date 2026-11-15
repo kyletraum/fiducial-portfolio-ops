@@ -1,7 +1,12 @@
 # Slice 04 — the assessment
 
-**Status: OPEN — §5 and §6 are Kyle's.** Written 2026-11-15 against `main` at `4a00cb6`
-(PR #114 merged).
+**Status: DECIDED, 2026-11-15 (Kyle): STOP.** Written 2026-11-15 against `main` at `4a00cb6`
+(PR #114 merged); Kyle's sections 5 and 6 recorded the same day. **All nine** candidate
+techniques are ticked (§5), against a limb that needs three. The limb permits overriding the
+default; it does not require it, and Kyle chose the default. The four overlaps were left
+unannotated; with every box ticked, they are recorded as judged new. No technique of Kyle's
+own was added. **The spec ends here.** A fifth slice, or the first real balance, needs its own
+commission, written and dated in this repository.
 
 **Who wrote which part.** Sections 1–4 and 7 are facts, assembled by the agent session that
 did the build. Each can be checked against a commit, a test run or `LOG.md`, and none carries
@@ -223,12 +228,12 @@ merely present in the repository does not satisfy this limb.**
 
 Tick the ones that are genuinely yours; strike the rest. **Fewer than three means STOP.**
 
-- [ ] **Ownership against use.** A login that uses tables and owns none of them, nor a schema or
+- [x] **Ownership against use.** A login that uses tables and owns none of them, nor a schema or
       the database. `PUBLIC`'s defaults are revoked by name. Proved by a snapshot of
       **effective** privileges, with plants that each flag exactly their line. The commission's
       first technique.
       `3bc6d44`, `60b7104`.
-- [ ] **Bounding an untrusted query from outside it.**
+- [x] **Bounding an untrusted query from outside it.**
       - a read-only transaction with a snapshot taken first;
       - one statement, refused by the server rather than parsed;
       - a fresh session, and a `ROLLBACK` shown by `NOTIFY`;
@@ -237,34 +242,34 @@ Tick the ones that are genuinely yours; strike the rest. **Fewer than three mean
 
       The commission's second technique.
       `92d9579`.
-- [ ] **Barrier views, proved by a leaky function and an unbarriered control.** A view reads
+- [x] **Barrier views, proved by a leaky function and an unbarriered control.** A view reads
       with its owner's rights, and `security_barrier` keeps a cheap function from seeing what
       the view filters out.
       `0812e8c`.
-- [ ] **A refusal identified by the layer that refused it.** Each probe asserts its SQLSTATE, so
+- [x] **A refusal identified by the layer that refused it.** Each probe asserts its SQLSTATE, so
       a misspelt name (`42P01`) cannot pass, and the code says whether a privilege, the
       read-only transaction or the one statement held.
       `0812e8c`, `92d9579`.
-- [ ] **Memory bounded by streaming, shown by an allocation delta.** `SequentialAccess` and
+- [x] **Memory bounded by streaming, shown by an allocation delta.** `SequentialAccess` and
       chunked readers, with every cell counted against its budget and a non-text cell checked
       by its wire length first. Measured with `GC.GetTotalAllocatedBytes` in a non-parallel
       collection: 343 KB, against 128 MB.
       `92d9579`.
-- [ ] **A crash-restart as a deterministic test.** A `SIGKILL` of the run's backend, the path an
+- [x] **A crash-restart as a deterministic test.** A `SIGKILL` of the run's backend, the path an
       out-of-memory kill takes, with the API's pool warm and EF's retry seen to be what recovers
       it. Plus the test database's own durability settings, which made a committed row
       disappear.
       `92d9579`, `4a00cb6`.
-- [ ] **Asking the server instead of parsing.**
+- [x] **Asking the server instead of parsing.**
       - parameters bound positionally, and the binding probed with values the grant allows;
       - a saved statement described and prepared by PostgreSQL, never parsed by the app.
 
       `d59b717`.
-- [ ] **A schema documented by the database itself.** `COMMENT`s on every view and column, read
+- [x] **A schema documented by the database itself.** `COMMENT`s on every view and column, read
       live by a route and shown on the page. A comment changed at test time appears; a nulled
       one is named. The commission's "plausible third".
       `0812e8c`, `92d9579`, `90abed8`.
-- [ ] **An upgrade in place, verified by hashes and never values.** A recreated old volume, two
+- [x] **An upgrade in place, verified by hashes and never values.** A recreated old volume, two
       deploys, one check script run by hand and in CI alike, and a planted grant that the next
       deploy removed unasked.
       `4a00cb6`.
@@ -289,7 +294,7 @@ Kyle's own, if different: ________________________________________________
 `slice-04.md`: *"Explicitly NOT reasons to continue: that the slice works, and that the next
 slice is obvious."*
 
-- [ ] **STOP.** The default.
+- [x] **STOP.** The default.
 - [ ] **A fifth slice**, which requires **its own commission, written and dated in this
       repository**. If chosen: which technique is it for?
       ________________________________________________
