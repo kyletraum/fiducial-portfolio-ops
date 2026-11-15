@@ -57,6 +57,12 @@ jobs:
       - name: Integration
         run: dotnet test --project tests/Integration --no-build
 
+      # Slice 04 step 6 (C4-14, G4-5): the one E2E class that starts nothing. It reads the app
+      # model the test builder produces: no named volume, the setup code's generator, and the
+      # Api's two connection strings on their own passwords, never the superuser's.
+      - name: App model
+        run: dotnet test --project tests/E2E --no-build -- --filter-class Portfolio.E2E.AppModelTests
+
   # slice-02.md DoD 10: the dates rule must hold away from UTC. Every other job, container and
   # dev machine runs in UTC or one US zone, so a test that only passes there proves nothing about
   # 23:30 in Chicago. TZ is honoured by .NET on Linux (not on Windows - which is why this is CI).

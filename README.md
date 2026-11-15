@@ -168,6 +168,36 @@ cannot enrol anyone, but enrol before you redeploy. **Never use `aspire deploy -
 on a stack with data.** It regenerates every parameter, the database password among them, and
 the existing volume only accepts the password it was created with.
 
+**Database logins (slice 04).** The database has three logins, each holding only what it
+uses:
+
+| Login | Used by | Its password, in `aspire-output/.env.<Environment>` |
+|---|---|---|
+| `postgres` | the Migrator only. It owns every table, view and function | `POSTGRES_PASSWORD` |
+| `portfolio_api` | the API and the two host commands. It owns nothing, and holds the grants `DatabaseLogins.cs` lists | `API_DB_PASSWORD` |
+| `portfolio_reporting` | the report runner. It reads the `reporting` views and nothing else | `REPORTING_DB_PASSWORD` |
+
+- **The Migrator makes and repairs both app logins on every run**, whether or not a
+  migration is pending. It creates them if missing, resets their attributes and grants,
+  and sets both passwords from the `.env` file. So a deploy over an older volume adds the
+  logins, and a changed password takes effect on the Migrator's next run.
+- **The two app passwords are generated once and kept** in the deployment state, as
+  `postgres`'s is. Every `aspire deploy` writes the same values.
+- **If the API cannot connect** (its log says `28P01`, password authentication failed),
+  run the Migrator again, then restart the API. The Migrator sets each password to the
+  value in the `.env` file:
+
+  ```sh
+  docker compose -p <project> -f aspire-output/docker-compose.yaml --env-file aspire-output/.env.<Environment> up -d --force-recreate migrator api
+  ```
+
+- **A backup must bring the logins back before the data.** A database dump carries no
+  logins. There is no backup command yet; when one is written, its restore runs the
+  Migrator first.
+- **One report can still crash-restart PostgreSQL** by exhausting its memory. This is
+  accepted for one local user. Committed data survives, and the API recovers on its next
+  request.
+
 **Logs** are in `docker logs <api container>`. They are kept by Docker's `local` log driver
 (about 100 MB per container), and are lost when the container is recreated. The request lines
 that would carry a URL's query string are switched off in code, so a secret pasted into a URL
