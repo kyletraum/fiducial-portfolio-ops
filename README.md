@@ -78,6 +78,12 @@ its gate is decided (2026-11-15): STOP.** See
 [`slice-04-assessment.md`](specs/001-portfolio-platform/slice-04-assessment.md). Anything
 further, a fifth slice or the first real balance, needs its own commission.
 
+**Slice 05 is commissioned (2026-11-16):** backup and restore, over invented balances. One
+command writes an encrypted file holding the database and the key ring; another restores it
+into an empty stack, logins first, and a test in CI is the restore drill. The commission is
+[`slice-05.md`](specs/001-portfolio-platform/slice-05.md), a first draft awaiting its design
+review.
+
 ## Running it
 
 Needs the .NET 10 SDK, Docker, Node 24, and the Aspire CLI (`dotnet tool install -g Aspire.Cli`).
