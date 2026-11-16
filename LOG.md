@@ -115,6 +115,8 @@ later; they are simply not the number the gate reads.
 | 2026-11-15 | gate · decision | — | 0.1 | Kyle's §5 and §6 recorded: all nine techniques ticked, STOP. Assessment status DECIDED, README status updated. Agent hours estimated |
 | **Total at the gate** | | **0** | **13.6** | Agent h as logged, the agent's own estimates; the assessment (section 2) compares them with SCO's ~12 |
 <!-- Slice 04 rows above. Total at its gate, 2026-11-15. -->
+| 2026-11-16 | 0 · commission | — | 0.5 | Kyle reopened after slice 04's STOP: backup and restore (slice 03 D5), also for the template. Four rulings from options: on demand only; the database and the key ring; encrypted with a passphrase; logical pg_dump. slice-05.md first draft: backup and restore commands, the ordered restore (logins, data, the routine, key ring, check), the drill with eight mutations, five INFERRED gates for spike O. The postgres:18.3 image has pg_dump, gpg, openssl and tar, not age (EXECUTED). Awaiting its design review. Agent hours estimated |
+<!-- Slice 05 rows above. Total at its gate. -->
 
 <!--
 UNITS NOTE -- RAISED 2026-09-18, RULED 2026-09-20. The 200-hour abandon
