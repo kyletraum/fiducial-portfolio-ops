@@ -15,7 +15,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.15" />
     <!-- Slice 03 step 5: the traces DoD 7 scans for secrets (G-22). The version ServiceDefaults pins. -->
     <PackageReference Include="OpenTelemetry.Exporter.InMemory" Version="1.21.0" />
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.16.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.17.0" />
     <PackageReference Include="xunit.v3" Version="4.0.3" />
   </ItemGroup>
 
